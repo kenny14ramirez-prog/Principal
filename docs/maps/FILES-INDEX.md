@@ -107,7 +107,7 @@
 | 177 | `app/infra/CrozzoConnectivityUx.js` |
 | 964 | `app/infra/CrozzoConnectivityVisibilityProbe.js` |
 | 242 | `app/infra/CrozzoDeviceMind.js` |
-| 429 | `app/infra/CrozzoDeviceReport.js` |
+| 430 | `app/infra/CrozzoDeviceReport.js` |
 | 128 | `app/infra/CrozzoDevTap.js` |
 | 225 | `app/infra/CrozzoDigitalPayConduit.js` |
 | 280 | `app/infra/CrozzoEasyConnect.js` |

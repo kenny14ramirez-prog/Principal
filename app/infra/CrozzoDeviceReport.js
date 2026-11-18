@@ -380,6 +380,7 @@
   // Expose API (inmediatamente, no al final)
   G.CrozzoDeviceReport = {
     log: log,
+    getLogs: function () { return logs.slice(); },
     getSummary: getSummary,
     buildTextReport: buildTextReport,
     downloadReport: downloadReport,
