@@ -1290,6 +1290,36 @@ body.crozzo-premium .crozzo-tour-step {
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
 
+/* Detalles finales — sensación de dedicación */
+body.crozzo-premium ::selection { background: rgba(var(--cz-gold-rgb), 0.25); color: var(--text-primary, #1c1c1c); }
+body.crozzo-premium { scroll-behavior: smooth; }
+body.crozzo-premium ::-webkit-scrollbar { width: 10px; height: 10px; }
+body.crozzo-premium ::-webkit-scrollbar-track { background: rgba(var(--cz-gold-rgb), 0.06); }
+body.crozzo-premium ::-webkit-scrollbar-thumb { background: rgba(var(--cz-gold-rgb), 0.35); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+body.crozzo-premium ::-webkit-scrollbar-thumb:hover { background: rgba(var(--cz-gold-rgb), 0.55); background-clip: content-box; }
+body.crozzo-premium .crozzo-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(var(--cz-gold-rgb), 0.2); border-top-color: var(--cz-gold, #b59a6d);
+  animation: crozzo-spin 0.8s linear infinite;
+}
+@keyframes crozzo-spin { to { transform: rotate(360deg); } }
+body.crozzo-premium .crozzo-tooltip {
+  position: relative;
+}
+body.crozzo-premium .crozzo-tooltip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; white-space: nowrap;
+  background: #1c1c1c; color: #faf9f7; opacity: 0; pointer-events: none;
+  transition: opacity 160ms ease; z-index: 10;
+}
+body.crozzo-premium .crozzo-tooltip:hover::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-premium { scroll-behavior: auto; }
+  body.crozzo-premium .crozzo-spinner { animation: none; }
+  body.crozzo-premium .crozzo-tooltip::after { transition: none; }
+}
+
 body.crozzo-premium .crozzo-mayordomo__item {
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
@@ -1380,6 +1410,36 @@ body.crozzo-premium .crozzo-tour-step {
   margin: 0 0 8px; font-size: 0.9rem; color: var(--text-secondary, #4a4a4a); line-height: 1.5;
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
+
+/* Detalles finales — sensación de dedicación */
+body.crozzo-premium ::selection { background: rgba(var(--cz-gold-rgb), 0.25); color: var(--text-primary, #1c1c1c); }
+body.crozzo-premium { scroll-behavior: smooth; }
+body.crozzo-premium ::-webkit-scrollbar { width: 10px; height: 10px; }
+body.crozzo-premium ::-webkit-scrollbar-track { background: rgba(var(--cz-gold-rgb), 0.06); }
+body.crozzo-premium ::-webkit-scrollbar-thumb { background: rgba(var(--cz-gold-rgb), 0.35); border-radius: 999px; border: 2px solid transparent; background-clip: content-box; }
+body.crozzo-premium ::-webkit-scrollbar-thumb:hover { background: rgba(var(--cz-gold-rgb), 0.55); background-clip: content-box; }
+body.crozzo-premium .crozzo-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(var(--cz-gold-rgb), 0.2); border-top-color: var(--cz-gold, #b59a6d);
+  animation: crozzo-spin 0.8s linear infinite;
+}
+@keyframes crozzo-spin { to { transform: rotate(360deg); } }
+body.crozzo-premium .crozzo-tooltip {
+  position: relative;
+}
+body.crozzo-premium .crozzo-tooltip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; white-space: nowrap;
+  background: #1c1c1c; color: #faf9f7; opacity: 0; pointer-events: none;
+  transition: opacity 160ms ease; z-index: 10;
+}
+body.crozzo-premium .crozzo-tooltip:hover::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-premium { scroll-behavior: auto; }
+  body.crozzo-premium .crozzo-spinner { animation: none; }
+  body.crozzo-premium .crozzo-tooltip::after { transition: none; }
+}
 
 body.crozzo-premium .crozzo-mayordomo__item {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
