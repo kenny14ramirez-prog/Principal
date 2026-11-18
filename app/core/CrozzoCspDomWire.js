@@ -24,9 +24,7 @@
       (s.charAt(0) === '{' && s.charAt(s.length - 1) === '}') ||
       (s.charAt(0) === '[' && s.charAt(s.length - 1) === ']')
     ) {
-      try {
-        return JSON.parse(s);
-      } catch (_) {}
+      try { return JSON.parse(s); } catch (_) {}
     }
     if ((s.charAt(0) === '"' && s.charAt(s.length - 1) === '"') || (s.charAt(0) === "'" && s.charAt(s.length - 1) === "'")) {
       return s.slice(1, -1);
@@ -119,9 +117,7 @@
     if (!callM) return;
     var fn = resolveFn(callM[1]);
     if (!fn) {
-      try {
-        console.warn('[crozzo-csp] función no disponible:', callM[1]);
-      } catch (_) {}
+      try { console.warn('[crozzo-csp] función no disponible:', callM[1]); } catch (_) {}
       return;
     }
     var argsStr = String(callM[2] || '').trim();
@@ -164,19 +160,34 @@
   function wireInlineAttr(el, spec) {
     if (!el || el.nodeType !== 1) return;
     var flag = 'data-crozzo-wired-' + spec.evt;
-    if (el.hasAttribute(flag)) return;
     var code = el.getAttribute(spec.attr);
-    if (!code) return;
-    el.removeAttribute(spec.attr);
-    el.setAttribute(flag, '1');
-    el.addEventListener(
-      spec.evt,
-      function (e) {
-        if (spec.evt === 'submit') e.preventDefault();
-        runInlineHandler(code, el, e);
-      },
-      false
-    );
+    if (code) {
+      el.removeAttribute(spec.attr);
+      el.setAttribute(flag, '1');
+      el.setAttribute('data-crozzo-wired-code-' + spec.evt, code);
+      if (!el._crozzoWiredHandler) el._crozzoWiredHandler = {};
+      if (!el._crozzoWiredHandler[spec.evt]) {
+        var handler = function (e) {
+          if (spec.evt === 'submit') e.preventDefault();
+          runInlineHandler(code, el, e);
+        };
+        el._crozzoWiredHandler[spec.evt] = handler;
+        el.addEventListener(spec.evt, handler, false);
+      }
+    } else if (el.hasAttribute(flag)) {
+      // Re-render: recuperar código guardado
+      code = el.getAttribute('data-crozzo-wired-code-' + spec.evt);
+      if (!code) return;
+      if (!el._crozzoWiredHandler) el._crozzoWiredHandler = {};
+      if (!el._crozzoWiredHandler[spec.evt]) {
+        var handler2 = function (e) {
+          if (spec.evt === 'submit') e.preventDefault();
+          runInlineHandler(code, el, e);
+        };
+        el._crozzoWiredHandler[spec.evt] = handler2;
+        el.addEventListener(spec.evt, handler2, false);
+      }
+    }
   }
 
   function wireElement(el) {
@@ -203,15 +214,9 @@
       if (actEl.disabled) return;
       e.preventDefault();
       if (!crozzoInvokeDomAct(actEl.getAttribute('data-crozzo-act'), actEl, e)) {
-        try {
-          console.warn('[crozzo-csp] acción no disponible:', actEl.getAttribute('data-crozzo-act'));
-        } catch (_) {}
+        try { console.warn('[crozzo-csp] acción no disponible:', actEl.getAttribute('data-crozzo-act')); } catch (_) {}
       }
       return;
-    }
-    var backdrop = e.target && e.target.closest ? e.target.closest('[data-crozzo-backdrop]') : null;
-    if (backdrop && e.target === backdrop) {
-      crozzoInvokeDomAct(backdrop.getAttribute('data-crozzo-backdrop'), backdrop, e);
     }
   }
 
@@ -255,6 +260,32 @@
     document.addEventListener('click', onClick, false);
     document.addEventListener('submit', onSubmit, false);
     document.addEventListener('keydown', onKeydown, false);
+    // Listener delegado para chips de categoria de la caja
+    function cajaCategoryClickHandler(e) {
+      var chip = e.target && e.target.closest ? e.target.closest('.category-chip') : null;
+      if (!chip || chip.disabled) return;
+      var text = (chip.textContent || '').trim();
+      var catMap = { 'Todos': 'todas', 'Bebidas': 'bebidas', 'Platos': 'platos-fuertes', 'Entradas': 'entradas', 'Postres': 'postres' };
+      var cat = catMap[text];
+      if (cat && typeof window.setProductCategory === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.setProductCategory(cat);
+        // Forzar re-render si no se actualizó
+        if (typeof window.renderPage === 'function') {
+          window.renderPage('cajero');
+        }
+      }
+    }
+    // Registrar solo cuando setProductCategory esté disponible
+    function registerCajaHandler() {
+      if (typeof window.setProductCategory === 'function') {
+        document.addEventListener('click', cajaCategoryClickHandler, true);
+      } else {
+        setTimeout(registerCajaHandler, 200);
+      }
+    }
+    registerCajaHandler();
     wireTree(document.documentElement);
     if (typeof MutationObserver === 'function' && document.documentElement) {
       _obs = new MutationObserver(function (mutations) {

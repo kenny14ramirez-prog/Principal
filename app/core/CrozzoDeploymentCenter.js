@@ -148,7 +148,15 @@
     var content = document.getElementById('dc-content');
     if (!content) return;
     if (_face === 'deploy') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderDeployFace());
-    else if (_face === 'solver') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderSolverFace());
+    else if (_face === 'solver') {
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderSolverFace());
+      content.querySelectorAll('[data-dc-fn]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var fn = b.getAttribute('data-dc-fn');
+          if (/^_dc[A-Za-z]+$/.test(fn) && typeof global[fn] === 'function') global[fn]();
+        });
+      });
+    }
     else if (_face === 'diagnostic') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderDiagnosticFace());
   }
 
@@ -407,6 +415,10 @@
     }
   };
 
+  global._dcQueSigue = function () {
+    if (global.CrozzoCompanion && typeof global.CrozzoCompanion.queSigue === 'function') global.CrozzoCompanion.queSigue();
+  };
+
   // ── Verificar impresoras del sistema (nativo Tauri) ──────────────
   global._dcCheckPrinters = function () {
     var el = document.getElementById('dc-printer-status');
@@ -482,32 +494,33 @@
   function renderSolverFace() {
     var html = '<h3 style="margin:0 0 12px;"> Solucionador de Problemas</h3>';
     html += '<p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Detecta y soluciona problemas de hardware y conexión.</p>';
+    html += '<button data-dc-fn="_dcQueSigue" style="margin-bottom:12px;padding:6px 12px;border:none;border-radius:4px;background:#7a6342;color:#fff;cursor:pointer;font-size:0.8rem;">Ver qué sigue</button>';
 
     // Diagnóstico de impresoras
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
       '<strong style="font-size:0.9rem;"> Impresoras</strong><br>' +
-      '<button onclick="window._dcCheckPrinters()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar impresoras</button>' +
+      '<button data-dc-fn="_dcCheckPrinters" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar impresoras</button>' +
       '<div id="dc-printer-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Diagnóstico de conexión
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
       '<strong style="font-size:0.9rem;"> Conexión</strong><br>' +
-      '<button onclick="window._dcCheckConnection()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar conexión</button>' +
+      '<button data-dc-fn="_dcCheckConnection" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar conexión</button>' +
       '<div id="dc-conn-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Diagnóstico de base de datos
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
       '<strong style="font-size:0.9rem;"> Base de datos</strong><br>' +
-      '<button onclick="window._dcCheckDatabase()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar base de datos</button>' +
+      '<button data-dc-fn="_dcCheckDatabase" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar base de datos</button>' +
       '<div id="dc-db-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Auto-reparación
     html += '<div style="margin-top:12px;padding:12px;background:#fff3cd;border-radius:8px;">' +
       '<strong style="font-size:0.9rem;"> Auto-reparación</strong><br>' +
-      '<button onclick="window._dcAutoRepair()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#e67e22;color:#fff;cursor:pointer;font-size:0.8rem;">Ejecutar auto-reparación</button>' +
+      '<button data-dc-fn="_dcAutoRepair" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#e67e22;color:#fff;cursor:pointer;font-size:0.8rem;">Ejecutar auto-reparación</button>' +
       '<div id="dc-repair-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 

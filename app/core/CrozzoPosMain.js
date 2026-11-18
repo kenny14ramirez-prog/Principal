@@ -16264,7 +16264,8 @@ function crozzoUpdatePremiumIdentity(page) {
   if (greetEl) {
     var first = crozzoPremiumFirstName(u && u.nombre);
     if (first) {
-      greetEl.textContent = crozzoPremiumGreeting() + ', ' + first;
+      greetEl.textContent = (window.CrozzoCompanion && window.CrozzoCompanion.greeting(first)) || (crozzoPremiumGreeting() + ', ' + first);
+      greetEl.title = (window.CrozzoCompanion && window.CrozzoCompanion.memoriaTooltip()) || '';
       greetEl.hidden = false;
     } else {
       greetEl.textContent = '';
@@ -25245,6 +25246,30 @@ function setProductCategory(categoryId) {
   productCategoryOpen = true;
   renderPage('cajero');
 }
+// Listener delegado para chips de categoria (fix CSP re-render)
+document.addEventListener('click', function (e) {
+  var chip = e.target && e.target.closest ? e.target.closest('.category-chip') : null;
+  if (!chip || chip.disabled) return;
+  var text = (chip.textContent || '').trim();
+  var catMap = { 'Todos': 'todas', 'Bebidas': 'bebidas', 'Platos': 'platos-fuertes', 'Entradas': 'entradas', 'Postres': 'postres' };
+  var cat = catMap[text];
+  if (cat) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Actualizar el chip activo manualmente
+    document.querySelectorAll('.category-chip').forEach(function (c) {
+      c.classList.remove('active');
+    });
+    chip.classList.add('active');
+    // Actualizar la variable
+    selectedProductCategory = cat;
+    productCategoryOpen = true;
+    // Re-renderizar
+    if (typeof renderPage === 'function') {
+      renderPage('cajero');
+    }
+  }
+}, true);
 function getCommercialCategoryList() {
   var map = {};
   (products || []).forEach(function (p) {
@@ -26286,19 +26311,19 @@ function renderCajero() {
   const catChips =
     '<button type="button" class="category-chip ' +
     (selectedProductCategory === 'todas' ? 'active' : '') +
-    '" onclick="setProductCategory(\'todas\')">Todos</button>' +
+    '" data-crozzo-act="setProductCategory" data-crozzo-args="todas">Todos</button>' +
     '<button type="button" class="category-chip ' +
     (selectedProductCategory === 'bebidas' ? 'active' : '') +
-    '" onclick="setProductCategory(\'bebidas\')">Bebidas</button>' +
+    '" data-crozzo-act="setProductCategory" data-crozzo-args="bebidas">Bebidas</button>' +
     '<button type="button" class="category-chip ' +
     (selectedProductCategory === 'platos-fuertes' ? 'active' : '') +
-    '" onclick="setProductCategory(\'platos-fuertes\')">Platos</button>' +
+    '" data-crozzo-act="setProductCategory" data-crozzo-args="platos-fuertes">Platos</button>' +
     '<button type="button" class="category-chip ' +
     (selectedProductCategory === 'entradas' ? 'active' : '') +
-    '" onclick="setProductCategory(\'entradas\')">Entradas</button>' +
+    '" data-crozzo-act="setProductCategory" data-crozzo-args="entradas">Entradas</button>' +
     '<button type="button" class="category-chip ' +
     (selectedProductCategory === 'postres' ? 'active' : '') +
-    '" onclick="setProductCategory(\'postres\')">Postres</button>';
+    '" data-crozzo-act="setProductCategory" data-crozzo-args="postres">Postres</button>';
   return (
     '<div class="crozzo-rest-pos crozzo-rest-pos--order crozzo-rest-pos--aire">' +
     (function () {

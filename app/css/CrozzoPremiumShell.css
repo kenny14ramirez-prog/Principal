@@ -1019,6 +1019,259 @@ body.crozzo-premium #crozzoConnBanner {
   letter-spacing: 0.02em;
 }
 
+/* Overlays ocultos con [hidden] no deben renderizarse aunque la clase fije display */
+body.crozzo-premium .login-overlay[hidden],
+body.crozzo-premium .modal-overlay[hidden],
+body.crozzo-premium [role="dialog"][hidden] { display: none !important; }
+
+/* Encabezado: títulos completos y estado de conexión sin alarma roja ni salto de línea */
+body.crozzo-premium .crozzo-header__primary { min-width: 280px; }
+body.crozzo-premium .crozzo-header__titles { min-width: 200px; flex: 1 1 260px; margin-right: 18px; }
+body.crozzo-premium #pageTitle { white-space: nowrap; overflow: visible; text-overflow: clip; max-width: 100%; }
+body.crozzo-premium #crozzoConnIndicator { color: var(--text-secondary, #4a4a4a) !important; white-space: nowrap; }
+
+/* ===========================================================================
+ * 22. MATERIALES BONA — el lujo está en el acabado, no solo en el color.
+ * Mismos tokens de marca; cambia la luz (reflejo), el filo (borde), la
+ * sombra cálida y la textura que el ojo lee como oro, carbón o esmalte.
+ * =========================================================================== */
+
+/* Tarjetas de módulo: superficie crema con filo de oro y reflejo superior */
+body.crozzo-premium .crozzo-ventas-card {
+  position: relative;
+  background-image:
+    repeating-linear-gradient(115deg, rgba(28, 28, 28, 0.012) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #ffffff 0%, #fbf9f5 100%) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(var(--cz-gold-rgb), 0.12),
+    0 1px 2px rgba(28, 28, 28, 0.04),
+    0 22px 40px -26px rgba(122, 99, 66, 0.34) !important;
+}
+body.crozzo-premium .crozzo-ventas-card::before {
+  content: ""; position: absolute; left: 18px; right: 18px; top: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--cz-gold-rgb), 0.85), transparent);
+  pointer-events: none;
+}
+
+/* Pastilla de salud: marco de oro con filo de luz; el punto conserva el estado */
+body.crozzo-premium .cz-health {
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(122, 99, 66, 0.12) !important;
+}
+
+/* Botón de módulo: oro en hoja con reflejo y sombra cálida, no tinte plano */
+body.crozzo-premium .crozzo-ventas-card__cta {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(135deg, var(--cz-gold-light) 0%, var(--cz-gold) 55%, var(--cz-gold-dark) 100%) !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  border: 1px solid rgba(122, 99, 66, 0.35) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(122, 99, 66, 0.35),
+    0 6px 14px -8px rgba(122, 99, 66, 0.55) !important;
+}
+
+body.crozzo-premium .crozzo-ventas-card__cta > *:not(.crozzo-ventas-card__cta-lbl):not(svg):not(i) {
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  border-radius: 6px; padding: 0 6px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Etiquetas y pills: pátina de oro con reflejo, filo nítido */
+body.crozzo-premium .badge,
+body.crozzo-premium .pill,
+body.crozzo-premium .chip,
+body.crozzo-premium .tag {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 60%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(122, 99, 66, 0.12) !important;
+}
+
+/* Rojo de alerta como esmalte: mismo token, con reflejo y sombra profunda */
+body.crozzo-premium .crozzo-notif-badge {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 55%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 2px var(--bg-primary, #faf9f7), 0 2px 6px rgba(28, 28, 28, 0.28) !important;
+}
+
+/* ===========================================================================
+ * 23. CARBÓN DE MANDO — menú Super Admin: peso, control y filo de oro.
+ * Carbón de marca (#1C1C1C) con reflejo y sombra profunda; crema para leer.
+ * =========================================================================== */
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child {
+  background-color: #1c1c1c !important;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(#1c1c1c, #1c1c1c) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.32) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 40px 80px -30px rgba(0, 0, 0, 0.6) !important;
+  color: var(--bg-primary, #faf9f7) !important;
+}
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child h1,
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child h2,
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child h3 {
+  color: var(--bg-primary, #faf9f7) !important;
+}
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child p,
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child span {
+  color: rgba(250, 249, 247, 0.72) !important;
+}
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child button {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 60%) !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  color: var(--bg-primary, #faf9f7) !important;
+}
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child button:hover {
+  border-color: rgba(var(--cz-gold-rgb), 0.6) !important;
+}
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child button span,
+body.crozzo-premium #crozzoSuperAdminMenu > div:first-child button p {
+  color: inherit !important;
+}
+
+/* ===========================================================================
+ * 24. ASISTENTE PERSONAL — panel de preferencias del saludo (CrozzoCompanion)
+ * =========================================================================== */
+body.crozzo-premium .crozzo-companion-overlay {
+  position: fixed; inset: 0; z-index: 10080;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(28, 28, 28, 0.42);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+body.crozzo-premium .crozzo-companion-card {
+  width: 100%; max-width: 440px; padding: 30px 30px 24px; border-radius: 18px;
+  background-color: var(--bg-card, #ffffff);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 40%);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 40px 80px -30px rgba(28, 28, 28, 0.45);
+}
+body.crozzo-premium .crozzo-companion-card h2 {
+  margin: 0 0 4px; font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.9rem; font-weight: 500; color: var(--text-primary, #1c1c1c);
+}
+body.crozzo-premium .crozzo-companion-sub {
+  margin: 0 0 14px; font-size: 0.86rem; color: var(--text-muted, #7a756c); line-height: 1.5;
+}
+body.crozzo-premium .crozzo-companion-preview {
+  margin: 0 0 18px; padding: 14px 16px; border-radius: 12px;
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.15rem; color: var(--text-primary, #1c1c1c);
+  background: rgba(var(--cz-gold-rgb), 0.08);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.22);
+}
+body.crozzo-premium .crozzo-companion-field {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;
+}
+body.crozzo-premium .crozzo-companion-field > span {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted, #7a756c);
+}
+body.crozzo-premium .crozzo-companion-field input[type="text"],
+body.crozzo-premium .crozzo-companion-field select {
+  padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 0.92rem;
+  background: #fbf9f5; color: var(--text-primary, #1c1c1c);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+body.crozzo-premium .crozzo-companion-toggle {
+  display: flex; align-items: center; gap: 10px; margin: 4px 0 18px;
+  font-size: 0.9rem; color: var(--text-secondary, #4a4a4a); cursor: pointer;
+}
+body.crozzo-premium .crozzo-companion-toggle input { accent-color: var(--cz-gold, #b59a6d); }
+body.crozzo-premium .crozzo-companion-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Mayordomo: sugerencias discretas dentro del inicio */
+body.crozzo-premium .crozzo-mayordomo {
+  margin: 0 0 16px; padding: 16px 18px; border-radius: 16px;
+  background-color: var(--bg-card, #ffffff);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 45%);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 14px 30px -22px rgba(122, 99, 66, 0.4);
+}
+body.crozzo-premium .crozzo-mayordomo__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;
+}
+body.crozzo-premium .crozzo-mayordomo__head h3 {
+  margin: 0; font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.2rem; font-weight: 500; color: var(--text-primary, #1c1c1c);
+}
+body.crozzo-premium .crozzo-mayordomo__close {
+  background: none; border: none; padding: 4px 6px; cursor: pointer;
+  font-size: 0.78rem; color: var(--text-muted, #7a756c); text-decoration: underline; text-underline-offset: 3px;
+}
+body.crozzo-premium .crozzo-mayordomo__list { display: flex; flex-wrap: wrap; gap: 10px; }
+body.crozzo-premium .crozzo-mayordomo__item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 14px; border-radius: 12px; cursor: pointer; text-align: left;
+  background-color: #fbf9f5;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 60%);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  font: inherit; color: var(--text-primary, #1c1c1c);
+}
+body.crozzo-premium .crozzo-mayordomo__item strong { font-size: 0.92rem; font-weight: 600; }
+body.crozzo-premium .crozzo-mayordomo__item span { font-size: 0.76rem; color: var(--text-muted, #7a756c); }
+body.crozzo-premium .crozzo-mayordomo__item:hover { border-color: rgba(var(--cz-gold-rgb), 0.65); }
+
+/* ===========================================================================
+ * 25. SOLUCIONADOR DE MANDO — panel de diagnóstico con acabado de carbón y oro.
+ * Solo presentación: los onclick y el contenido no cambian.
+ * =========================================================================== */
+body.crozzo-premium #dc-content h3 {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif) !important;
+  font-size: 1.75rem !important; font-weight: 500 !important;
+  color: var(--text-primary, #1c1c1c) !important; letter-spacing: 0.01em;
+}
+body.crozzo-premium #dc-content > p,
+body.crozzo-premium #dc-content p[style*="666"] {
+  color: var(--text-muted, #7a756c) !important; font-size: 0.86rem !important; line-height: 1.55;
+}
+body.crozzo-premium #dc-content div[style*="f8f9fa"],
+body.crozzo-premium #dc-content div[style*="fff3cd"] {
+  background-color: #ffffff !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 50%) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.28) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 14px 30px -22px rgba(122, 99, 66, 0.4) !important;
+}
+body.crozzo-premium #dc-content div[style*="f8f9fa"] strong,
+body.crozzo-premium #dc-content div[style*="fff3cd"] strong {
+  font-family: var(--bona-font, "DM Sans", system-ui, sans-serif) !important;
+  font-size: 0.95rem !important; font-weight: 600 !important; color: var(--text-primary, #1c1c1c) !important;
+  letter-spacing: 0.01em;
+}
+body.crozzo-premium #dc-content button {
+  font-family: var(--bona-font, "DM Sans", system-ui, sans-serif) !important;
+  font-size: 0.82rem !important; font-weight: 600 !important; letter-spacing: 0.02em;
+  padding: 8px 15px !important; border-radius: 10px !important; cursor: pointer;
+  background-color: #1c1c1c !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 55%) !important;
+  color: var(--bg-primary, #faf9f7) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.55) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 14px -8px rgba(28, 28, 28, 0.5) !important;
+}
+body.crozzo-premium #dc-content button:hover {
+  border-color: rgba(var(--cz-gold-rgb), 0.95) !important;
+}
+body.crozzo-premium #dc-content button[data-dc-fn="_dcQueSigue"] {
+  background-color: var(--cz-gold, #b59a6d) !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(135deg, var(--cz-gold-light, #d4bc94) 0%, var(--cz-gold, #b59a6d) 55%, var(--cz-gold-dark, #7a6342) 100%) !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  border-color: rgba(122, 99, 66, 0.4) !important;
+}
+body.crozzo-premium #dc-content div[style*="fff3cd"] button[data-dc-fn="_dcAutoRepair"] {
+  background-color: var(--cz-gold-dark, #7a6342) !important;
+  color: #faf9f7 !important;
+}
+
+/* Toasts: fuera del encabezado, abajo a la derecha */
+body.crozzo-premium .toast-container { top: auto; bottom: 24px; right: 24px; }
+
 /* Toasts: borde lateral dorado, sin rojos chillones */
 body.crozzo-premium .toast {
   background: var(--cz-surface) !important;
@@ -1131,7 +1384,7 @@ body.crozzo-premium .crozzo-toolbar-btn--notifications { position: relative; }
 body.crozzo-premium .crozzo-notif-badge {
   position: absolute; top: 2px; right: 2px;
   min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 8px; background: #dc2626; color: #fff;
+  border-radius: 8px; background: var(--danger, #d32f2f); color: #fff;
   font-size: 0.62rem; font-weight: 700; line-height: 16px;
   text-align: center; box-shadow: 0 0 0 2px var(--bg-primary, #faf9f7);
 }
@@ -1168,7 +1421,7 @@ body.crozzo-premium .crozzo-notif-item:last-child { border-bottom: 0; }
 body.crozzo-premium .crozzo-notif-item__icon { flex: 0 0 auto; width: 18px; text-align: center; color: var(--cz-gold-dark); font-weight: 700; }
 body.crozzo-premium .crozzo-notif-item__msg { flex: 1 1 auto; color: var(--text-primary, #1c1c1c); line-height: 1.4; }
 body.crozzo-premium .crozzo-notif-item__time { flex: 0 0 auto; color: var(--text-muted, #7a756c); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
-body.crozzo-premium .crozzo-notif-item--error .crozzo-notif-item__icon { color: #dc2626; }
+body.crozzo-premium .crozzo-notif-item--error .crozzo-notif-item__icon { color: var(--danger, #d32f2f); }
 body.crozzo-premium .crozzo-notif-item--warning .crozzo-notif-item__icon { color: #ca8a04; }
 body.crozzo-premium .crozzo-notif-item--success .crozzo-notif-item__icon { color: #16a34a; }
 

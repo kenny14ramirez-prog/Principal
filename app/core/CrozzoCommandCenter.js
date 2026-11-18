@@ -196,6 +196,19 @@
     });
 
     out.push({
+      id: 'action:companion',
+      group: 'Acciones',
+      glyph: '',
+      label: 'Personalizar asistente',
+      hint: 'Saludo',
+      keywords: 'asistente saludo tratamiento tu usted region personalizar nombre',
+      run: function () {
+        if (global.CrozzoCompanion && typeof global.CrozzoCompanion.openPrefs === 'function') global.CrozzoCompanion.openPrefs();
+        else toast('Asistente no disponible', 'warning');
+      },
+    });
+
+    out.push({
       id: 'action:reload',
       group: 'Acciones',
       glyph: '⟳',

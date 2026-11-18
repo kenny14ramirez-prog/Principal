@@ -127,6 +127,9 @@
     var orig = global.showToast;
     var visibleCount = 0;
     global.showToast = function (message, type) {
+      if (type === 'error' && global.CrozzoCompanion && typeof global.CrozzoCompanion.acompanarError === 'function') {
+        message = global.CrozzoCompanion.acompanarError(message);
+      }
       push(message, type);
       // Limit visible toasts
       var container = document.getElementById('toastContainer');

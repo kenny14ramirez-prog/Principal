@@ -1108,6 +1108,18 @@ function crozzoSyncFacturasPeriodChips() {
     btn.classList.toggle('is-active', Number(btn.getAttribute('data-facturas-period')) === Number(facturasFilterPeriodDays));
   });
 }
+if (!window.__crozzoFacturasChipDelegation) {
+  window.__crozzoFacturasChipDelegation = true;
+  document.addEventListener('click', function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest('.crozzo-invoice-filter-chip') : null;
+    if (!chip || chip.hasAttribute('onclick')) return;
+    if (chip.hasAttribute('data-facturas-period')) {
+      setFacturasPeriod(Number(chip.getAttribute('data-facturas-period')));
+    } else if (chip.hasAttribute('data-facturas-filter')) {
+      setFacturasFilter(chip.getAttribute('data-facturas-filter'));
+    }
+  });
+}
 function buildFacturasFilterChipHtml(id, label) {
   var active = facturasFilterEstado === id ? ' is-active' : '';
   return (
