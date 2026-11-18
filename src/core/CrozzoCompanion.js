@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'crozzo_companion_prefs_v1';
-  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false };
+  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false, focusMode: false, celebraciones: true };
   var PAGINA_INICIO = 'inicio-operacion';
   var HORA_CIERRE = 15;
   var HITOS = [3, 10, 25];
@@ -212,6 +212,27 @@
     lblPausa.appendChild(lblPausaTxt);
     card.appendChild(lblPausa);
 
+    var inFocus = doc.createElement('input');
+    inFocus.type = 'checkbox';
+    inFocus.checked = p.focusMode === true;
+    var lblFocus = doc.createElement('label');
+    lblFocus.className = 'crozzo-companion-toggle';
+    lblFocus.appendChild(inFocus);
+    var lblFocusTxt = doc.createElement('span');
+    lblFocusTxt.textContent = 'Modo enfoque (oculta distracciones)';
+    lblFocus.appendChild(lblFocusTxt);
+    card.appendChild(lblFocus);
+
+    var inCel = doc.createElement('input');
+    inCel.type = 'checkbox';
+    inCel.checked = p.celebraciones !== false;
+    var lblCel = doc.createElement('label');
+    lblCel.className = 'crozzo-companion-toggle';
+    lblCel.appendChild(inCel);
+    var lblCelTxt = doc.createElement('span');
+    lblCelTxt.textContent = 'Celebraciones por hitos';
+    lblCel.appendChild(lblCelTxt);
+    card.appendChild(lblCel);
     function leer() {
       return {
         enabled: inOn.checked,
@@ -220,7 +241,9 @@
         region: inRegion.value,
         ritmo: inRitmo.value,
         mayordomo: inMay.checked,
-        pausa: inPausa.checked
+        pausa: inPausa.checked,
+        focusMode: inFocus.checked,
+        celebraciones: inCel.checked
       };
     }
     function actualizarVista() {
@@ -266,6 +289,7 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) cerrar(); });
     btnSave.addEventListener('click', function () {
       save(Object.assign({}, leer(), { onboardingDone: true }));
+      applyFocusMode();
       refrescarSaludo();
       renderMayordomo();
       renderBienvenida();
@@ -314,6 +338,7 @@
     try { global.localStorage.setItem(clave, String(alcanzado)); } catch (e) { /* sin almacenamiento */ }
     var usted = load().tratamiento === 'usted';
     avisar((usted ? 'Lleva ' : 'Llevas ') + alcanzado + ' cierres seguidos sin diferencias. Excelente trabajo.', 'success');
+    celebrar();
   }
 
   function inicioSesion(u) {
@@ -541,7 +566,21 @@
     renderBienvenida();
   }
 
+  function applyFocusMode() {
+    var p = load();
+    if (global.document && global.document.body) {
+      global.document.body.classList.toggle('crozzo-focus-mode', !!p.enabled && p.focusMode === true);
+    }
+  }
+  function celebrar() {
+    var p = load();
+    if (!p.enabled || p.celebraciones === false) return;
+    if (!global.document || !global.document.body) return;
+    global.document.body.classList.add('crozzo-celebrate');
+    global.setTimeout(function () { global.document.body.classList.remove('crozzo-celebrate'); }, 1800);
+  }
   function iniciarTodo() {
+    applyFocusMode();
     iniciarMayordomo();
     iniciarAcompanamiento();
     var p = load();
@@ -569,6 +608,8 @@
     openPrefs: openPrefs,
     renderMayordomo: renderMayordomo,
     renderBienvenida: renderBienvenida,
+    applyFocusMode: applyFocusMode,
+    celebrar: celebrar,
     revisarLogros: revisarLogros,
     revisarPausa: revisarPausa
   };
