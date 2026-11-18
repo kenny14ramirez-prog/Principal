@@ -1,28 +1,16 @@
 {
-  "id": "1.0.303-critical",
-  "version": "v1.0.303",
-  "semver": "1.0.303",
+  "id": "1.0.304-critical",
+  "version": "v1.0.304",
+  "semver": "1.0.304",
   "type": "critical",
-  "message": "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta",
-  "publishedAt": "2026-11-18T00:35:25.326Z",
+  "message": "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix",
+  "publishedAt": "2026-11-18T00:44:18.749Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta"
+    "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix"
   ],
-  "updatedAt": "2026-11-18T00:35:25.326Z",
+  "updatedAt": "2026-11-18T00:44:18.749Z",
   "entries": [
-    {
-      "id": "1.0.279-critical",
-      "version": "v1.0.279",
-      "semver": "1.0.279",
-      "type": "critical",
-      "message": "Prueba de actualización automática v1.0.279 (post-fix phantom)",
-      "publishedAt": "2026-11-09T14:38:50.511Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba de actualización automática v1.0.279 (post-fix phantom)"
-      ]
-    },
     {
       "id": "1.0.280-critical",
       "version": "v1.0.280",
@@ -324,6 +312,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta"
+      ]
+    },
+    {
+      "id": "1.0.304-critical",
+      "version": "v1.0.304",
+      "semver": "1.0.304",
+      "type": "critical",
+      "message": "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix",
+      "publishedAt": "2026-11-18T00:44:18.749Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix"
       ]
     }
   ]
