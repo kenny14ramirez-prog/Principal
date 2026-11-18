@@ -9,7 +9,10 @@
   "presets": {
     "smoke": { "agents": ["cajero"], "duration": "short" },
     "8dias": { "agents": ["cajero", "mesero"], "duration": "medium" },
-    "mensual": { "agents": ["cajero", "mesero", "cocina"], "duration": "long" }
+    "mensual": { "agents": ["cajero", "mesero", "cocina"], "duration": "long" },
+    "anual": { "agents": ["cajero", "mesero", "cocina"], "duration": "year" },
+    "bienal": { "agents": ["cajero", "mesero", "cocina"], "duration": "two-years" },
+    "trienal": { "agents": ["cajero", "mesero", "cocina"], "duration": "three-years" }
   },
   "army": {
     "registry": "agents/registry.json",
