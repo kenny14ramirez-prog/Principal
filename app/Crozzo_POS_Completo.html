@@ -484,7 +484,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               </li>
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" data-crozzo-act="crozzoDeviceReportOpenFromMenu">
-                  <span class="icon" aria-hidden="true">📋</span>
+                  <span class="icon" aria-hidden="true"><i data-lucide="clipboard-list" aria-hidden="true"></i></span>
                   <span>Reporte de conexión</span>
                 </button>
               </li>
@@ -599,7 +599,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <div class="wizard-shell" id="wizardShell">
     <header class="wizard-shell-header">
       <div>
-        <h2 id="wizardTitle">🔧 Asistente de configuración</h2>
+        <h2 id="wizardTitle"><i data-lucide="wrench" aria-hidden="true"></i> Asistente de configuración</h2>
         <p id="wizardSubtitle">Configura este dispositivo paso a paso</p>
       </div>
       <button type="button" class="wizard-close" aria-label="Cerrar asistente" data-crozzo-act="wizardClose">✕</button>
@@ -639,7 +639,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <div class="crozzo-brand-slot" id="crozzoBrandLoginTenant" title="Marca del negocio">
           <img class="crozzo-brand-img" id="crozzoLoginImgTenant" alt="" width="56" height="56" hidden>
           <div class="crozzo-brand-fallback" id="crozzoLoginFbTenant">
-            <span class="crozzo-brand-emoji" aria-hidden="true">🏪</span>
+            <span class="crozzo-brand-emoji" aria-hidden="true"><i data-lucide="store" aria-hidden="true"></i></span>
             <span class="crozzo-brand-txt" id="crozzoLoginTenantTxt"></span>
           </div>
         </div>
@@ -665,18 +665,18 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
       <p id="loginBaitHint" class="login-bait-hint" hidden role="status"></p>
       <div class="login-error" id="loginError" hidden></div>
-      <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">🔐 Iniciar sesión</button>
+      <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;"><i data-lucide="lock" aria-hidden="true"></i> Iniciar sesión</button>
       <p class="login-hint" id="loginBootStatus" style="margin:6px 0 0;text-align:center;font-size:11px;opacity:0.85;" hidden></p>
       <pre id="loginJsFault" class="login-js-fault" hidden role="alert"></pre>
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
     <div class="login-post-actions" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;">📱 Emparejar tablet con el sistema</button>
-      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;">🖥️ Modo pantallas (cocina, bar y fríos)</button>
-      <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;">📱 QR — Descargar app actualizada</button>
+      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;"><i data-lucide="smartphone" aria-hidden="true"></i> Emparejar tablet con el sistema</button>
+      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;"><i data-lucide="monitor" aria-hidden="true"></i>️ Modo pantallas (cocina, bar y fríos)</button>
+      <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;"><i data-lucide="smartphone" aria-hidden="true"></i> QR — Descargar app actualizada</button>
       <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Escanee el QR con otra tablet · no requiere Supabase</p>
-      <button type="button" class="btn btn-outline" id="loginDevToolsBtn" style="width:100%; margin-top:6px; min-height:36px; font-size:11px;">🛠 Consola técnica (F12)</button>
+      <button type="button" class="btn btn-outline" id="loginDevToolsBtn" style="width:100%; margin-top:6px; min-height:36px; font-size:11px;"><i data-lucide="wrench" aria-hidden="true"></i> Consola técnica (F12)</button>
     </div>
   </div>
 </div>
@@ -747,14 +747,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <label class="form-label" for="crozzoHpAssistPass">Clave de liberación</label>
         <input class="form-input" id="crozzoHpAssistPass" type="password" autocomplete="off" placeholder="Clave legendaria de desbloqueo" required>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;">🔓 Desactivar bloqueo de seguridad</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;"><i data-lucide="unlock" aria-hidden="true"></i> Desactivar bloqueo de seguridad</button>
       <p id="crozzoHpContainmentErr" class="login-error" hidden style="margin-top:10px;"></p>
     </form>
   </div>
 </div>
 
 <div id="crozzoKioskBar" class="crozzo-kiosk-bar" hidden role="region" aria-label="Modo kiosko">
-  <span id="crozzoKioskBarLabel">📺 Modo pantallas — solo comandas</span>
+  <span id="crozzoKioskBarLabel"><i data-lucide="tv" aria-hidden="true"></i> Modo pantallas — solo comandas</span>
   <button type="button" class="btn btn-outline" style="min-height:36px;padding:6px 12px;border-color:#475569;color:#e2e8f0;" data-crozzo-act="crozzoKioskPromptExit">Salir</button>
 </div>
 <div id="crozzoCorkFocusBar" class="crozzo-cork-focus-bar" hidden role="region" aria-label="Tablero corcho pantalla completa">
@@ -817,7 +817,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div id="crozzoPairingStepReceiver" class="crozzo-pairing-panel" hidden>
       <p id="crozzoPairingReceiverTitle" class="form-hint" style="font-weight:600; margin-top:0;"></p>
       <p id="crozzoPairingReceiverBiz" class="form-hint crozzo-pairing-meta-line" hidden></p>
-      <p class="form-hint">Código QR cifrado (solo legible por BONA origen). Otros lectores abren «Instalar BONA origen». Válido <strong>24 h</strong>. Prioridad: ☁️ nube → 📡 LAN → 💾 offline.</p>
+      <p class="form-hint">Código QR cifrado (solo legible por BONA origen). Otros lectores abren «Instalar BONA origen». Válido <strong>24 h</strong>. Prioridad: ☁️ nube → <i data-lucide="radio" aria-hidden="true"></i> LAN → <i data-lucide="save" aria-hidden="true"></i> offline.</p>
       <div id="crozzoPairingReceiverWarn" class="login-error" hidden style="margin-top:8px;"></div>
       <div class="crozzo-pairing-qr-frame">
         <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
@@ -838,9 +838,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <p class="crozzo-pairing-scan-zone__label" id="crozzoPairingScanLabel">Vista previa de la foto</p>
       </div>
       <div class="btn-group crozzo-pairing-reader-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
-        <button type="button" class="btn btn-primary" id="crozzoPairingBtnNativeScan" style="flex:1; min-width:200px; min-height:48px;" data-crozzo-act="crozzoPairingScanNative">📷 Escanear QR (cámara nativa)</button>
-        <label for="crozzoPairingCaptureInput" class="btn btn-outline crozzo-pairing-camera-label" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px; margin:0; cursor:pointer; text-align:center;">📷 Tomar foto del QR</label>
-        <label for="crozzoPairingGalleryInput" class="btn btn-outline crozzo-pairing-gallery-label" id="crozzoPairingBtnGallery" style="flex:1; min-width:130px; min-height:48px; margin:0; cursor:pointer; text-align:center;">🖼️ Galería</label>
+        <button type="button" class="btn btn-primary" id="crozzoPairingBtnNativeScan" style="flex:1; min-width:200px; min-height:48px;" data-crozzo-act="crozzoPairingScanNative"><i data-lucide="camera" aria-hidden="true"></i> Escanear QR (cámara nativa)</button>
+        <label for="crozzoPairingCaptureInput" class="btn btn-outline crozzo-pairing-camera-label" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px; margin:0; cursor:pointer; text-align:center;"><i data-lucide="camera" aria-hidden="true"></i> Tomar foto del QR</label>
+        <label for="crozzoPairingGalleryInput" class="btn btn-outline crozzo-pairing-gallery-label" id="crozzoPairingBtnGallery" style="flex:1; min-width:130px; min-height:48px; margin:0; cursor:pointer; text-align:center;"><i data-lucide="image" aria-hidden="true"></i>️ Galería</label>
         <button type="button" class="btn btn-outline" id="crozzoPairingBtnLiveScan" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingStartScan">▶ Cámara en vivo</button>
         <button type="button" class="btn btn-outline" style="flex:1; min-width:100px; min-height:44px;" data-crozzo-act="crozzoPairingStopScan">Detener</button>
       </div>
@@ -852,7 +852,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReader" hidden>
-      <button type="button" class="btn btn-secondary" style="width:100%; min-height:40px; margin-bottom:8px;" onclick="if(typeof crozzoDeviceReportShow==='function')crozzoDeviceReportShow();">📋 Reporte de conexión (diagnóstico)</button>
+      <button type="button" class="btn btn-secondary" style="width:100%; min-height:40px; margin-bottom:8px;" onclick="if(typeof crozzoDeviceReportShow==='function')crozzoDeviceReportShow();"><i data-lucide="clipboard-list" aria-hidden="true"></i> Reporte de conexión (diagnóstico)</button>
       <button type="button" class="btn btn-primary" style="width:100%; min-height:48px;" id="crozzoPairingApplyBtn" data-crozzo-act="crozzoPairingApplyFromForm" disabled>Aplicar configuración</button>
       <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px;" data-crozzo-act="crozzoPairingResetBinding">Borrar datos locales manualmente</button>
       <button type="button" class="btn btn-outline crozzo-pairing-reader-back" style="width:100%;" data-crozzo-act="crozzoPairingSelectChoice">Volver</button>
@@ -874,7 +874,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <p class="crozzo-tablet-qr-quick__eyebrow">Enlace seguro · solo BONA origen</p>
     <h3 id="crozzoTabletQrQuickTitle" class="crozzo-tablet-qr-quick__title">QR para tablet mesero</h3>
     <p id="crozzoTabletQrQuickBiz" class="form-hint crozzo-pairing-meta-line" hidden></p>
-    <p class="form-hint crozzo-pairing-meta-line">Código sellado · solo legible por BONA origen · vigencia <strong>24 h</strong> · prioridad <span class="crozzo-pairing-sync-tier">☁️ nube</span> → <span class="crozzo-pairing-sync-tier">📡 LAN</span> → <span class="crozzo-pairing-sync-tier">💾 offline</span></p>
+    <p class="form-hint crozzo-pairing-meta-line">Código sellado · solo legible por BONA origen · vigencia <strong>24 h</strong> · prioridad <span class="crozzo-pairing-sync-tier">☁️ nube</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="radio" aria-hidden="true"></i> LAN</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="save" aria-hidden="true"></i> offline</span></p>
     <div id="crozzoTabletQrQuickWarn" class="crozzo-pairing-alert" hidden></div>
     <div class="crozzo-pairing-qr-frame">
       <div class="crozzo-pairing-qr-host" id="crozzoTabletQrQuickHost"></div>
@@ -904,7 +904,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div class="toast-container" id="toastContainer"></div>
 
 <div id="crozzoPwaInstallBanner" class="crozzo-pwa-banner" hidden role="status">
-  <span>📲 Instalar como aplicación</span>
+  <span><i data-lucide="download" aria-hidden="true"></i> Instalar como aplicación</span>
   <button type="button" class="btn btn-primary" id="crozzoPwaInstallBtn" style="min-height:36px;">Instalar</button>
   <button type="button" class="btn btn-outline" id="crozzoPwaDismissBtn" style="min-height:36px;border-color:rgba(255,255,255,0.45);color:#fff;">Ahora no</button>
 </div>
@@ -1022,7 +1022,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div id="crozzo-update-critical-overlay" class="crozzo-update-critical-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateCriticalTitle" aria-hidden="true">
   <div class="crozzo-update-critical-modal">
-    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">🔒 Crítica</span>
+    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true"><i data-lucide="lock" aria-hidden="true"></i> Crítica</span>
     <h2 id="crozzoUpdateCriticalTitle">Descargando actualización crítica</h2>
     <p id="crozzoUpdateCriticalLead">Se descarga automáticamente. Al reiniciar BONA origen se instalará sola. No se puede posponer.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
@@ -1095,7 +1095,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div class="user-password-overlay" id="crozzoForcePasswordOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="forcePasswordTitle">
   <div class="user-password-dialog">
-    <h2 id="forcePasswordTitle">🔐 Cambio de contraseña obligatorio</h2>
+    <h2 id="forcePasswordTitle"><i data-lucide="lock" aria-hidden="true"></i> Cambio de contraseña obligatorio</h2>
     <p class="form-hint" id="forcePasswordSubtitle" style="margin:0 0 12px;"></p>
     <div class="form-group">
       <label class="form-label" for="forcePasswordNew">Nueva contraseña</label>
