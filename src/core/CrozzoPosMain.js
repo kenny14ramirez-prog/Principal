@@ -6391,11 +6391,12 @@ function getUsuariosConfig() {
   crozzoMigrateMeseroStaffSinComandas();
   const base = config.get('usuarios') || { staff: [] };
   const deletedSet = crozzoGetDeletedStaffIdSet();
-  const rawStaff = (base.staff || []).filter(u => !deletedSet.has(crozzoNormStaffId(u.id)));
+  const rawStaff = (base.staff || []).filter(u => u && !deletedSet.has(crozzoNormStaffId(u.id)));
   if (rawStaff.length !== (base.staff || []).length) {
     config.set('usuarios', { ...base, staff: rawStaff });
   }
   const normalized = rawStaff.map((u, idx) => {
+    if (!u) return null;
     const rolUsuario = u.rol || 'staff';
     const cd = u.configDispositivo || {};
     let merged = { caja: [], comandas: [], admin: [], inventario: [], productos: [], ...(u.permisos || {}) };
@@ -6430,7 +6431,7 @@ function getUsuariosConfig() {
       row.requiereClaveInicial = true;
     }
     return row;
-  });
+  }).filter(function (u) { return u !== null; });
   if (crozzoStaffListNeedsPersist(rawStaff, normalized)) {
     config.set('usuarios', { ...base, staff: normalized });
   }
@@ -44922,7 +44923,7 @@ function crozzoInitStaffEditModalTabs() {
 }
 window.crozzoInitStaffEditModalTabs = crozzoInitStaffEditModalTabs;
 function renderConfigUsuarios() {
-  const usuarios = (getUsuariosConfig().staff || []).filter(u => u.rol !== 'superadmin' && u.id !== 'KENNY');
+  const usuarios = (getUsuariosConfig().staff || []).filter(u => u && u.rol !== 'superadmin' && u.id !== 'KENNY');
   const curUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   const totalActivos = usuarios.filter(u => u.activo).length;
   const roleCounts = {};
