@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "generals": [
+    { "id": "g-arch", "name": "Ingeniero Senior de Arquitectura" },
+    { "id": "g-data", "name": "Ingeniero Senior de Datos/Sync" },
+    { "id": "g-sec", "name": "Ingeniero Senior de Seguridad/Fiscal" },
+    { "id": "g-internal", "name": "Jefe de Asuntos Internos" }
+  ],
+  "squads": [
+    { "id": "sq-core", "name": "Core" },
+    { "id": "sq-sync", "name": "Sync" },
+    { "id": "sq-fiscal", "name": "Fiscal" },
+    { "id": "sq-ui", "name": "UI/UX" },
+    { "id": "sq-qa", "name": "QA" },
+    { "id": "sq-infra", "name": "Infra" },
+    { "id": "sq-print", "name": "Impresión" },
+    { "id": "sq-inventory", "name": "Inventario" },
+    { "id": "sq-devices", "name": "Dispositivos" },
+    { "id": "sq-obs", "name": "Observabilidad" }
+  ],
+  "agents": [
+    { "id": "a1" }, { "id": "a2" }, { "id": "a3" }, { "id": "a4" }, { "id": "a5" },
+    { "id": "a6" }, { "id": "a7" }, { "id": "a8" }, { "id": "a9" }, { "id": "a10" },
+    { "id": "a11" }, { "id": "a12" }, { "id": "a13" }, { "id": "a14" }, { "id": "a15" },
+    { "id": "a16" }, { "id": "a17" }, { "id": "a18" }, { "id": "a19" }, { "id": "a20" },
+    { "id": "a21" }, { "id": "a22" }, { "id": "a23" }, { "id": "a24" }, { "id": "a25" },
+    { "id": "a26" }, { "id": "a27" }, { "id": "a28" }, { "id": "a29" }, { "id": "a30" },
+    { "id": "a31" }, { "id": "a32" }, { "id": "a33" }, { "id": "a34" }, { "id": "a35" },
+    { "id": "a36" }, { "id": "a37" }, { "id": "a38" }, { "id": "a39" }, { "id": "a40" }
+  ],
+  "protocols": {
+    "sync": "SYNC-INVARIANTS",
+    "issues": "KNOWN-ISSUES",
+    "maps": "map:refresh",
+    "qa": "test:operativo-oro"
+  }
+}

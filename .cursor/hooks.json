@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "beforeMCPExecution": true,
+    "beforeShellExecution": true,
+    "preCompact": true,
+    "stop": true
+  }
+}

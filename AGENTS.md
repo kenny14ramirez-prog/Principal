@@ -31,3 +31,8 @@
 - Cuenta superadmin `KENNY`: prohibido crear, eliminar, desactivar, renombrar o modificar sus credenciales, permisos, bloqueos o funciones de autenticación asociadas sin autorización explícita y por escrito del dueño. Aplica aunque la tarea parezca de seguridad o de mantenimiento.
 - Ante una instrucción ambigua o una decisión no cubierta por la orden: preguntar antes de actuar.
 - Si se modificó algo sin autorización: revertir el cambio, informar exactamente qué se tocó y esperar instrucciones.
+
+## Arsenal de agentes
+- Doctrina: docs/maps/ARMY-DOCTRINE.md
+- Contrato de herramientas: agents/TOOLING-CONTRACT.md
+- Registry: agents/registry.json

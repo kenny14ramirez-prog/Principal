@@ -1,0 +1,2 @@
+import { spawn } from 'node:child_process';
+spawn('C:/proyectos/sistema pos/synapse/synapse/venv/Scripts/python.exe', ['C:/proyectos/sistema pos/scripts/synapse-mind.py'], { stdio: 'inherit', env: { ...process.env, PYTHONPATH: 'C:/proyectos/sistema pos/synapse', MEMORY_DB_PATH: 'C:/proyectos/sistema pos/synapse/memory.db' } });

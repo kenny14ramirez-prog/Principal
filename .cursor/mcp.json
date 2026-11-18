@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "synapse_memory": {
+      "command": "C:/proyectos/sistema pos/synapse/synapse/venv/Scripts/python.exe",
+      "args": ["C:/proyectos/sistema pos/scripts/synapse-mind.py"],
+      "env": {
+        "PYTHONPATH": "C:/proyectos/sistema pos/synapse",
+        "MEMORY_DB_PATH": "C:/proyectos/sistema pos/synapse/memory.db"
+      }
+    },
+    "codebase-memory": {
+      "command": "node",
+      "args": ["C:/proyectos/sistema pos/node_modules/codebase-memory-mcp/bin.js"]
+    },
+    "mcp-code-context": {
+      "command": "node",
+      "args": ["C:/proyectos/sistema pos/node_modules/mcp-code-context/dist/src/index.js"]
+    }
+  }
+}
