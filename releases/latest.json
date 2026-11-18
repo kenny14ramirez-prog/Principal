@@ -1,31 +1,16 @@
 {
-  "id": "1.0.302-critical",
-  "version": "v1.0.302",
-  "semver": "1.0.302",
+  "id": "1.0.303-critical",
+  "version": "v1.0.303",
+  "semver": "1.0.303",
   "type": "critical",
-  "message": "Actualizacion: centro de notificaciones (campana+badge), toasts discretos, demo banner premium, honeypot fix",
-  "publishedAt": "2026-11-17T23:58:27.072Z",
+  "message": "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta",
+  "publishedAt": "2026-11-18T00:35:25.326Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion: centro de notificaciones (campana",
-    "badge), toasts discretos, demo banner premium, honeypot fix"
+    "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta"
   ],
-  "updatedAt": "2026-11-17T23:58:27.072Z",
+  "updatedAt": "2026-11-18T00:35:25.326Z",
   "entries": [
-    {
-      "id": "1.0.278-critical",
-      "version": "v1.0.278",
-      "semver": "1.0.278",
-      "type": "critical",
-      "message": "Fix: phantom state prevention + logging + auto-detect",
-      "publishedAt": "2026-11-09T14:36:55.017Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix: phantom state prevention",
-        "logging",
-        "auto-detect"
-      ]
-    },
     {
       "id": "1.0.279-critical",
       "version": "v1.0.279",
@@ -327,6 +312,18 @@
       "changelog": [
         "Actualizacion: centro de notificaciones (campana",
         "badge), toasts discretos, demo banner premium, honeypot fix"
+      ]
+    },
+    {
+      "id": "1.0.303-critical",
+      "version": "v1.0.303",
+      "semver": "1.0.303",
+      "type": "critical",
+      "message": "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta",
+      "publishedAt": "2026-11-18T00:35:25.326Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta"
       ]
     }
   ]
