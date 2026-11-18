@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-18T01:03:56.776Z",
+  "updatedAt": "2026-11-18T01:12:34.326Z",
   "entries": [
-    {
-      "id": "1.0.282-critical",
-      "version": "v1.0.282",
-      "semver": "1.0.282",
-      "type": "critical",
-      "message": "Prueba final de actualización automática v1.0.282",
-      "publishedAt": "2026-11-09T17:02:41.500Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba final de actualización automática v1.0.282"
-      ]
-    },
     {
       "id": "1.0.283-critical",
       "version": "v1.0.283",
@@ -313,6 +301,18 @@
       "changelog": [
         "Actualizacion: fix solucionador de problemas (onclick",
         "getLogs), fix dc-menu-btn, centro notificaciones, honeypot fix"
+      ]
+    },
+    {
+      "id": "1.0.307-critical",
+      "version": "v1.0.307",
+      "semver": "1.0.307",
+      "type": "critical",
+      "message": "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa",
+      "publishedAt": "2026-11-18T01:12:34.326Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa"
       ]
     }
   ]
