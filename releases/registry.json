@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-18T00:44:18.749Z",
+  "updatedAt": "2026-11-18T00:56:43.551Z",
   "entries": [
-    {
-      "id": "1.0.280-critical",
-      "version": "v1.0.280",
-      "semver": "1.0.280",
-      "type": "critical",
-      "message": "Prueba de actualización automática v1.0.280",
-      "publishedAt": "2026-11-09T15:03:11.743Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba de actualización automática v1.0.280"
-      ]
-    },
     {
       "id": "1.0.281-critical",
       "version": "v1.0.281",
@@ -314,6 +302,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix"
+      ]
+    },
+    {
+      "id": "1.0.305-critical",
+      "version": "v1.0.305",
+      "semver": "1.0.305",
+      "type": "critical",
+      "message": "Actualizacion: fix solucionador de problemas (onclick restaurado), fix exportar reporte, centro de notificaciones, honeypot fix demo, CSP enforce",
+      "publishedAt": "2026-11-18T00:56:43.551Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: fix solucionador de problemas (onclick restaurado), fix exportar reporte, centro de notificaciones, honeypot fix demo, CSP enforce"
       ]
     }
   ]

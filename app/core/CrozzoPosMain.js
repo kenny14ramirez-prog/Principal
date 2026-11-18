@@ -3160,7 +3160,7 @@ async function crozzoRunHoneypotSequence(trip, decoy, runOpts) {
     crozzoHoneypotLiveEnd();
     const breachShort = shortDemo && adminPreview;
     await crozzoHpRunBreachPhase(trip, decoy, ctx, Sim, believable, adminPreview, skipFinalize || breachShort);
-    if (!skipFinalize && !breachShort) {
+    if (!skipFinalize && !breachShort && !adminPreview) {
       const Auth = window.CrozzoAuthSecurity;
       const seg = config.get('seguridad') || {};
       if (Auth && typeof Auth.ensureHoneypotLegendUnlock === 'function') {

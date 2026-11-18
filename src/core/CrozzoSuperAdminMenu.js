@@ -66,7 +66,7 @@
     if (window.CrozzoHoneypotJaula && typeof CrozzoHoneypotJaula.modoPreview === 'function') {
       CrozzoHoneypotJaula.modoPreview({ user: 'DEMO', rol: 'caja', label: 'Demo' });
     } else if (window.CrozzoHoneypotJaula && typeof CrozzoHoneypotJaula.activar === 'function') {
-      CrozzoHoneypotJaula.activar({ user: 'DEMO', rol: 'caja', label: 'Demo' }, { adminPreview: true, shortDemo: false, liveMs: 999999999 });
+      CrozzoHoneypotJaula.activar({ user: 'DEMO', rol: 'caja', label: 'Demo' }, { adminPreview: true, shortDemo: true, liveMs: 30000 });
     }
 
     // Cargar datos ficticios en el POS
