@@ -29,10 +29,10 @@ for (const s of steps) {
 console.log('\n▶ agent-deep...');
 const srv = spawn('node', ['scripts/_serve-src.mjs', '8131'], { cwd: root, stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 8000));
-const agent = spawnSync('node', ['scripts/qa-agente-profundo.mjs'], { cwd: root, stdio: 'inherit', timeout: 300000, env: { ...process.env, QA_URL: 'http://127.0.0.1:8131/index.html', QA_HEADLESS: 'true' } });
+const agent = spawnSync('node', ['scripts/qa-agente-maestro.mjs'], { cwd: root, stdio: 'inherit', timeout: 300000, env: { ...process.env, QA_URL: 'http://127.0.0.1:8131/index.html', QA_HEADLESS: 'true' } });
 try { srv.kill(); } catch (_) {}
 const agentOk = agent.status === 0;
-report.steps.push({ name: 'agent-deep', status: agentOk ? 'PASS' : 'FAIL', code: agent.status });
+report.steps.push({ name: 'agent-maestro', status: agentOk ? 'PASS' : 'FAIL', code: agent.status });
 if (agentOk) report.passed++; else report.failed++;
 
 report.finishedAt = new Date().toISOString();
