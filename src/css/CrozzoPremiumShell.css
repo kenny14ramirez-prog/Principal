@@ -1249,6 +1249,26 @@ body.crozzo-premium.crozzo-celebrate {
   100% { box-shadow: inset 0 0 0 0 rgba(181,154,109,0); }
 }
 
+/* Transición suave entre páginas */
+body.crozzo-premium #mainContent > * {
+  animation: crozzo-page-in 220ms ease;
+}
+@keyframes crozzo-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Estado vacío premium */
+body.crozzo-premium .crozzo-empty-state {
+  padding: 32px 24px; border-radius: 16px; text-align: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
+  border: 1px dashed rgba(var(--cz-gold-rgb), 0.35);
+  color: var(--text-muted, #7a756c);
+}
+body.crozzo-premium .crozzo-empty-state h3 {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.4rem; font-weight: 500; color: var(--text-primary, #1c1c1c); margin: 0 0 6px;
+}
+
 body.crozzo-premium .crozzo-mayordomo__item {
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
@@ -1297,6 +1317,26 @@ body.crozzo-premium.crozzo-celebrate {
   0% { box-shadow: inset 0 0 0 0 rgba(181,154,109,0); }
   30% { box-shadow: inset 0 0 80px 0 rgba(181,154,109,0.18); }
   100% { box-shadow: inset 0 0 0 0 rgba(181,154,109,0); }
+}
+
+/* Transición suave entre páginas */
+body.crozzo-premium #mainContent > * {
+  animation: crozzo-page-in 220ms ease;
+}
+@keyframes crozzo-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Estado vacío premium */
+body.crozzo-premium .crozzo-empty-state {
+  padding: 32px 24px; border-radius: 16px; text-align: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
+  border: 1px dashed rgba(var(--cz-gold-rgb), 0.35);
+  color: var(--text-muted, #7a756c);
+}
+body.crozzo-premium .crozzo-empty-state h3 {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.4rem; font-weight: 500; color: var(--text-primary, #1c1c1c); margin: 0 0 6px;
 }
 
 body.crozzo-premium .crozzo-mayordomo__item {
