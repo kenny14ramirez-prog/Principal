@@ -1,0 +1,382 @@
+{
+  "runId": "maestro-2026-11-18T17-32-11-031Z",
+  "url": "http://localhost:8123",
+  "startedAt": "2026-11-18T17:32:11.032Z",
+  "pages": [
+    {
+      "page": "inicio-operacion",
+      "status": "ok",
+      "elapsed": 1243,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "inicio-operacion.png"
+    },
+    {
+      "page": "cajero",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "cajero.png"
+    },
+    {
+      "page": "venta-comercial",
+      "status": "ok",
+      "elapsed": 1227,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "venta-comercial.png"
+    },
+    {
+      "page": "tablets",
+      "status": "ok",
+      "elapsed": 1225,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "tablets.png"
+    },
+    {
+      "page": "comandas",
+      "status": "ok",
+      "elapsed": 1234,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "comandas.png"
+    },
+    {
+      "page": "compras-cortes",
+      "status": "ok",
+      "elapsed": 1205,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-cortes.png"
+    },
+    {
+      "page": "compras-recetario-cocina",
+      "status": "ok",
+      "elapsed": 1223,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-recetario-cocina.png"
+    },
+    {
+      "page": "compras-proceso-sesion",
+      "status": "ok",
+      "elapsed": 1215,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-proceso-sesion.png"
+    },
+    {
+      "page": "compras-proceso-historial",
+      "status": "ok",
+      "elapsed": 1219,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-proceso-historial.png"
+    },
+    {
+      "page": "facturas",
+      "status": "ok",
+      "elapsed": 1228,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "facturas.png"
+    },
+    {
+      "page": "cierre-caja",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "cierre-caja.png"
+    },
+    {
+      "page": "caja-clientes",
+      "status": "ok",
+      "elapsed": 1225,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "caja-clientes.png"
+    },
+    {
+      "page": "inventarios",
+      "status": "ok",
+      "elapsed": 1215,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "inventarios.png"
+    },
+    {
+      "page": "compras-dashboard",
+      "status": "ok",
+      "elapsed": 1208,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-dashboard.png"
+    },
+    {
+      "page": "costos-matriz",
+      "status": "ok",
+      "elapsed": 1215,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "costos-matriz.png"
+    },
+    {
+      "page": "costos-inventario",
+      "status": "ok",
+      "elapsed": 1218,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "costos-inventario.png"
+    },
+    {
+      "page": "costos-planilla-feed",
+      "status": "ok",
+      "elapsed": 1212,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "costos-planilla-feed.png"
+    },
+    {
+      "page": "costos-reservorio",
+      "status": "ok",
+      "elapsed": 1219,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "costos-reservorio.png"
+    },
+    {
+      "page": "compras-oficina",
+      "status": "ok",
+      "elapsed": 1209,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-oficina.png"
+    },
+    {
+      "page": "planilla-2026",
+      "status": "ok",
+      "elapsed": 1209,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "planilla-2026.png"
+    },
+    {
+      "page": "compras-cotizaciones",
+      "status": "ok",
+      "elapsed": 1205,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-cotizaciones.png"
+    },
+    {
+      "page": "compras-recepcion",
+      "status": "ok",
+      "elapsed": 1204,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-recepcion.png"
+    },
+    {
+      "page": "compras-proveedores",
+      "status": "ok",
+      "elapsed": 1226,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-proveedores.png"
+    },
+    {
+      "page": "compras-ordenes",
+      "status": "ok",
+      "elapsed": 1216,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "compras-ordenes.png"
+    },
+    {
+      "page": "pedidos-internos",
+      "status": "ok",
+      "elapsed": 1208,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "pedidos-internos.png"
+    },
+    {
+      "page": "config-empresa",
+      "status": "ok",
+      "elapsed": 1230,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-empresa.png"
+    },
+    {
+      "page": "config-impuestos",
+      "status": "ok",
+      "elapsed": 1220,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-impuestos.png"
+    },
+    {
+      "page": "config-comandas",
+      "status": "ok",
+      "elapsed": 1234,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-comandas.png"
+    },
+    {
+      "page": "config-salon",
+      "status": "ok",
+      "elapsed": 1231,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-salon.png"
+    },
+    {
+      "page": "config-conexiones-sistemas",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-conexiones-sistemas.png"
+    },
+    {
+      "page": "config-facturas-admin",
+      "status": "ok",
+      "elapsed": 1228,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-facturas-admin.png"
+    },
+    {
+      "page": "config-usuarios",
+      "status": "ok",
+      "elapsed": 1227,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-usuarios.png"
+    },
+    {
+      "page": "control-acceso",
+      "status": "ok",
+      "elapsed": 1212,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "control-acceso.png"
+    },
+    {
+      "page": "config-dian",
+      "status": "ok",
+      "elapsed": 1224,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-dian.png"
+    },
+    {
+      "page": "config-certificado",
+      "status": "ok",
+      "elapsed": 1228,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-certificado.png"
+    },
+    {
+      "page": "config-proveedor",
+      "status": "ok",
+      "elapsed": 1227,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-proveedor.png"
+    },
+    {
+      "page": "super-admin-nube",
+      "status": "ok",
+      "elapsed": 1220,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "super-admin-nube.png"
+    },
+    {
+      "page": "super-admin-sync-priorities",
+      "status": "ok",
+      "elapsed": 1226,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "super-admin-sync-priorities.png"
+    },
+    {
+      "page": "config-multidispositivo",
+      "status": "ok",
+      "elapsed": 1225,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-multidispositivo.png"
+    },
+    {
+      "page": "super-admin-diagnostics",
+      "status": "ok",
+      "elapsed": 1226,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "super-admin-diagnostics.png"
+    },
+    {
+      "page": "modo-demo",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "modo-demo.png"
+    },
+    {
+      "page": "super-admin-identidad",
+      "status": "ok",
+      "elapsed": 1223,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "super-admin-identidad.png"
+    },
+    {
+      "page": "actualizaciones-sistema",
+      "status": "ok",
+      "elapsed": 1225,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "actualizaciones-sistema.png"
+    },
+    {
+      "page": "config-seguridad",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "config-seguridad.png"
+    },
+    {
+      "page": "auditoria",
+      "status": "ok",
+      "elapsed": 1222,
+      "newErrors": 0,
+      "newNet": 0,
+      "screenshot": "auditoria.png"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "time": "2026-11-18T17:32:13.520Z"
+    }
+  ],
+  "networkFailures": [],
+  "suggestions": [],
+  "summary": {
+    "total": 45,
+    "ok": 45,
+    "warn": 0,
+    "fail": 0
+  },
+  "finishedAt": "2026-11-18T17:33:13.645Z"
+}

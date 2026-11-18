@@ -78,6 +78,8 @@
     "qa:cajero:visible": "set QA_HEADLESS=false&& node scripts/qa-cajero-humano.mjs",
     "qa:agente:profundo": "node scripts/qa-agente-profundo.mjs",
     "qa:agente:profundo:visible": "set QA_HEADLESS=false&& node scripts/qa-agente-profundo.mjs",
+    "qa:agente:maestro": "node scripts/qa-agente-maestro.mjs",
+    "qa:agente:maestro:visible": "set QA_HEADLESS=false&& node scripts/qa-agente-maestro.mjs",
     "qa:empresa:init": "node scripts/empresa-agentes.mjs init",
     "qa:empresa:run": "node scripts/empresa-agentes.mjs run",
     "qa:empresa:status": "node scripts/empresa-agentes.mjs status",
