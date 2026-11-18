@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-18T01:39:53.666Z",
+  "updatedAt": "2026-11-18T20:07:38.855Z",
   "entries": [
-    {
-      "id": "1.0.284-critical",
-      "version": "v1.0.284",
-      "semver": "1.0.284",
-      "type": "critical",
-      "message": "Windows: A primero (C solo si A falla). Android: pide permiso de instalar y cámara al arrancar. Diagnóstico copiable sin F12.",
-      "publishedAt": "2026-11-09T17:56:52.446Z",
-      "installMode": "auto",
-      "changelog": [
-        "Windows: A primero (C solo si A falla). Android: pide permiso de instalar y cámara al arrancar. Diagnóstico copiable sin F12."
-      ]
-    },
     {
       "id": "1.0.285-critical",
       "version": "v1.0.285",
@@ -313,6 +301,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones"
+      ]
+    },
+    {
+      "id": "1.0.309-critical",
+      "version": "v1.0.309",
+      "semver": "1.0.309",
+      "type": "critical",
+      "message": "Pulido premium y agentes",
+      "publishedAt": "2026-11-18T20:07:38.855Z",
+      "installMode": "auto",
+      "changelog": [
+        "Pulido premium y agentes"
       ]
     }
   ]
