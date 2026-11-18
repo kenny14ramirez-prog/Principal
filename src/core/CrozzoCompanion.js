@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'crozzo_companion_prefs_v1';
-  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false, focusMode: false, celebraciones: true };
+  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false, focusMode: false, celebraciones: true, sonido: false };
   var PAGINA_INICIO = 'inicio-operacion';
   var HORA_CIERRE = 15;
   var HITOS = [3, 10, 25];
@@ -19,6 +19,17 @@
   var REVISION_MS = 5 * 60 * 1000;
   var CLAVE_INICIO = 'crozzo_companion_inicio';
   var CLAVE_ULT_PAUSA = 'crozzo_companion_ultima_pausa';
+  var CLAVE_ULT_MODULO = 'crozzo_companion_ultimo_modulo';
+  var NOMBRES_MODULO = {
+    'cajero': 'Caja',
+    'inicio-operacion': 'Inicio',
+    'ventas-hoy': 'Ventas de hoy',
+    'cierre-caja': 'Cierre de caja',
+    'reportes': 'Reportes',
+    'comandas': 'Comandas',
+    'cocina': 'Cocina',
+    'mesas': 'Mesas'
+  };
 
   var FRASES = {
     pereira: {
@@ -240,7 +251,17 @@
     lblCelTxt.textContent = 'Celebraciones por hitos';
     lblCel.appendChild(lblCelTxt);
     card.appendChild(lblCel);
-    function leer() {
+
+    var inSon = doc.createElement('input');
+    inSon.type = 'checkbox';
+    inSon.checked = p.sonido === true;
+    var lblSon = doc.createElement('label');
+    lblSon.className = 'crozzo-companion-toggle';
+    lblSon.appendChild(inSon);
+    var lblSonTxt = doc.createElement('span');
+    lblSonTxt.textContent = 'Sonido sutil en logros';
+    lblSon.appendChild(lblSonTxt);
+    card.appendChild(lblSon);    function leer() {
       return {
         enabled: inOn.checked,
         nombre: inNombre.value.trim(),
@@ -250,7 +271,8 @@
         mayordomo: inMay.checked,
         pausa: inPausa.checked,
         focusMode: inFocus.checked,
-        celebraciones: inCel.checked
+        celebraciones: inCel.checked,
+        sonido: inSon.checked
       };
     }
     function actualizarVista() {
@@ -301,6 +323,7 @@
       renderMayordomo();
       renderBienvenida();
       cerrar();
+      global.setTimeout(renderTour, 400);
       if (typeof global.showToast === 'function') global.showToast('Listo, quedó guardado', 'success');
     });
 
@@ -446,6 +469,16 @@
         page: 'cierre-caja',
         label: 'Cierre de caja',
         hint: 'Aún no hay declaración de efectivo hoy'
+      });
+    }
+    var ultimo = null;
+    try { ultimo = global.localStorage.getItem(CLAVE_ULT_MODULO); } catch (e) { ultimo = null; }
+    var actual = paginaActual();
+    if (ultimo && ultimo !== actual && navDisponible(ultimo)) {
+      out.push({
+        page: ultimo,
+        label: 'Volver a ' + (NOMBRES_MODULO[ultimo] || ultimo),
+        hint: 'Donde lo dejaste'
       });
     }
     return out.slice(0, 3);
@@ -594,11 +627,60 @@
   function iniciarMayordomo() {
     var host = global.document.getElementById('mainContent');
     if (!host || typeof global.MutationObserver !== 'function') return;
-    new global.MutationObserver(function () { renderMayordomo(); renderBienvenida(); }).observe(host, { childList: true });
+    new global.MutationObserver(function () {
+      try {
+        var pg = paginaActual();
+        if (pg) global.localStorage.setItem(CLAVE_ULT_MODULO, pg);
+      } catch (e) { /* sin almacenamiento */ }
+      renderMayordomo();
+      renderBienvenida();
+    }).observe(host, { childList: true });
+    try {
+      var pg0 = paginaActual();
+      if (pg0) global.localStorage.setItem(CLAVE_ULT_MODULO, pg0);
+    } catch (e) { /* sin almacenamiento */ }
     renderMayordomo();
     renderBienvenida();
   }
 
+  function renderTour() {
+    var doc = global.document;
+    if (!doc) return;
+    var prev = doc.querySelector('.crozzo-tour-overlay');
+    if (prev) prev.remove();
+    var p = load();
+    if (!p.enabled || p.onboardingDone !== true) return;
+    var visto = false;
+    try { visto = global.localStorage.getItem('crozzo_tour_visto') === '1'; } catch (e) { visto = false; }
+    if (visto) return;
+    var overlay = doc.createElement('div');
+    overlay.className = 'crozzo-tour-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    var card = doc.createElement('div');
+    card.className = 'crozzo-tour-card';
+    var h = doc.createElement('h2');
+    h.textContent = 'Bienvenido a tu espacio';
+    card.appendChild(h);
+    var steps = ['1. Elige tu tema y acento en el icono de paleta.', '2. Personaliza tu saludo en "Tu asistente".', '3. Usa Ctrl+K para saltar a cualquier módulo.'];
+    steps.forEach(function (s) {
+      var li = doc.createElement('p');
+      li.className = 'crozzo-tour-step';
+      li.textContent = s;
+      card.appendChild(li);
+    });
+    var btn = doc.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-primary';
+    btn.textContent = 'Empezar';
+    btn.addEventListener('click', function () {
+      try { global.localStorage.setItem('crozzo_tour_visto', '1'); } catch (e) { /* sin almacenamiento */ }
+      overlay.remove();
+    });
+    card.appendChild(btn);
+    overlay.appendChild(card);
+    doc.body.appendChild(overlay);
+  }
   function applyFocusMode() {
     var p = load();
     if (global.document && global.document.body) {
@@ -611,6 +693,22 @@
     if (!global.document || !global.document.body) return;
     global.document.body.classList.add('crozzo-celebrate');
     global.setTimeout(function () { global.document.body.classList.remove('crozzo-celebrate'); }, 1800);
+    if (p.sonido === true) {
+      try {
+        var Ctx = global.AudioContext || global.webkitAudioContext;
+        if (Ctx) {
+          var ctx = new Ctx();
+          var o = ctx.createOscillator();
+          var g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.value = 660;
+          g.gain.value = 0.04;
+          o.connect(g); g.connect(ctx.destination);
+          o.start();
+          global.setTimeout(function () { o.stop(); ctx.close(); }, 180);
+        }
+      } catch (e) { /* sin audio */ }
+    }
   }
   function iniciarTodo() {
     applyFocusMode();
@@ -643,6 +741,7 @@
     renderBienvenida: renderBienvenida,
     applyFocusMode: applyFocusMode,
     celebrar: celebrar,
+    renderTour: renderTour,
     revisarLogros: revisarLogros,
     revisarPausa: revisarPausa
   };

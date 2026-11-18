@@ -1,6 +1,6 @@
 # Mapas Crozzo POS — índice maestro
 
-**Última regeneración:** 2026-11-18T12:16:17-05:00 · v1.0.308 · `d9b26f0`
+**Última regeneración:** 2026-11-18T12:20:38-05:00 · v1.0.308 · `3dce306`
 **Mapa global (humano + agente):** [`../AGENT-SYSTEM-MAP.md`](../AGENT-SYSTEM-MAP.md)
 
 > 🔴 **¿Retomando trabajo de una sesión anterior?** Empieza por [`CONTINUIDAD-OPORD.md`](CONTINUIDAD-OPORD.md) — estado de campaña + planes pendientes + cómo continuar.
