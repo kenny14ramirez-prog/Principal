@@ -1,28 +1,16 @@
 {
-  "id": "1.0.307-critical",
-  "version": "v1.0.307",
-  "semver": "1.0.307",
+  "id": "1.0.308-critical",
+  "version": "v1.0.308",
+  "semver": "1.0.308",
   "type": "critical",
-  "message": "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa",
-  "publishedAt": "2026-11-18T01:12:34.326Z",
+  "message": "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones",
+  "publishedAt": "2026-11-18T01:39:53.666Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa"
+    "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones"
   ],
-  "updatedAt": "2026-11-18T01:12:34.326Z",
+  "updatedAt": "2026-11-18T01:39:53.666Z",
   "entries": [
-    {
-      "id": "1.0.283-critical",
-      "version": "v1.0.283",
-      "semver": "1.0.283",
-      "type": "critical",
-      "message": "Prueba de actualización automática v1.0.283",
-      "publishedAt": "2026-11-09T17:18:41.440Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba de actualización automática v1.0.283"
-      ]
-    },
     {
       "id": "1.0.284-critical",
       "version": "v1.0.284",
@@ -323,6 +311,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa"
+      ]
+    },
+    {
+      "id": "1.0.308-critical",
+      "version": "v1.0.308",
+      "semver": "1.0.308",
+      "type": "critical",
+      "message": "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones",
+      "publishedAt": "2026-11-18T01:39:53.666Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones"
       ]
     }
   ]
