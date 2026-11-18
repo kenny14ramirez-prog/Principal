@@ -648,6 +648,8 @@
     if (!doc) return;
     var prev = doc.querySelector('.crozzo-tour-overlay');
     if (prev) prev.remove();
+    var u = (typeof global.getCurrentUser === 'function') ? global.getCurrentUser() : null;
+    if (!u || !u.id || String(u.id).toUpperCase() === 'SMOKE') return;
     var p = load();
     if (!p.enabled || p.onboardingDone !== true) return;
     var visto = false;
@@ -714,9 +716,12 @@
     applyFocusMode();
     iniciarMayordomo();
     iniciarAcompanamiento();
-    var p = load();
-    if (p.enabled && !p.onboardingDone && !String(p.nombre || '').trim()) {
-      global.setTimeout(function () { openPrefs(); }, 600);
+    var u = (typeof global.getCurrentUser === 'function') ? global.getCurrentUser() : null;
+    if (u && u.id && String(u.id).toUpperCase() !== 'SMOKE') {
+      var p = load();
+      if (p.enabled && !p.onboardingDone && !String(p.nombre || '').trim()) {
+        global.setTimeout(function () { openPrefs(); }, 600);
+      }
     }
   }
 
