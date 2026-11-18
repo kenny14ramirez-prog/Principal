@@ -8,8 +8,8 @@
 (function (global) {
   'use strict';
 
-  var MAX_VISIBLE_TOASTS = 2;
-  var TOAST_DURATION = 2000;
+  var MAX_VISIBLE_TOASTS = 1;
+  var TOAST_DURATION = 1500;
   var notifications = [];
   var bellBtn = null;
   var badge = null;

@@ -12,7 +12,7 @@
 | 118 | `app/core/Crozzo2FAModal.js` |
 | 107 | `app/core/Crozzo2FAPoC.js` |
 | 191 | `app/core/CrozzoAndroidNative.js` |
-| 1640 | `app/core/CrozzoAuthSecurity.js` |
+| 1642 | `app/core/CrozzoAuthSecurity.js` |
 | 39 | `app/core/CrozzoBrandKit.js` |
 | 26 | `app/core/CrozzoCertVault.js` |
 | 31 | `app/core/CrozzoCertVaultIntegration.js` |

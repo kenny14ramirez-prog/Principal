@@ -630,6 +630,8 @@
     }
     if (!ls) return false;
     try {
+      try { ls.removeItem('crozzo_blocked_pending_fp'); } catch (_) {}
+      try { ls.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
       var raw = ls.getItem('pos_dian_config');
       if (!raw) return false;
       var cfg = JSON.parse(raw);
