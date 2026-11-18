@@ -1,20 +1,6 @@
 {
-  "updatedAt": "2026-11-18T00:56:43.551Z",
+  "updatedAt": "2026-11-18T01:03:56.776Z",
   "entries": [
-    {
-      "id": "1.0.281-critical",
-      "version": "v1.0.281",
-      "semver": "1.0.281",
-      "type": "critical",
-      "message": "Fix crítico: fetchWithTimeout definido + fallback endpoint + navigator.onLine no bloquea",
-      "publishedAt": "2026-11-09T16:07:05.966Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix crítico: fetchWithTimeout definido",
-        "fallback endpoint",
-        "navigator.onLine no bloquea"
-      ]
-    },
     {
       "id": "1.0.282-critical",
       "version": "v1.0.282",
@@ -314,6 +300,19 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion: fix solucionador de problemas (onclick restaurado), fix exportar reporte, centro de notificaciones, honeypot fix demo, CSP enforce"
+      ]
+    },
+    {
+      "id": "1.0.306-critical",
+      "version": "v1.0.306",
+      "semver": "1.0.306",
+      "type": "critical",
+      "message": "Actualizacion: fix solucionador de problemas (onclick + getLogs), fix dc-menu-btn, centro notificaciones, honeypot fix",
+      "publishedAt": "2026-11-18T01:03:56.776Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: fix solucionador de problemas (onclick",
+        "getLogs), fix dc-menu-btn, centro notificaciones, honeypot fix"
       ]
     }
   ]
