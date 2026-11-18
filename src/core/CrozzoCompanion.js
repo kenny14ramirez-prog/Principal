@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'crozzo_companion_prefs_v1';
-  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false, focusMode: false, celebraciones: true, sonido: false };
+  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false, focusMode: false, celebraciones: true, sonido: false, autoTheme: false, visitas: {} };
   var PAGINA_INICIO = 'inicio-operacion';
   var HORA_CIERRE = 15;
   var HITOS = [3, 10, 25];
@@ -261,7 +261,18 @@
     var lblSonTxt = doc.createElement('span');
     lblSonTxt.textContent = 'Sonido sutil en logros';
     lblSon.appendChild(lblSonTxt);
-    card.appendChild(lblSon);    function leer() {
+    card.appendChild(lblSon);
+
+    var inAuto = doc.createElement('input');
+    inAuto.type = 'checkbox';
+    inAuto.checked = p.autoTheme === true;
+    var lblAuto = doc.createElement('label');
+    lblAuto.className = 'crozzo-companion-toggle';
+    lblAuto.appendChild(inAuto);
+    var lblAutoTxt = doc.createElement('span');
+    lblAutoTxt.textContent = 'Tema automático por hora del día';
+    lblAuto.appendChild(lblAutoTxt);
+    card.appendChild(lblAuto);    function leer() {
       return {
         enabled: inOn.checked,
         nombre: inNombre.value.trim(),
@@ -272,7 +283,8 @@
         pausa: inPausa.checked,
         focusMode: inFocus.checked,
         celebraciones: inCel.checked,
-        sonido: inSon.checked
+        sonido: inSon.checked,
+        autoTheme: inAuto.checked
       };
     }
     function actualizarVista() {
@@ -473,6 +485,15 @@
     }
     var ultimo = null;
     try { ultimo = global.localStorage.getItem(CLAVE_ULT_MODULO); } catch (e) { ultimo = null; }
+
+    // Favoritos automáticos: páginas más visitadas
+    var v = (load().visitas) || {};
+    var top = Object.keys(v).sort(function (a, b) { return (v[b] || 0) - (v[a] || 0); }).slice(0, 2);
+    top.forEach(function (pg) {
+      if (pg && pg !== paginaActual() && navDisponible(pg)) {
+        out.push({ page: pg, label: 'Acceso rápido: ' + (NOMBRES_MODULO[pg] || pg), hint: 'Tu módulo frecuente' });
+      }
+    });
     var actual = paginaActual();
     if (ultimo && ultimo !== actual && navDisponible(ultimo)) {
       out.push({
@@ -631,6 +652,7 @@
       try {
         var pg = paginaActual();
         if (pg) global.localStorage.setItem(CLAVE_ULT_MODULO, pg);
+        registrarVisita();
       } catch (e) { /* sin almacenamiento */ }
       renderMayordomo();
       renderBienvenida();
@@ -683,6 +705,23 @@
     overlay.appendChild(card);
     doc.body.appendChild(overlay);
   }
+  function applyAutoTheme() {
+    var p = load();
+    if (!p.enabled || p.autoTheme !== true) return;
+    if (typeof global.crozzoApplyVisualTheme !== 'function') return;
+    var h = new Date().getHours();
+    var theme = (h >= 6 && h < 19) ? 'bona-origen' : 'dark-luxury';
+    try { global.crozzoApplyVisualTheme(theme, { userChoice: false }); } catch (e) { /* sin tema */ }
+  }
+  function registrarVisita() {
+    var pg = paginaActual();
+    if (!pg) return;
+    var p = load();
+    if (!p.enabled) return;
+    var v = Object.assign({}, p.visitas || {});
+    v[pg] = (Number(v[pg]) || 0) + 1;
+    save(Object.assign({}, p, { visitas: v }));
+  }
   function applyFocusMode() {
     var p = load();
     if (global.document && global.document.body) {
@@ -714,8 +753,10 @@
   }
   function iniciarTodo() {
     applyFocusMode();
+    applyAutoTheme();
     iniciarMayordomo();
     iniciarAcompanamiento();
+    registrarVisita();
     var u = (typeof global.getCurrentUser === 'function') ? global.getCurrentUser() : null;
     if (u && u.id && String(u.id).toUpperCase() !== 'SMOKE') {
       var p = load();
