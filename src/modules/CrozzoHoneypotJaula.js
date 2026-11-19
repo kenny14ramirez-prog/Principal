@@ -689,6 +689,8 @@
         // El honeypot estaba activo antes del reload
         var startTs = parseInt(sessionStorage.getItem(JAULA_START_KEY) || '0', 10);
         if (startTs > 0) {
+          // Guardia: no restaurar sesiones stale (evita alertas espurias en usuarios reales)
+          if (Date.now() - startTs > 300000) { desactivar(); return false; }
           jaula.active = true;
           jaula.startTime = startTs;
           try {

@@ -1586,6 +1586,8 @@ function crozzoFinishLoginSuccess(opts) {
   } catch (_) {}
   if (typeof hideLoginOverlay === 'function') hideLoginOverlay();
   if (typeof crozzoEnsureAppShellInteractive === 'function') crozzoEnsureAppShellInteractive();
+  // Evitar que un estado stale del honeypot dispare alertas en usuarios reales
+  try { if (window.CrozzoHoneypotJaula && typeof window.CrozzoHoneypotJaula.desactivar === 'function') window.CrozzoHoneypotJaula.desactivar(); } catch (_) {}
   crozzoClearLoginBaitHint();
   if (window.CrozzoAuthSecurity && typeof CrozzoAuthSecurity.crozzoHoneypotBaitClear === 'function') {
     CrozzoAuthSecurity.crozzoHoneypotBaitClear();

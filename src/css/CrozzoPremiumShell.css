@@ -1232,9 +1232,6 @@ body.crozzo-premium .crozzo-bienvenida__role {
 body.crozzo-premium .crozzo-bienvenida__actions { display: flex; gap: 10px; }
 
 /* Micro-interacciones y motion base */
-body.crozzo-premium .btn,
-body.crozzo-premium .nav-item,
-body.crozzo-premium .crozzo-ventas-card,
 /* Modo enfoque: oculta distracciones secundarias */
 body.crozzo-premium.crozzo-focus-mode .crozzo-mobile-secondary,
 body.crozzo-premium.crozzo-focus-mode .crozzo-status-pill:not(.is-ready) { opacity: 0.35; }

@@ -1,28 +1,16 @@
 {
-  "id": "1.0.309-critical",
-  "version": "v1.0.309",
-  "semver": "1.0.309",
+  "id": "1.0.310-critical",
+  "version": "v1.0.310",
+  "semver": "1.0.310",
   "type": "critical",
-  "message": "Pulido premium y agentes",
-  "publishedAt": "2026-11-18T20:07:38.855Z",
+  "message": "Fix animaciones premium y honeypot stale",
+  "publishedAt": "2026-11-19T23:08:04.188Z",
   "installMode": "auto",
   "changelog": [
-    "Pulido premium y agentes"
+    "Fix animaciones premium y honeypot stale"
   ],
-  "updatedAt": "2026-11-18T20:07:38.855Z",
+  "updatedAt": "2026-11-19T23:08:04.188Z",
   "entries": [
-    {
-      "id": "1.0.285-critical",
-      "version": "v1.0.285",
-      "semver": "1.0.285",
-      "type": "critical",
-      "message": "Windows A primero, C solo si falla. Android: permiso de instalar verificado antes de instalar y cámara al arrancar. BLE en manifiesto. Diagnóstico copiable.",
-      "publishedAt": "2026-11-09T17:59:46.323Z",
-      "installMode": "auto",
-      "changelog": [
-        "Windows A primero, C solo si falla. Android: permiso de instalar verificado antes de instalar y cámara al arrancar. BLE en manifiesto. Diagnóstico copiable."
-      ]
-    },
     {
       "id": "1.0.286-critical",
       "version": "v1.0.286",
@@ -323,6 +311,18 @@
       "installMode": "auto",
       "changelog": [
         "Pulido premium y agentes"
+      ]
+    },
+    {
+      "id": "1.0.310-critical",
+      "version": "v1.0.310",
+      "semver": "1.0.310",
+      "type": "critical",
+      "message": "Fix animaciones premium y honeypot stale",
+      "publishedAt": "2026-11-19T23:08:04.188Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix animaciones premium y honeypot stale"
       ]
     }
   ]
