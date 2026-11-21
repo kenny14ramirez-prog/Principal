@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-21T22:44:47.299Z",
+  "updatedAt": "2026-11-21T23:04:01.345Z",
   "entries": [
-    {
-      "id": "1.0.303-critical",
-      "version": "v1.0.303",
-      "semver": "1.0.303",
-      "type": "critical",
-      "message": "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta",
-      "publishedAt": "2026-11-18T00:35:25.326Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: centro de notificaciones, honeypot fix, CSP, sanitizacion innerHTML, numeracion robusta"
-      ]
-    },
     {
       "id": "1.0.304-critical",
       "version": "v1.0.304",
@@ -306,6 +294,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix FAB visible: isAllowedRole fallback a session user KENNY"
+      ]
+    },
+    {
+      "id": "1.0.328-critical",
+      "version": "v1.0.328",
+      "semver": "1.0.328",
+      "type": "critical",
+      "message": "Fix scrollHeight read-only bug en asistente IA",
+      "publishedAt": "2026-11-21T23:04:01.345Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix scrollHeight read-only bug en asistente IA"
       ]
     }
   ]

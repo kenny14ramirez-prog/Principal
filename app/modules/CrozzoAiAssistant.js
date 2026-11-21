@@ -352,7 +352,7 @@
       assistantDiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
     } finally {
       var box2 = document.getElementById('crozzo-ai-messages');
-      if (box2) box2.scrollHeight = box2.scrollHeight;
+      if (box2) box2.scrollTop = box2.scrollHeight;
       _sending = false;
     }
   }
