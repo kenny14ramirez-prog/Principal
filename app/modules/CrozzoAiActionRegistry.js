@@ -97,6 +97,22 @@
         return 'Reindexado: ' + (n != null ? n : '?') + ' chunks.';
       },
     },
+    configurar_impresoras: {
+      id: 'configurar_impresoras',
+      label: 'Configurar impresoras (auto-detectar)',
+      confirm: true,
+      execute: async function () {
+        try {
+          if (global.CrozzoPrinterAutoConfig && typeof global.CrozzoPrinterAutoConfig.openWizard === 'function') {
+            global.CrozzoPrinterAutoConfig.openWizard();
+            return 'Asistente de impresoras abierto. Siga los pasos en pantalla.';
+          }
+          return 'Módulo de auto-configuración no disponible.';
+        } catch (e) {
+          return 'Error: ' + (e && e.message ? e.message : e);
+        }
+      },
+    },
     detectar_impresora: {
       id: 'detectar_impresora',
       label: 'Detectar impresoras',

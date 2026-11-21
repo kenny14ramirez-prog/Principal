@@ -1,28 +1,17 @@
 {
-  "id": "1.0.322-critical",
-  "version": "v1.0.322",
-  "semver": "1.0.322",
+  "id": "1.0.323-critical",
+  "version": "v1.0.323",
+  "semver": "1.0.323",
   "type": "critical",
-  "message": "Fix honeypot: deshabilitar modulo si usuario real logueado",
-  "publishedAt": "2026-11-21T21:49:26.538Z",
+  "message": "Fix honeypot: guardias nucleares + safety net cada 5s",
+  "publishedAt": "2026-11-21T22:13:49.205Z",
   "installMode": "auto",
   "changelog": [
-    "Fix honeypot: deshabilitar modulo si usuario real logueado"
+    "Fix honeypot: guardias nucleares",
+    "safety net cada 5s"
   ],
-  "updatedAt": "2026-11-21T21:49:26.538Z",
+  "updatedAt": "2026-11-21T22:13:49.205Z",
   "entries": [
-    {
-      "id": "1.0.298-critical",
-      "version": "v1.0.298",
-      "semver": "1.0.298",
-      "type": "critical",
-      "message": "Actualización: registro de dispositivos MFA, bloqueo ultra potente, fix check-maps",
-      "publishedAt": "2026-11-16T04:18:19.064Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualización: registro de dispositivos MFA, bloqueo ultra potente, fix check-maps"
-      ]
-    },
     {
       "id": "1.0.299-critical",
       "version": "v1.0.299",
@@ -314,6 +303,19 @@
       "installMode": "auto",
       "changelog": [
         "Fix honeypot: deshabilitar modulo si usuario real logueado"
+      ]
+    },
+    {
+      "id": "1.0.323-critical",
+      "version": "v1.0.323",
+      "semver": "1.0.323",
+      "type": "critical",
+      "message": "Fix honeypot: guardias nucleares + safety net cada 5s",
+      "publishedAt": "2026-11-21T22:13:49.205Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot: guardias nucleares",
+        "safety net cada 5s"
       ]
     }
   ]

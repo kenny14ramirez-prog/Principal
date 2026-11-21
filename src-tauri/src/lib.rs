@@ -43,6 +43,8 @@ mod crozzo_device_profile;
 mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_usb_printer;
 mod crozzo_ai_semaphore;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_whisper;
@@ -167,6 +169,10 @@ pub fn run() {
             crozzo_secret_store::crozzo_secret_delete,
             crozzo_ollama::crozzo_ollama_chat,
             crozzo_ollama::crozzo_ollama_tags,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_usb_printer::crozzo_usb_list_devices,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_usb_printer::crozzo_usb_match_printer,
             crozzo_ai_semaphore::crozzo_ai_acquire,
             crozzo_ai_semaphore::crozzo_ai_release,
             crozzo_ai_semaphore::crozzo_ai_semaphore_status,

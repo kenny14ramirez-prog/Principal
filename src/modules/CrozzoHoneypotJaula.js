@@ -313,6 +313,14 @@
   // ── Alertas progresivas ─────────────────────────────────────────
   function programarAlertas(liveMs, shortDemo) {
     if (!jaula.active) return;
+    // NUCLEAR GUARD: never schedule alerts for a real logged-in user
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') return;
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) return;
+    } catch (_) {}
     // Tiempo más largo: 90-150 segundos para que el atacante explore
     liveMs = liveMs || (90000 + Math.floor(Math.random() * 60000));
     if (shortDemo) liveMs = Math.min(liveMs, 30000);
@@ -361,6 +369,14 @@
   }
 
   function mostrarModal(msg) {
+    // NUCLEAR GUARD: never show honeypot modal for a real logged-in user
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') return;
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) return;
+    } catch (_) {}
     var ov = document.getElementById('crozzoHoneypotOverlay');
     if (!ov) return;
     ov.removeAttribute('hidden');
@@ -411,6 +427,14 @@
   }
 
   function bloquearFinal() {
+    // NUCLEAR GUARD: never block a real logged-in user
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') { desactivar(); return; }
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) { desactivar(); return; }
+    } catch (_) {}
     jaula.blocked = true;
     try { localStorage.setItem(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
     try { localStorage.setItem(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
@@ -875,6 +899,21 @@
     FAKE_EMPRESA: FAKE_EMPRESA,
     FAKE_CLIENTES: FAKE_CLIENTES,
   };
+
+  // SAFETY NET: cada 5s, si hay usuario real logueado, desactivar jaula
+  try {
+    global.setInterval(function () {
+      try {
+        var su = sessionStorage.getItem('crozzo_session_user');
+        if (su && su !== 'null' && su !== '') {
+          if (jaula.active) {
+            desactivar();
+          }
+          __HP_DISABLED = true;
+        }
+      } catch (_) {}
+    }, 5000);
+  } catch (_) {}
 
   // Verificar bloqueo al cargar + restaurar estado (Phase 3)
   if (typeof document !== 'undefined') {

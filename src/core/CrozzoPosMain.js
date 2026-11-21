@@ -1599,6 +1599,7 @@ function crozzoFinishLoginSuccess(opts) {
     CrozzoAuthSecurity.crozzoHoneypotBaitClear();
   }
   if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
+  if (typeof crozzoInjectAiFab === 'function') crozzoInjectAiFab();
   if (typeof crozzoInitSuperAdminMenus === 'function') crozzoInitSuperAdminMenus();
   applyAccessControl();
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) {

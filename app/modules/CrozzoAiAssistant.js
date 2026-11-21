@@ -573,7 +573,8 @@
     document.body.appendChild(btn);
   }
 
-  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; } };
+  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; }, injectFab: injectFab };
+  global.crozzoInjectAiFab = function () { setTimeout(injectFab, 100); setTimeout(injectFab, 1000); setTimeout(injectFab, 3000); };
 
   // Hook para auditoría automática al cierre de turno
   global.crozzoTriggerAutoAudit = function () {
