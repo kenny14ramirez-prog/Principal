@@ -685,12 +685,22 @@
   // ── Restaurar estado al recargar (Phase 3) ──────────────────────
   function restaurarEstado() {
     try {
+      // Si hay un usuario real logueado, limpiar cualquier estado honeypot stale
+      try {
+        if (typeof global.getCurrentUser === 'function') {
+          var u = global.getCurrentUser();
+          if (u && (u.id === 'KENNY' || u.es_super_admin === true || (u.rol && String(u.rol).toLowerCase().indexOf('admin') >= 0))) {
+            desactivar();
+            return false;
+          }
+        }
+      } catch (_) {}
       if (sessionStorage.getItem(JAULA_FLAG) === '1') {
         // El honeypot estaba activo antes del reload
         var startTs = parseInt(sessionStorage.getItem(JAULA_START_KEY) || '0', 10);
         if (startTs > 0) {
           // Guardia: no restaurar sesiones stale (evita alertas espurias en usuarios reales)
-          if (Date.now() - startTs > 300000) { desactivar(); return false; }
+          if (Date.now() - startTs > 120000) { desactivar(); return false; }
           jaula.active = true;
           jaula.startTime = startTs;
           try {

@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-21T19:11:42.255Z",
+  "updatedAt": "2026-11-21T20:38:40.079Z",
   "entries": [
-    {
-      "id": "1.0.290-critical",
-      "version": "v1.0.290",
-      "semver": "1.0.290",
-      "type": "critical",
-      "message": "Android: menu de usuario visible, consola tecnica embebida y auto-instalacion del APK tras login sin exigir Super Admin; Windows mantiene A-C-B",
-      "publishedAt": "2026-11-09T22:43:44.967Z",
-      "installMode": "auto",
-      "changelog": [
-        "Android: menu de usuario visible, consola tecnica embebida y auto-instalacion del APK tras login sin exigir Super Admin",
-        "Windows mantiene A-C-B"
-      ]
-    },
     {
       "id": "1.0.291-critical",
       "version": "v1.0.291",
@@ -307,6 +294,18 @@
       "changelog": [
         "Fix HelpHub close",
         "FAB visible para roles permitidos"
+      ]
+    },
+    {
+      "id": "1.0.315-critical",
+      "version": "v1.0.315",
+      "semver": "1.0.315",
+      "type": "critical",
+      "message": "Fix honeypot: no activar en sesiones legitimas",
+      "publishedAt": "2026-11-21T20:38:40.079Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot: no activar en sesiones legitimas"
       ]
     }
   ]
