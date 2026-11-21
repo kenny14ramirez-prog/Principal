@@ -183,6 +183,53 @@
     }
     lines.push(internalSectionsText());
     lines.push('');
+    // ── Diario operativo (auditoría de acciones) ──
+    try {
+      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.exportJson === 'function') {
+        var j = global.CrozzoOperativeJournal.exportJson();
+        lines.push('');
+        lines.push('=== DIARIO OPERATIVO (AUDITORÍA) ===');
+        lines.push('Eventos totales: ' + (j && j.events ? j.events.length : 0));
+        if (j && j.events && j.events.length > 0) {
+          lines.push('Últimos 20 eventos:');
+          var evs = j.events.slice(-20);
+          for (var ei = 0; ei < evs.length; ei++) {
+            var e = evs[ei];
+            lines.push('  [' + (e.ts ? new Date(e.ts).toLocaleString('es-CO') : '?') + '] ' + (e.action || e.type || '?') + ' | ' + (e.detail || '') + ' | user: ' + (e.user || '?'));
+          }
+        }
+        if (j && typeof global.CrozzoOperativeJournal.topFingerprints === 'function') {
+          lines.push('Top huellas: ' + JSON.stringify(global.CrozzoOperativeJournal.topFingerprints()));
+        }
+      }
+    } catch (_) {}
+
+    // ── Reporte de fallas (si existe) ──
+    try {
+      if (global.CrozzoFailureReporter && typeof global.CrozzoFailureReporter.generateReport === 'function') {
+        var fr = global.CrozzoFailureReporter.generateReport();
+        if (fr && fr.failures && fr.failures.length > 0) {
+          lines.push('');
+          lines.push('=== FALLAS DETECTADAS (' + fr.failures.length + ') ===');
+          for (var fi = 0; fi < fr.failures.length; fi++) {
+            lines.push('  [' + (fr.failures[fi].severity || '?') + '] ' + (fr.failures[fi].type || '?') + ': ' + (fr.failures[fi].detail || ''));
+          }
+        }
+      }
+    } catch (_) {}
+
+    // ── Estado del asistente IA ──
+    try {
+      lines.push('');
+      lines.push('=== ASISTENTE IA ===');
+      lines.push('Disponible: ' + (global.CrozzoAiAssistant ? 'sí' : 'no'));
+      lines.push('Tier dispositivo: ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.getTier() : 'desconocido'));
+      lines.push('Modelo recomendado: ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.recommendedModel(global.CrozzoAiDeviceProfile.getTier()) : 'N/A'));
+      if (global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.list === 'function') {
+        lines.push('Acciones disponibles: ' + global.CrozzoAiActionRegistry.list().map(function(a){return a.id;}).join(', '));
+      }
+    } catch (_) {}
+
     lines.push('=== FIN DEL REPORTE ===');
     return lines.join('\n');
   }

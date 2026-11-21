@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-21T23:05:16.882Z",
+  "updatedAt": "2026-11-21T23:09:42.930Z",
   "entries": [
-    {
-      "id": "1.0.304-critical",
-      "version": "v1.0.304",
-      "semver": "1.0.304",
-      "type": "critical",
-      "message": "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix",
-      "publishedAt": "2026-11-18T00:44:18.749Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: fix solucionador de problemas, fix exportar reporte, centro de notificaciones, honeypot fix"
-      ]
-    },
     {
       "id": "1.0.305-critical",
       "version": "v1.0.305",
@@ -306,6 +294,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix scrollHeight read-only bug en asistente IA"
+      ]
+    },
+    {
+      "id": "1.0.329-critical",
+      "version": "v1.0.329",
+      "semver": "1.0.329",
+      "type": "critical",
+      "message": "Reporte general del sistema: auditoria, fallas, IA, acciones, huella digital",
+      "publishedAt": "2026-11-21T23:09:42.930Z",
+      "installMode": "auto",
+      "changelog": [
+        "Reporte general del sistema: auditoria, fallas, IA, acciones, huella digital"
       ]
     }
   ]
