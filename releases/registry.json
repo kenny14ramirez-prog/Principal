@@ -1,20 +1,6 @@
 {
-  "updatedAt": "2026-11-21T01:09:43.783Z",
+  "updatedAt": "2026-11-21T01:21:41.042Z",
   "entries": [
-    {
-      "id": "1.0.288-critical",
-      "version": "v1.0.288",
-      "semver": "1.0.288",
-      "type": "critical",
-      "message": "Sin CMD parpadeante del hotspot; ping menos ruidoso; menú de usuario visible en Android.",
-      "publishedAt": "2026-11-09T21:03:55.306Z",
-      "installMode": "auto",
-      "changelog": [
-        "Sin CMD parpadeante del hotspot",
-        "ping menos ruidoso",
-        "menú de usuario visible en Android."
-      ]
-    },
     {
       "id": "1.0.289-critical",
       "version": "v1.0.289",
@@ -311,6 +297,18 @@
       "installMode": "auto",
       "changelog": [
         "Obra maestra IA: asistente completo, voz, RAG, acciones, auditoria, reportes, perfil dispositivo, permisos Tauri"
+      ]
+    },
+    {
+      "id": "1.0.313-critical",
+      "version": "v1.0.313",
+      "semver": "1.0.313",
+      "type": "critical",
+      "message": "Fix build CI: remover externalBin bloqueante",
+      "publishedAt": "2026-11-21T01:21:41.042Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix build CI: remover externalBin bloqueante"
       ]
     }
   ]
