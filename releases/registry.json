@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-19T23:08:04.188Z",
+  "updatedAt": "2026-11-21T00:31:41.788Z",
   "entries": [
-    {
-      "id": "1.0.286-critical",
-      "version": "v1.0.286",
-      "semver": "1.0.286",
-      "type": "critical",
-      "message": "Corrige ruido de canal nube cuando la nube no está configurada; sin eventos repetidos.",
-      "publishedAt": "2026-11-09T20:17:14.216Z",
-      "installMode": "auto",
-      "changelog": [
-        "Corrige ruido de canal nube cuando la nube no está configurada",
-        "sin eventos repetidos."
-      ]
-    },
     {
       "id": "1.0.287-critical",
       "version": "v1.0.287",
@@ -313,6 +300,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix animaciones premium y honeypot stale"
+      ]
+    },
+    {
+      "id": "1.0.311-critical",
+      "version": "v1.0.311",
+      "semver": "1.0.311",
+      "type": "critical",
+      "message": "Obra maestra IA: asistente, voz, RAG, acciones, auditoria, reportes, perfil dispositivo",
+      "publishedAt": "2026-11-21T00:31:41.788Z",
+      "installMode": "auto",
+      "changelog": [
+        "Obra maestra IA: asistente, voz, RAG, acciones, auditoria, reportes, perfil dispositivo"
       ]
     }
   ]

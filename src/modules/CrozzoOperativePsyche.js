@@ -1443,9 +1443,13 @@
     );
   }
 
-  function dismissConciergeStrip() {
+function dismissConciergeStrip() {
     try {
       sessionStorage.setItem(SS_CONCIERGE, '1');
+    } catch (_) {}
+    try {
+      var host = document.getElementById('crozzo-concierge-host');
+      if (host) { host.innerHTML = ''; host.remove(); }
     } catch (_) {}
     if (typeof global.navigateTo === 'function' && global.currentPage === 'inicio-operacion') {
       global.navigateTo('inicio-operacion');

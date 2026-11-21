@@ -33,6 +33,7 @@
     "allow-crozzo-devtools",
     "updater:default",
     "allow-crozzo-hotspot",
+    "allow-crozzo-rag",
     "allow-crozzo-tls",
     "allow-crozzo-ble"
   ]

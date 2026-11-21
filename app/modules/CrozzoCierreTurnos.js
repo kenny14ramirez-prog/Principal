@@ -1884,6 +1884,7 @@
         global.CrozzoOperativePsyche.onShiftClose(rec);
       }
     } catch (_) {}
+    try { if (typeof global.crozzoTriggerAutoAudit === 'function') global.crozzoTriggerAutoAudit(); } catch (_) {}
   }
 
   function latestCajeroDeclaracionHint() {

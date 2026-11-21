@@ -22,6 +22,8 @@
     "allow-crozzo-webview-camera",
     "allow-crozzo-secret-store",
     "allow-crozzo-ollama",
+    "allow-crozzo-rag",
+    "allow-crozzo-whisper",
     "allow-crozzo-hotspot",
     "allow-crozzo-tls",
     "allow-crozzo-ble"

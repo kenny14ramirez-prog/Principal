@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.310">
+<meta name="crozzo-app-version" content="1.0.311">
 <meta name="crozzo-build-stamp" content="2026-11-01T00:00:00.000Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
@@ -27,6 +27,7 @@ document.documentElement.classList.toggle('crozzo-theme-dark',!isLight&&t!=='bon
 document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
 }catch(e){}})();</script>
 <script src="core/CrozzoDevicePerf.js" defer></script>
+  <script src="core/CrozzoAiDeviceProfile.js" defer></script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <link rel="stylesheet" href="css/CrozzoPantallasShell.css">
 <link rel="stylesheet" href="css/CrozzoPremiumShell.css">
@@ -1216,6 +1217,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoComunicacionDiag.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
+  <script src="modules/CrozzoAiIntentParser.js" defer></script>
+  <script src="modules/CrozzoAiActionRegistry.js" defer></script>
+  <script src="modules/CrozzoFailureReporter.js" defer></script>
+  <script src="modules/CrozzoAiModelManager.js" defer></script>
+  <script src="modules/CrozzoAiAssistant.js" defer></script>
 <script src="modules/CrozzoOperativeFlowAssist.js" defer></script>
 <script src="modules/CrozzoOperativeCajaAssist.js" defer></script>
 <script src="modules/CrozzoClienteDocIntel.js" defer></script>

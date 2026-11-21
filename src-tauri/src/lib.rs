@@ -42,6 +42,11 @@ mod crozzo_external;
 mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
+mod crozzo_whisper;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_llama_sidecar;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_llama_modelmgr;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
@@ -55,6 +60,8 @@ mod crozzo_fiscal_sqlite;
 mod crozzo_cert_vault;
 #[cfg(desktop)]
 mod crozzo_2fa;
+#[cfg(desktop)]
+mod crozzo_rag;
 #[cfg(desktop)]
 mod crozzo_metrics;
 
@@ -114,7 +121,7 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
-    builder
+    let app = builder
         .setup(|app| {
             // Fase -2: inicializar tracing (observabilidad)
             #[cfg(desktop)]
@@ -154,6 +161,26 @@ pub fn run() {
             crozzo_secret_store::crozzo_secret_delete,
             crozzo_ollama::crozzo_ollama_chat,
             crozzo_ollama::crozzo_ollama_tags,
+            crozzo_whisper::crozzo_whisper_save_audio,
+            crozzo_whisper::crozzo_whisper_transcribe,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_sidecar::crozzo_llama_health,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_sidecar::crozzo_llama_ensure_sidecar,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_sidecar::crozzo_llama_chat,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_sidecar::crozzo_llama_stop_sidecar,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_list,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_download,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_cancel,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_delete,
             #[cfg(desktop)]
             crozzo_open_devtools,
             #[cfg(desktop)]
@@ -162,6 +189,12 @@ pub fn run() {
             crozzo_fiscal_sqlite::crozzo_fiscal_save_sqlite,
             #[cfg(desktop)]
             crozzo_fiscal_sqlite::crozzo_fiscal_load_sqlite,
+            #[cfg(desktop)]
+            crozzo_rag::crozzo_rag_reindex,
+            #[cfg(desktop)]
+            crozzo_rag::crozzo_rag_index,
+            #[cfg(desktop)]
+            crozzo_rag::crozzo_rag_search,
             #[cfg(desktop)]
             crozzo_cert_vault::crozzo_cert_vault_set,
             #[cfg(desktop)]
@@ -323,6 +356,13 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::crozzo_emulation_query_sql
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app, event| {
+        if let tauri::RunEvent::Exit = event {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_sidecar::crozzo_llama_stop_sidecar();
+        }
+    });
 }
