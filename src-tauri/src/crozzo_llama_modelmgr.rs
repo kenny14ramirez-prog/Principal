@@ -2,6 +2,7 @@
 //! Los modelos se guardan en <app_data>/models/.
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -17,6 +18,7 @@ pub struct LlamaModelDef {
     pub filename: String,
     pub url: String,
     pub min_ram_gb: u32,
+    pub expected_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,6 +27,7 @@ pub struct ModelStatus {
     pub installed: bool,
     pub path: String,
     pub size_bytes: u64,
+    pub sha256_ok: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,6 +49,7 @@ fn models() -> Vec<LlamaModelDef> {
             filename: "Llama-3.2-1B-Instruct-Q4_K_M.gguf".into(),
             url: "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf".into(),
             min_ram_gb: 4,
+            expected_sha256: None,
         },
         LlamaModelDef {
             id: "3b".into(),
@@ -54,6 +58,7 @@ fn models() -> Vec<LlamaModelDef> {
             filename: "Llama-3.2-3B-Instruct-Q4_K_M.gguf".into(),
             url: "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf".into(),
             min_ram_gb: 8,
+            expected_sha256: None,
         },
         LlamaModelDef {
             id: "4b".into(),
@@ -62,6 +67,7 @@ fn models() -> Vec<LlamaModelDef> {
             filename: "gemma-3-4b-it-Q4_K_M.gguf".into(),
             url: "https://huggingface.co/bartowski/gemma-3-4b-it-GGUF/resolve/main/gemma-3-4b-it-Q4_K_M.gguf".into(),
             min_ram_gb: 16,
+            expected_sha256: None,
         },
     ]
 }
@@ -77,6 +83,32 @@ fn models_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir)
 }
 
+fn sha256_file(path: &std::path::Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 65536];
+    loop {
+        let n = file.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn verify_model_hash(m: &LlamaModelDef, path: &std::path::Path) -> bool {
+    match &m.expected_sha256 {
+        Some(expected) if !expected.is_empty() => {
+            match sha256_file(path) {
+                Ok(actual) => actual.eq_ignore_ascii_case(expected),
+                Err(_) => false,
+            }
+        }
+        _ => true,
+    }
+}
+
 #[tauri::command]
 pub fn crozzo_llama_model_list() -> Vec<LlamaModelDef> {
     models()
@@ -88,12 +120,29 @@ pub fn crozzo_llama_model_status(app: tauri::AppHandle, model_id: String) -> Res
     let dir = models_dir(&app)?;
     let path = dir.join(&m.filename);
     let size = path.metadata().map(|md| md.len()).unwrap_or(0);
+    let sha_ok = if path.exists() && size > 0 {
+        verify_model_hash(&m, &path)
+    } else {
+        false
+    };
     Ok(ModelStatus {
         model_id,
-        installed: path.exists() && size > 0,
+        installed: path.exists() && size > 0 && sha_ok,
         path: path.to_string_lossy().to_string(),
         size_bytes: size,
+        sha256_ok: sha_ok,
     })
+}
+
+#[tauri::command]
+pub fn crozzo_llama_model_verify(app: tauri::AppHandle, model_id: String) -> Result<bool, String> {
+    let m = find_model(&model_id).ok_or_else(|| "modelo desconocido".to_string())?;
+    let dir = models_dir(&app)?;
+    let path = dir.join(&m.filename);
+    if !path.exists() {
+        return Ok(false);
+    }
+    Ok(verify_model_hash(&m, &path))
 }
 
 #[tauri::command]
@@ -363,6 +412,44 @@ pub fn crozzo_llama_model_download(app: tauri::AppHandle, model_id: String) -> R
             }
         }
         let _ = file.flush();
+        // SHA256 verification after download
+        if let Some(expected) = &m.expected_sha256 {
+            if !expected.is_empty() {
+                match sha256_file(&path) {
+                    Ok(actual) if actual.eq_ignore_ascii_case(expected) => {}
+                    Ok(actual) => {
+                        let _ = std::fs::remove_file(&path);
+                        emit_progress(
+                            &app2,
+                            ModelProgress {
+                                model_id: mid.clone(),
+                                status: "error".into(),
+                                downloaded,
+                                total: if total > 0 { total } else { downloaded },
+                                percent: 0.0,
+                                error: Some(format!("sha256_mismatch: expected {} got {}", expected, actual)),
+                            },
+                        );
+                        return;
+                    }
+                    Err(e) => {
+                        let _ = std::fs::remove_file(&path);
+                        emit_progress(
+                            &app2,
+                            ModelProgress {
+                                model_id: mid.clone(),
+                                status: "error".into(),
+                                downloaded,
+                                total: if total > 0 { total } else { downloaded },
+                                percent: 0.0,
+                                error: Some(e),
+                            },
+                        );
+                        return;
+                    }
+                }
+            }
+        }
         emit_progress(
             &app2,
             ModelProgress {

@@ -65,7 +65,8 @@
       return { ok: false, reason: 'no_stamp' };
     }
     var xml = entry.xml || (entry.payload && entry.payload.invoice && entry.payload.invoice.xml_ubl) || '';
-    if (!xml && entry.payload) {
+    // P1.3: procesar por payload si existe (envío real), aunque también haya xml.
+    if (entry.payload) {
       // Reintento HTTP directo con payload guardado
       var prov = typeof config.getProveedor === 'function' ? config.getProveedor() : {};
       var token = prov.apiKey || '';
@@ -91,6 +92,19 @@
         drainedAt: new Date().toISOString(),
       });
       propagateCufeToFactura(entry.consecutivo, cufe, data.uuid || data.id || entry.id);
+      if (cufe) {
+        try {
+          var cfg = global.config;
+          var fs = (cfg && typeof cfg.getFacturas === 'function') ? cfg.getFacturas() : [];
+          var f = null;
+          for (var fi = 0; fi < (fs || []).length; fi++) {
+            if (fs[fi] && String(fs[fi].consecutivo) === String(entry.consecutivo)) { f = fs[fi]; break; }
+          }
+          if (f && typeof global.crozzoAutoPrintFacturaIfConfigured === 'function') {
+            global.crozzoAutoPrintFacturaIfConfigured(f);
+          }
+        } catch (_) {}
+      }
       return { ok: !!cufe, reason: cufe ? 'ok' : 'no_cufe' };
     }
     if (!xml) {
@@ -98,7 +112,11 @@
       return { ok: false, reason: 'no_xml', skip: true };
     }
     var factura = { consecutivo: entry.consecutivo || '', total: 0 };
-    var result = await global.crozzoDataicoStamp(xml, factura, config);
+    var stampFn = (typeof global.crozzoDataicoStampSend === 'function')
+      ? global.crozzoDataicoStampSend
+      : (typeof global.crozzoDataicoStamp === 'function' ? global.crozzoDataicoStamp : null);
+    if (!stampFn) return { ok: false, reason: 'no_stamp' };
+    var result = await stampFn(xml, factura, config);
     if (result && result.cufe && !result.pending) {
       update(entry.id, {
         status: 'done',
@@ -107,6 +125,19 @@
         drainedAt: new Date().toISOString(),
       });
       propagateCufeToFactura(entry.consecutivo, result.cufe, result.uuid);
+      if (result.cufe) {
+        try {
+          var cfg2 = global.config;
+          var fs2 = (cfg2 && typeof cfg2.getFacturas === 'function') ? cfg2.getFacturas() : [];
+          var f2 = null;
+          for (var fi2 = 0; fi2 < (fs2 || []).length; fi2++) {
+            if (fs2[fi2] && String(fs2[fi2].consecutivo) === String(entry.consecutivo)) { f2 = fs2[fi2]; break; }
+          }
+          if (f2 && typeof global.crozzoAutoPrintFacturaIfConfigured === 'function') {
+            global.crozzoAutoPrintFacturaIfConfigured(f2);
+          }
+        } catch (_) {}
+      }
       return { ok: true, reason: 'ok' };
     }
     if (result && result.pending) {
@@ -183,6 +214,7 @@
     } finally {
       __draining = false;
       releaseCrossTabLock();
+      try { updateBadge(); } catch (_) {}
     }
   }
 
@@ -192,10 +224,39 @@
     }).length;
   }
 
+  function updateBadge() {
+    try {
+      if (typeof document === 'undefined') return pendingCount();
+      var n = pendingCount();
+      var el = document.getElementById('crozzoFiscalOutboxBadge');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'crozzoFiscalOutboxBadge';
+        el.setAttribute('role', 'status');
+        el.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:9999;display:none;gap:2px;padding:6px 10px;border-radius:8px;background:rgba(17,24,39,0.85);color:#fff;font-size:12px;align-items:center;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
+        document.body.appendChild(el);
+      }
+      var bars = '';
+      for (var i = 0; i < n; i++) {
+        bars += '<span style="display:inline-block;width:4px;height:14px;background:#f59e0b;margin:0 1px;border-radius:2px;"></span>';
+      }
+      el.innerHTML = '<span style="margin-right:6px;font-weight:600;">Factura en cola fiscal</span>' + bars +
+        (n ? ' <span style="margin-left:4px;font-weight:700;">' + n + '</span>' : '');
+      el.style.display = n > 0 ? 'flex' : 'none';
+      return n;
+    } catch (_) {
+      return pendingCount();
+    }
+  }
+  if (typeof global !== 'undefined') global.crozzoFiscalOutboxUpdateBadge = updateBadge;
+  if (typeof window !== 'undefined') window.crozzoFiscalOutboxUpdateBadge = updateBadge;
+
   global.CrozzoFiscalOutboxDrain = {
     drain: drain,
     pendingCount: pendingCount,
+    updateBadge: updateBadge,
     MAX_PER_CYCLE: MAX_PER_CYCLE,
   };
   global.crozzoFiscalOutboxDrain = drain;
+  try { updateBadge(); } catch (_) {}
 })(typeof window !== 'undefined' ? window : globalThis);

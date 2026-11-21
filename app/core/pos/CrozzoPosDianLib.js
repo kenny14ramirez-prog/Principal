@@ -570,7 +570,71 @@ function crozzoBuildDataicoInvoiceBody(factura, xml, config) {
  * Si no hay Auth-token → cola fiscal + error explícito (nunca fingir isDemo:false).
  * Si allowSimulatedStamp en proveedor (solo lab) → mock marcado isDemo:true.
  */
+/**
+ * P1.3 — FE background sending (no bloqueante).
+ *
+ * dataicoStamp ahora SOLO encola la factura en el outbox fiscal y retorna
+ * { success, pending: true } de inmediato. NO hace fetch (no bloquea el cobro).
+ * El drenaje (CrozzoFiscalOutboxDrain) procesa la cola cuando haya WAN.
+ */
 async function dataicoStamp(xml, factura, config) {
+  var prov =
+    (config && typeof config.getProveedor === 'function' && config.getProveedor()) ||
+    (config && config.proveedor) ||
+    {};
+  var auth = crozzoResolveDataicoAuth(config, prov);
+  var body = null;
+  try {
+    body = crozzoBuildDataicoInvoiceBody(factura || {}, xml, config);
+  } catch (_) {
+    body = null;
+  }
+  var queued = crozzoFiscalOutboxEnqueue({
+    id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+    status: 'pending',
+    provider: 'dataico',
+    reason: 'background',
+    consecutivo: factura && factura.consecutivo,
+    createdAt: new Date().toISOString(),
+    xml: xml ? String(xml).slice(0, 200000) : '',
+    payload: body,
+    total: factura && factura.total,
+  });
+  try {
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+      window.showToast('Factura en cola fiscal', 'info');
+    } else if (typeof globalThis !== 'undefined' && typeof globalThis.showToast === 'function') {
+      globalThis.showToast('Factura en cola fiscal', 'info');
+    }
+  } catch (_) {}
+  try {
+    if (typeof window !== 'undefined' && typeof window.crozzoFiscalOutboxUpdateBadge === 'function') {
+      window.crozzoFiscalOutboxUpdateBadge();
+    } else if (typeof globalThis !== 'undefined' && typeof globalThis.crozzoFiscalOutboxUpdateBadge === 'function') {
+      globalThis.crozzoFiscalOutboxUpdateBadge();
+    }
+  } catch (_) {}
+  return {
+    success: true,
+    pending: true,
+    uuid: queued.id,
+    cufe: '',
+    qrUrl: '',
+    fechaTimbrado: new Date().toISOString(),
+    isDemo: false,
+    xml: xml,
+    provider: 'dataico',
+    fiscalQueued: queued,
+    dianStatus: 'QUEUED',
+    warning: 'Factura en cola fiscal #' + queued.id,
+  };
+}
+
+/**
+ * Envío real (usado por el drenaje de la cola fiscal). Conserva la lógica
+ * HTTP original. NO se usa en el cobro (no bloquea la UI).
+ */
+async function dataicoStampSend(xml, factura, config) {
   var prov =
     (config && typeof config.getProveedor === 'function' && config.getProveedor()) ||
     (config && config.proveedor) ||
@@ -594,7 +658,6 @@ async function dataicoStamp(xml, factura, config) {
     throw err;
   }
 
-  // Lab explícito: nunca pasar por alto en producción
   if (prov.allowSimulatedStamp === true) {
     var sim = await mockStamp(xml, factura || {});
     sim.provider = 'dataico_simulated';
@@ -630,7 +693,6 @@ async function dataicoStamp(xml, factura, config) {
       createdAt: new Date().toISOString(),
       payload: body,
     });
-    // Offline-first: la venta no se pierde; queda pendiente fiscal.
     return {
       success: true,
       pending: true,
@@ -676,7 +738,6 @@ async function dataicoStamp(xml, factura, config) {
   var uuid = data.uuid || data.id || data.invoice_id || '';
   var qrUrl = data.qrcode || data.qr_url || data.qr || '';
   if (!cufe && typeof calcularCUFE === 'function') {
-    // Respuesta parcial: no inventar éxito DIAN
     var qPartial = crozzoFiscalOutboxEnqueue({
       id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       status: 'pending',
@@ -724,6 +785,9 @@ async function dataicoStamp(xml, factura, config) {
     raw: data,
   };
 }
+window.crozzoDataicoStampSend = dataicoStampSend;
+if (typeof globalThis !== 'undefined') globalThis.crozzoDataicoStampSend = dataicoStampSend;
+
 // ==========================================
 // packages/shared-dian/providers/provider-factory.ts
 // ==========================================

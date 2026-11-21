@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-21T21:26:05.478Z",
+  "updatedAt": "2026-11-21T21:32:43.645Z",
   "entries": [
-    {
-      "id": "1.0.294-critical",
-      "version": "v1.0.294",
-      "semver": "1.0.294",
-      "type": "critical",
-      "message": "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000; reporte muestra IP local y Android no invoca comandos LAN de escritorio",
-      "publishedAt": "2026-11-10T01:15:33.583Z",
-      "installMode": "auto",
-      "changelog": [
-        "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000",
-        "reporte muestra IP local y Android no invoca comandos LAN de escritorio"
-      ]
-    },
     {
       "id": "1.0.295-critical",
       "version": "v1.0.295",
@@ -305,6 +292,18 @@
       "installMode": "auto",
       "changelog": [
         "Fase A: honeypot guards, tiering RAM real, semaforo AI, secrets OS store"
+      ]
+    },
+    {
+      "id": "1.0.319-critical",
+      "version": "v1.0.319",
+      "semver": "1.0.319",
+      "type": "critical",
+      "message": "Fase B: sidecar security, FE background, panel drawer",
+      "publishedAt": "2026-11-21T21:32:43.645Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fase B: sidecar security, FE background, panel drawer"
       ]
     }
   ]

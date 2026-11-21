@@ -8,6 +8,7 @@
   'use strict';
 
   var PANEL_ID = 'crozzo-ai-assistant-panel';
+  var _panelEsc = null;
   var _history = [];
   var _abort = null;
   var _pulling = false;
@@ -89,9 +90,12 @@
     if (existing) return existing;
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
-    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    ov.className = 'crozzo-ai-drawer-backdrop';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.45);';
+    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
     var card = document.createElement('div');
-    card.style.cssText = 'background:#fff;border-radius:16px;width:92%;max-width:560px;height:76vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;';
+    card.className = 'crozzo-ai-drawer';
+    card.style.cssText = 'position:fixed;top:0;right:0;width:100%;max-width:420px;height:100vh;display:flex;flex-direction:column;background:#fff;box-shadow:-24px 0 60px rgba(0,0,0,0.32);overflow:hidden;';
     card.innerHTML =
       '<div style="padding:14px 18px;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;display:flex;align-items:center;justify-content:space-between;">' +
         '<strong>Asistente IA · Bona Origen</strong>' +
@@ -130,12 +134,17 @@
       }, 300);
     }
     checkStatus();
+    // Close on Esc
+    if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} }
+    _panelEsc = function (e) { if (e && e.key === 'Escape') close(); };
+    document.addEventListener('keydown', _panelEsc);
     // Trigger background model download (non-blocking)
     setTimeout(ensureModelInBackground, 100);
     return ov;
   }
 
   function close() {
+    if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} _panelEsc = null; }
     var ov = document.getElementById(PANEL_ID);
     if (ov) ov.remove();
   }
@@ -497,7 +506,7 @@
     }
     ensurePanel();
   }
-  function close() { var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
+  function close() { if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} _panelEsc = null; } var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
 
   function isAllowedRole() {
     try {

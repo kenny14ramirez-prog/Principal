@@ -140,6 +140,8 @@ pub fn run() {
             }
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::init_from_env();
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_whisper::sweep_audio_temp();
             #[cfg(desktop)]
             {
                 if let Some(win) = app.get_webview_window("main") {
@@ -190,6 +192,8 @@ pub fn run() {
             crozzo_llama_modelmgr::crozzo_llama_model_cancel,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_llama_modelmgr::crozzo_llama_model_delete,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_llama_modelmgr::crozzo_llama_model_verify,
             #[cfg(desktop)]
             crozzo_open_devtools,
             #[cfg(desktop)]
