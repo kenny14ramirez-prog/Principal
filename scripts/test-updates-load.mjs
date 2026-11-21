@@ -12,6 +12,7 @@ import vm from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
+  'app/core/CrozzoSanitize.js',
   'app/core/CrozzoTechConsole.js',
   'app/infra/CrozzoChannelFallback.js',
   'app/infra/CrozzoTauriUpdater.js',

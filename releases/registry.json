@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-21T22:38:47.982Z",
+  "updatedAt": "2026-11-21T22:44:47.299Z",
   "entries": [
-    {
-      "id": "1.0.302-critical",
-      "version": "v1.0.302",
-      "semver": "1.0.302",
-      "type": "critical",
-      "message": "Actualizacion: centro de notificaciones (campana+badge), toasts discretos, demo banner premium, honeypot fix",
-      "publishedAt": "2026-11-17T23:58:27.072Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: centro de notificaciones (campana",
-        "badge), toasts discretos, demo banner premium, honeypot fix"
-      ]
-    },
     {
       "id": "1.0.303-critical",
       "version": "v1.0.303",
@@ -307,6 +294,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix model download: usar modelos no-gated (Qwen/Phi/Gemma) para evitar http_401"
+      ]
+    },
+    {
+      "id": "1.0.327-critical",
+      "version": "v1.0.327",
+      "semver": "1.0.327",
+      "type": "critical",
+      "message": "Fix FAB visible: isAllowedRole fallback a session user KENNY",
+      "publishedAt": "2026-11-21T22:44:47.299Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix FAB visible: isAllowedRole fallback a session user KENNY"
       ]
     }
   ]
