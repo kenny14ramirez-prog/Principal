@@ -46,7 +46,6 @@
     { id: 'dian', label: 'DIAN', slot: 'nav', url: 'https://catalogo-vpfe.dian.gov.co/', icon: 'I' },
     { id: 'gmail', label: 'Gmail', slot: 'nav', url: 'https://mail.google.com/', icon: 'G' },
     { id: 'drive', label: 'Drive', slot: 'nav', url: 'https://drive.google.com/', icon: 'V' },
-    { id: 'einforma', label: 'eInforma', slot: 'nav', url: 'https://www.einforma.co/nit-empresas', icon: 'E' },
   ];
 
   var state = {

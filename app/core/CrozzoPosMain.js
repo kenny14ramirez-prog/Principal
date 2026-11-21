@@ -15800,7 +15800,7 @@ function crozzoCanClearAuditoriaLog() {
 }
 window.crozzoHasCajaPermiso = crozzoHasCajaPermiso;
 // crozzoCanClearFacturasHistorial ahora vive en CrozzoPosFacturasPage.js (extraído F7)
-var CROZZO_WEB_EMBED_PAGES = ['whatsapp-web', 'gmail-web', 'drive-web', 'dataico-web', 'dian-vpfe-web', 'spotify-web', 'supabase-nube-web'];
+var CROZZO_WEB_EMBED_PAGES = ['whatsapp-web', 'gmail-web', 'drive-web', 'dataico-web', 'dian-vpfe-web', 'spotify-web', 'supabase-nube-web', 'einforma-web'];
 function crozzoIsWebEmbedPage(page) {
   return CROZZO_WEB_EMBED_PAGES.indexOf(page) !== -1;
 }
@@ -15830,6 +15830,9 @@ function crozzoHideWebEmbedIfLeaving(page) {
   if (currentPage === 'spotify-web' && page !== 'spotify-web' && typeof crozzoSpotifyDockHideEmbed === 'function') {
     void crozzoSpotifyDockHideEmbed();
   }
+  if (currentPage === 'einforma-web' && page !== 'einforma-web' && typeof crozzoEinformaDockHideEmbed === 'function') {
+    void crozzoEinformaDockHideEmbed();
+  }
   if (currentPage === 'supabase-nube-web' && page !== 'supabase-nube-web' && typeof crozzoNubeSupabaseDockHideEmbed === 'function') {
     void crozzoNubeSupabaseDockHideEmbed();
   }
@@ -15841,6 +15844,7 @@ function crozzoWebEmbedPageBeforeKey(page) {
   if (page === 'dataico-web') return window.__crozzoPageBeforeDataico || 'inicio-operacion';
   if (page === 'dian-vpfe-web') return window.__crozzoPageBeforeDianVpfe || 'inicio-operacion';
   if (page === 'spotify-web') return window.__crozzoPageBeforeSpotify || 'inicio-operacion';
+  if (page === 'einforma-web') return window.__crozzoPageBeforeEinforma || 'inicio-operacion';
   if (page === 'supabase-nube-web') return window.__crozzoPageBeforeSupabaseNube || 'super-admin-nube';
   return 'inicio-operacion';
 }
@@ -15851,12 +15855,13 @@ function crozzoWebEmbedLayoutSync(page) {
   if (page === 'dataico-web' && typeof crozzoDataicoDockRequestLayoutSync === 'function') crozzoDataicoDockRequestLayoutSync();
   if (page === 'dian-vpfe-web' && typeof crozzoDianVpfeDockRequestLayoutSync === 'function') crozzoDianVpfeDockRequestLayoutSync();
   if (page === 'spotify-web' && typeof crozzoSpotifyDockRequestLayoutSync === 'function') crozzoSpotifyDockRequestLayoutSync();
+  if (page === 'einforma-web' && typeof crozzoEinformaDockRequestLayoutSync === 'function') crozzoEinformaDockRequestLayoutSync();
   if (page === 'supabase-nube-web' && typeof crozzoNubeSupabaseDockRequestLayoutSync === 'function') crozzoNubeSupabaseDockRequestLayoutSync();
 }
 window.crozzoWebEmbedLayoutSync = crozzoWebEmbedLayoutSync;
 // Devuelve true si el usuario actual puede ver/usar una página.
 function currentUserCanSeePage(page) {
-  if (page === 'whatsapp-web' || page === 'gmail-web' || page === 'drive-web' || page === 'dataico-web' || page === 'dian-vpfe-web' || page === 'spotify-web') {
+  if (page === 'whatsapp-web' || page === 'gmail-web' || page === 'drive-web' || page === 'dataico-web' || page === 'dian-vpfe-web' || page === 'spotify-web' || page === 'einforma-web') {
     if (!crozzoIsTauriWebEmbedAllowed()) return false;
     const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!u) return false;
@@ -16301,7 +16306,7 @@ window.crozzoUpdatePremiumIdentity = crozzoUpdatePremiumIdentity;
 /** Misma política de acceso que navigateTo — evita bypass vía renderPage() desde consola. */
 function crozzoAssertPageAccess(page) {
   if (!page) return { ok: false, reason: 'invalid' };
-  if (page === 'whatsapp-web' || page === 'gmail-web' || page === 'drive-web' || page === 'dataico-web' || page === 'dian-vpfe-web' || page === 'spotify-web') {
+  if (page === 'whatsapp-web' || page === 'gmail-web' || page === 'drive-web' || page === 'dataico-web' || page === 'dian-vpfe-web' || page === 'spotify-web' || page === 'einforma-web') {
     if (!crozzoIsTauriWebEmbedAllowed()) return { ok: false, reason: 'perm' };
     const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
     if (!u) return { ok: false, reason: 'auth' };
@@ -17110,10 +17115,10 @@ function renderPage(page, renderOpts) {
   }
   crozzoHideWebEmbedIfLeaving(page);
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed', 'crozzo-page-inicio-operacion');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-einforma-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed', 'crozzo-page-inicio-operacion');
   }
   if (document.documentElement) {
-    document.documentElement.classList.remove('crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
+    document.documentElement.classList.remove('crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-einforma-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
   }
   var hdrMod = document.querySelector('.main-header');
   if (hdrMod) hdrMod.classList.remove('main-header--modulo-gestion');
@@ -17262,6 +17267,14 @@ function renderPage(page, renderOpts) {
           ? crozzoRenderSpotifyWebPage()
           : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoSpotifyEmbedHost" class="crozzo-wa-page__host" aria-label="Spotify"></div></div></div>');
       if (typeof crozzoInitSpotifyWebPage === 'function') crozzoInitSpotifyWebPage();
+      break;
+    case 'einforma-web':
+      if (document.body) document.body.classList.add('crozzo-page-einforma-web');
+      if (document.documentElement) document.documentElement.classList.add('crozzo-page-einforma-web');
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderEinformaWebPage === 'function'
+          ? crozzoRenderEinformaWebPage()
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoEinformaEmbedHost" class="crozzo-wa-page__host" aria-label="eInforma"></div></div></div>');
+      if (typeof crozzoInitEinformaWebPage === 'function') crozzoInitEinformaWebPage();
       break;
     case 'supabase-nube-web':
       if (document.body) document.body.classList.add('crozzo-page-supabase-nube-web');
@@ -32039,8 +32052,11 @@ function crozzoCrmOpenEinforma(q) {
   q = String(q || '').trim();
   var url = 'https://www.einforma.co/nit-empresas';
   if (q) url = 'https://www.einforma.co/servlet/app/portal/ENTP/screen/SProductoClienteWeb/prod/NIT_EMPRESAS/nit/' + encodeURIComponent(q.replace(/\D/g, ''));
-  if (typeof globalThis.crozzoWebDockV2OpenNav === 'function') {
-    try { globalThis.crozzoWebDockV2OpenNav(url); return; } catch (_) {}
+  if (typeof crozzoEinformaDockOpen === 'function') {
+    try { crozzoEinformaDockOpen(url); return; } catch (_) {}
+  }
+  if (typeof navigateTo === 'function') {
+    try { window.__crozzoEinformaTargetUrl = url; navigateTo('einforma-web'); return; } catch (_) {}
   }
   if (typeof crozzoOpenExternal === 'function') {
     crozzoOpenExternal(url);

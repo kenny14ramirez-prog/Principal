@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-21T21:41:49.232Z",
+  "updatedAt": "2026-11-21T21:48:47.103Z",
   "entries": [
-    {
-      "id": "1.0.296-critical",
-      "version": "v1.0.296",
-      "semver": "1.0.296",
-      "type": "critical",
-      "message": "LAN: la caja ya no descarta los pushes de tablets en la ventana de eco (tablet -> caja visible al entrar a una mesa); diagnostico HTTP en consola",
-      "publishedAt": "2026-11-10T02:04:47.726Z",
-      "installMode": "auto",
-      "changelog": [
-        "LAN: la caja ya no descarta los pushes de tablets en la ventana de eco (tablet -> caja visible al entrar a una mesa)",
-        "diagnostico HTTP en consola"
-      ]
-    },
     {
       "id": "1.0.297-critical",
       "version": "v1.0.297",
@@ -304,6 +291,19 @@
       "installMode": "auto",
       "changelog": [
         "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas"
+      ]
+    },
+    {
+      "id": "1.0.321-critical",
+      "version": "v1.0.321",
+      "semver": "1.0.321",
+      "type": "critical",
+      "message": "Fix honeypot: guardia de arranque + verificarBloqueo limpia stale",
+      "publishedAt": "2026-11-21T21:48:47.103Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot: guardia de arranque",
+        "verificarBloqueo limpia stale"
       ]
     }
   ]

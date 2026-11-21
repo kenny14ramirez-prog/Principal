@@ -12,6 +12,18 @@
 (function (global) {
   'use strict';
 
+  // GUARDIA DE ARRANQUE: si hay un usuario real logueado, limpiar flags honeypot stale
+  try {
+    var _su = sessionStorage.getItem('crozzo_session_user');
+    if (_su && _su !== 'null' && _su !== '') {
+      sessionStorage.removeItem('crozzo_modo_jaula');
+      sessionStorage.removeItem('crozzo_jaula_start');
+      sessionStorage.removeItem('crozzo_jaula_decoy');
+      try { localStorage.removeItem('crozzo_jaula_log'); } catch (_) {}
+      try { localStorage.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
+    }
+  } catch (_) {}
+
   var JAULA_FLAG = 'crozzo_modo_jaula';
   var JAULA_LOG_KEY = 'crozzo_jaula_log';
   var JAULA_BLOCKED_KEY = 'crozzo_jaula_bloqueado';
@@ -583,6 +595,15 @@
 
   // ── Verificación de bloqueo al arranque (ultra mega potente) ────
   function verificarBloqueo() {
+    // Guardia: si hay usuario real, limpiar jaula stale
+    try {
+      var _su2 = sessionStorage.getItem('crozzo_session_user');
+      if (_su2 && _su2 !== 'null' && _su2 !== '') {
+        try { sessionStorage.removeItem('crozzo_modo_jaula'); sessionStorage.removeItem('crozzo_jaula_start'); sessionStorage.removeItem('crozzo_jaula_decoy'); } catch (_) {}
+        try { localStorage.removeItem('crozzo_jaula_log'); localStorage.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
+        jaula.active = false;
+      }
+    } catch (_) {}
     // 1. Verificar bloqueo local
     // Solo se respeta si el propio honeypot lo activó en esta sesión (adminPreview).
     // Los bloqueos persistidos stale nunca deben bloquear a un usuario legítimo.

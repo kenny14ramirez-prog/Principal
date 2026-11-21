@@ -23,6 +23,7 @@
     { id: 'dian', label: 'DIAN', cls: 'dian' },
 
     { id: 'spotify', label: 'Spotify', cls: 'spotify' },
+    { id: 'einforma', label: 'eInforma', cls: 'einforma' },
 
   ];
 
@@ -184,6 +185,12 @@
 
       }
 
+      if (typeof global.crozzoEinformaDockIsOpen === 'function' && global.crozzoEinformaDockIsOpen()) {
+
+        global.crozzoEinformaDockClose();
+
+      }
+
       return;
 
     }
@@ -199,6 +206,7 @@
     if (kind === 'dian' && typeof global.crozzoDianVpfeDockOpen === 'function') global.crozzoDianVpfeDockOpen();
 
     if (kind === 'spotify' && typeof global.crozzoSpotifyDockOpen === 'function') global.crozzoSpotifyDockOpen();
+    if (kind === 'einforma' && typeof global.crozzoEinformaDockOpen === 'function') global.crozzoEinformaDockOpen();
 
   }
 
