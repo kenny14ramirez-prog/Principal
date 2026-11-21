@@ -1,31 +1,17 @@
 {
-  "id": "1.0.313-critical",
-  "version": "v1.0.313",
-  "semver": "1.0.313",
+  "id": "1.0.314-critical",
+  "version": "v1.0.314",
+  "semver": "1.0.314",
   "type": "critical",
-  "message": "Fix build CI: remover externalBin bloqueante",
-  "publishedAt": "2026-11-21T01:21:41.042Z",
+  "message": "Fix HelpHub close + FAB visible para roles permitidos",
+  "publishedAt": "2026-11-21T19:11:42.255Z",
   "installMode": "auto",
   "changelog": [
-    "Fix build CI: remover externalBin bloqueante"
+    "Fix HelpHub close",
+    "FAB visible para roles permitidos"
   ],
-  "updatedAt": "2026-11-21T01:21:41.042Z",
+  "updatedAt": "2026-11-21T19:11:42.255Z",
   "entries": [
-    {
-      "id": "1.0.289-critical",
-      "version": "v1.0.289",
-      "semver": "1.0.289",
-      "type": "critical",
-      "message": "Hotspot sin parpadeo; ping reducido; menú de usuario visible en Android; orden A antes que C en Windows.",
-      "publishedAt": "2026-11-09T21:20:49.887Z",
-      "installMode": "auto",
-      "changelog": [
-        "Hotspot sin parpadeo",
-        "ping reducido",
-        "menú de usuario visible en Android",
-        "orden A antes que C en Windows."
-      ]
-    },
     {
       "id": "1.0.290-critical",
       "version": "v1.0.290",
@@ -319,6 +305,19 @@
       "installMode": "auto",
       "changelog": [
         "Fix build CI: remover externalBin bloqueante"
+      ]
+    },
+    {
+      "id": "1.0.314-critical",
+      "version": "v1.0.314",
+      "semver": "1.0.314",
+      "type": "critical",
+      "message": "Fix HelpHub close + FAB visible para roles permitidos",
+      "publishedAt": "2026-11-21T19:11:42.255Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix HelpHub close",
+        "FAB visible para roles permitidos"
       ]
     }
   ]

@@ -682,7 +682,7 @@
     global.showModal(
       titles[state.view] || 'Centro de ayuda',
       '<div class="crozzo-help-hub">' + renderBody() + '</div>',
-      { modalClass: 'modal--help-hub', wide: true }
+      { modalClass: 'modal--help-hub', wide: true, showClose: true }
     );
     wireHelpModal();
     if (preserveSearchFocus) {

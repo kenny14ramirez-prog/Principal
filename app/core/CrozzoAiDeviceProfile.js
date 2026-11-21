@@ -77,12 +77,7 @@
     if (model) {
       try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_model', model); } catch (_) {}
     }
-    // Disable AI FAB if disabled
-    if (tier === TIER_DISABLED) {
-      var fab = document.getElementById('crozzo-ai-fab');
-      if (fab) { fab.style.display = 'none'; }
-      try { if (typeof global.CrozzoAiAssistant !== 'undefined') global.CrozzoAiAssistant.close(); } catch (_) {}
-    }
+    // No ocultar el FAB; el asistente mostrará mensaje si está deshabilitado
   }
 
   global.CrozzoAiDeviceProfile = {

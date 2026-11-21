@@ -485,6 +485,11 @@
       try { if (typeof global.showToast === 'function') global.showToast('Asistente IA solo para Super Admin, Admin y Encargado.', 'warning'); } catch (_) {}
       return;
     }
+    var tier = (global.CrozzoAiDeviceProfile && typeof global.CrozzoAiDeviceProfile.getTier === 'function') ? global.CrozzoAiDeviceProfile.getTier() : 'full';
+    if (tier === 'disabled') {
+      try { if (typeof global.showToast === 'function') global.showToast('Su equipo tiene rendimiento muy bajo. El asistente IA no puede ejecutarse aquí.', 'warning'); } catch (_) {}
+      return;
+    }
     ensurePanel();
   }
   function close() { var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
