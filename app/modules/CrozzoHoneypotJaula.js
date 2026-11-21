@@ -129,6 +129,11 @@
   // ── Activación del modo jaula ───────────────────────────────────
   function activar(decoy, opts) {
     if (jaula.active) return;
+    // Guardia: no activar si hay un usuario real logueado
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') return;
+    } catch (_) {}
     opts = opts || {};
     jaula.active = true;
     jaula.decoy = decoy || { user: 'UNKNOWN', rol: 'caja', label: 'Usuario' };
@@ -685,11 +690,19 @@
   // ── Restaurar estado al recargar (Phase 3) ──────────────────────
   function restaurarEstado() {
     try {
-      // Si hay un usuario real logueado, limpiar cualquier estado honeypot stale
+      // Guardia 1: si hay un usuario real logueado (sessionStorage), nunca restaurar jaula
+      try {
+        var sessionUser = sessionStorage.getItem('crozzo_session_user');
+        if (sessionUser && sessionUser !== 'null' && sessionUser !== '') {
+          desactivar();
+          return false;
+        }
+      } catch (_) {}
+      // Guardia 2: si el usuario actual es real (cuando getCurrentUser ya está disponible)
       try {
         if (typeof global.getCurrentUser === 'function') {
           var u = global.getCurrentUser();
-          if (u && (u.id === 'KENNY' || u.es_super_admin === true || (u.rol && String(u.rol).toLowerCase().indexOf('admin') >= 0))) {
+          if (u && (u.id === 'KENNY' || u.es_super_admin === true)) {
             desactivar();
             return false;
           }
@@ -699,7 +712,7 @@
         // El honeypot estaba activo antes del reload
         var startTs = parseInt(sessionStorage.getItem(JAULA_START_KEY) || '0', 10);
         if (startTs > 0) {
-          // Guardia: no restaurar sesiones stale (evita alertas espurias en usuarios reales)
+          // Guardia 3: no restaurar sesiones stale (menos de 2 min)
           if (Date.now() - startTs > 120000) { desactivar(); return false; }
           jaula.active = true;
           jaula.startTime = startTs;
