@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-21T00:31:41.788Z",
+  "updatedAt": "2026-11-21T01:09:43.783Z",
   "entries": [
-    {
-      "id": "1.0.287-critical",
-      "version": "v1.0.287",
-      "semver": "1.0.287",
-      "type": "critical",
-      "message": "Reporte de conexión: botón del menú de usuario funciona; reporte incluye actualizaciones, canal, plataforma y estado local.",
-      "publishedAt": "2026-11-09T20:30:02.140Z",
-      "installMode": "auto",
-      "changelog": [
-        "Reporte de conexión: botón del menú de usuario funciona",
-        "reporte incluye actualizaciones, canal, plataforma y estado local."
-      ]
-    },
     {
       "id": "1.0.288-critical",
       "version": "v1.0.288",
@@ -312,6 +299,18 @@
       "installMode": "auto",
       "changelog": [
         "Obra maestra IA: asistente, voz, RAG, acciones, auditoria, reportes, perfil dispositivo"
+      ]
+    },
+    {
+      "id": "1.0.312-critical",
+      "version": "v1.0.312",
+      "semver": "1.0.312",
+      "type": "critical",
+      "message": "Obra maestra IA: asistente completo, voz, RAG, acciones, auditoria, reportes, perfil dispositivo, permisos Tauri",
+      "publishedAt": "2026-11-21T01:09:43.783Z",
+      "installMode": "auto",
+      "changelog": [
+        "Obra maestra IA: asistente completo, voz, RAG, acciones, auditoria, reportes, perfil dispositivo, permisos Tauri"
       ]
     }
   ]

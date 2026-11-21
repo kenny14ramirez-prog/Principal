@@ -42,6 +42,7 @@ mod crozzo_external;
 mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_whisper;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_llama_sidecar;
@@ -161,7 +162,9 @@ pub fn run() {
             crozzo_secret_store::crozzo_secret_delete,
             crozzo_ollama::crozzo_ollama_chat,
             crozzo_ollama::crozzo_ollama_tags,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_whisper::crozzo_whisper_save_audio,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_whisper::crozzo_whisper_transcribe,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_llama_sidecar::crozzo_llama_health,
