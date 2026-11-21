@@ -27,18 +27,29 @@
     }, '');
   }
 
-  function resolveCreds() {
+  async function resolveCreds() {
     try {
       if (typeof global.crozzoResolveSupabaseCredentials === 'function') {
         var c = global.crozzoResolveSupabaseCredentials();
         if (c && c.url && c.key) return c;
       }
     } catch (_) {}
-    // Fallback a credenciales públicas del proyecto (anon key)
-    return {
-      url: 'https://hogeggkkodkpzossjfft.supabase.co',
-      key: 'sb_publishable_rNiFFu5h4YR-Ab5n8wxJSA_G58xhE64',
-    };
+    // OS secret store (DPAPI). Sin fallback hardcodeado.
+    try {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        var u = await global.__TAURI__.core.invoke('crozzo_secret_get', { name: 'supabase_url' });
+        var k = await global.__TAURI__.core.invoke('crozzo_secret_get', { name: 'supabase_anon_key' });
+        if (u && k) return { url: String(u).trim(), key: String(k).trim() };
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.localStorage !== 'undefined' && global.localStorage) {
+        var ul = global.localStorage.getItem('crozzo_secret_supabase_url');
+        var kl = global.localStorage.getItem('crozzo_secret_supabase_anon_key');
+        if (ul && kl) return { url: String(ul).trim(), key: String(kl).trim() };
+      }
+    } catch (_) {}
+    return { ok: false, error: 'no credentials' };
   }
 
   async function runDiag() {
@@ -183,9 +194,12 @@
 
   async function upload(report) {
     report = report || {};
-    var creds = resolveCreds();
-    var url = creds && creds.url ? String(creds.url).trim() : '';
-    var key = creds && creds.key ? String(creds.key).trim() : '';
+    var creds = await resolveCreds();
+    if (!creds || creds.ok === false || !creds.url || !creds.key) {
+      return { ok: false, error: 'no credentials', via: 'none' };
+    }
+    var url = String(creds.url).trim();
+    var key = String(creds.key).trim();
     var sb = global.__SUPABASE || null;
     var fp = fingerprintFor(report);
     var user = report.user || null;

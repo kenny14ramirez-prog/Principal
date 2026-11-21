@@ -39,9 +39,11 @@ mod adq_enrich_sidecar;
 mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
+mod crozzo_device_profile;
 mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
+mod crozzo_ai_semaphore;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_whisper;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -157,11 +159,15 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            crozzo_device_profile::crozzo_device_ram,
             crozzo_secret_store::crozzo_secret_set,
             crozzo_secret_store::crozzo_secret_get,
             crozzo_secret_store::crozzo_secret_delete,
             crozzo_ollama::crozzo_ollama_chat,
             crozzo_ollama::crozzo_ollama_tags,
+            crozzo_ai_semaphore::crozzo_ai_acquire,
+            crozzo_ai_semaphore::crozzo_ai_release,
+            crozzo_ai_semaphore::crozzo_ai_semaphore_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_whisper::crozzo_whisper_save_audio,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

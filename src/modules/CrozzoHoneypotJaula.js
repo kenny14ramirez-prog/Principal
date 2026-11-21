@@ -196,14 +196,6 @@
     if (_origCrozzoGetVentas) global.crozzoGetVentas = _origCrozzoGetVentas;
     _origConfigGet = null; _origGetUsuariosConfig = null; _origCrozzoGetProductos = null; _origCrozzoGetClientes = null; _origCrozzoGetVentas = null;
     _intercepted = false;
-    // Restaurar funciones originales
-    if (_origConfigGet && typeof global.config !== 'undefined') global.config.get = _origConfigGet;
-    if (_origGetUsuariosConfig) global.getUsuariosConfig = _origGetUsuariosConfig;
-    if (_origCrozzoGetProductos) global.crozzoGetProductos = _origCrozzoGetProductos;
-    if (_origCrozzoGetClientes) global.crozzoGetClientes = _origCrozzoGetClientes;
-    if (_origCrozzoGetVentas) global.crozzoGetVentas = _origCrozzoGetVentas;
-    _origConfigGet = null; _origGetUsuariosConfig = null; _origCrozzoGetProductos = null; _origCrozzoGetClientes = null; _origCrozzoGetVentas = null;
-    _intercepted = false;
     jaula.blocked = false;
     jaula.decoy = null;
     jaula.fakeUser = null;
@@ -226,8 +218,6 @@
 
   function interceptarConfig() {
     if (!jaula.active) return;
-    if (_intercepted) return;
-    _intercepted = true;
     if (_intercepted) return;
     _intercepted = true;
     if (typeof global.config !== 'undefined' && typeof global.config.get === 'function') {
@@ -739,7 +729,7 @@
       try {
         if (typeof global.getCurrentUser === 'function') {
           var u = global.getCurrentUser();
-          if (u && (u.id === 'KENNY' || u.es_super_admin === true)) {
+          if (u) {
             desactivar();
             return false;
           }

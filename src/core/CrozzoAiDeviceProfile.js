@@ -1,7 +1,7 @@
 /**
  * Bona Origen — Perfil de rendimiento para IA.
- * Clasifica el equipo en tiers de IA (disabled/light/medium/full) usando CrozzoDevicePerf
- * y navigator.deviceMemory/hardwareConcurrency. Notifica limitaciones.
+ * Clasifica el equipo en tiers de IA (disabled/light/medium/full) usando RAM real
+ * (crozzo_device_ram vía Tauri) con fallback a navigator.deviceMemory.
  */
 (function (global) {
   'use strict';
@@ -25,25 +25,68 @@
     full: 'Equipo de buen rendimiento: modelo completo disponible.',
   };
 
-  function getDeviceTier() {
+  var _realRamMB = null;
+  var _ramPromise = null;
+
+  function isTauri() {
+    try { return !!(global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function'); } catch (_) { return false; }
+  }
+
+  function navigatorRamMB() {
     try {
-      if (global.CrozzoDevicePerf && typeof global.CrozzoDevicePerf.tier === 'function') {
-        var t = global.CrozzoDevicePerf.tier();
-        var cores = (global.navigator && global.navigator.hardwareConcurrency) || 4;
-        var mem = (global.navigator && global.navigator.deviceMemory) || null;
-        // Clasificación IA
-        if (t === 'low' && (mem === null || mem <= 2) && cores <= 2) return TIER_DISABLED;
-        if (t === 'low') return TIER_LIGHT;
-        if (t === 'medium') return TIER_MEDIUM;
-        return TIER_FULL;
+      var nav = global.navigator || {};
+      // navigator.deviceMemory está en GB y topeado a 8 en navegadores.
+      if (typeof nav.deviceMemory === 'number' && isFinite(nav.deviceMemory) && nav.deviceMemory > 0) {
+        return Math.round(nav.deviceMemory * 1024);
       }
     } catch (_) {}
-    // Fallback por navigator
-    var cores2 = (global.navigator && global.navigator.hardwareConcurrency) || 4;
-    var mem2 = (global.navigator && global.navigator.deviceMemory) || 4;
-    if (mem2 <= 2 && cores2 <= 2) return TIER_DISABLED;
-    if (mem2 <= 4 || cores2 <= 4) return TIER_LIGHT;
-    if (mem2 <= 8) return TIER_MEDIUM;
+    return null;
+  }
+
+  function fetchRealRam() {
+    if (_ramPromise) return _ramPromise;
+    _ramPromise = (async function () {
+      if (isTauri()) {
+        try {
+          var r = await global.__TAURI__.core.invoke('crozzo_device_ram');
+          var n = (typeof r === 'string') ? Number(r) : r;
+          if (typeof n === 'number' && isFinite(n) && n > 0) {
+            _realRamMB = Math.round(n);
+            return _realRamMB;
+          }
+        } catch (e) { /* fallback */ }
+      }
+      var nm = navigatorRamMB();
+      if (nm != null) _realRamMB = nm;
+      return _realRamMB;
+    })();
+    return _ramPromise;
+  }
+
+  function getRamMB() {
+    if (_realRamMB != null) return _realRamMB;
+    try { fetchRealRam(); } catch (_) {}
+    return navigatorRamMB();
+  }
+
+  function tierFromRam(ramMB) {
+    var gb = (ramMB != null ? ramMB : 0) / 1024;
+    if (gb < 4) return TIER_DISABLED;
+    if (gb < 6) return TIER_LIGHT;
+    if (gb < 10) return TIER_MEDIUM;
+    return TIER_FULL;
+  }
+
+  function getDeviceTier() {
+    var ram = getRamMB();
+    if (ram != null) return tierFromRam(ram);
+    // Fallback por navigator (memoria topeada a 8)
+    var cores = (global.navigator && global.navigator.hardwareConcurrency) || 4;
+    var mem = (global.navigator && global.navigator.deviceMemory) || 4;
+    var memMB = mem * 1024;
+    if (memMB < 4096 && cores <= 2) return TIER_DISABLED;
+    if (memMB < 6144 || cores <= 4) return TIER_LIGHT;
+    if (memMB < 10240) return TIER_MEDIUM;
     return TIER_FULL;
   }
 
@@ -77,7 +120,6 @@
     if (model) {
       try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_model', model); } catch (_) {}
     }
-    // No ocultar el FAB; el asistente mostrará mensaje si está deshabilitado
   }
 
   global.CrozzoAiDeviceProfile = {
@@ -86,13 +128,25 @@
     isEnabled: isAiEnabled,
     notify: notifyTier,
     apply: applyTierToModelManager,
+    getRamMB: getRamMB,
+    refreshRam: fetchRealRam,
   };
 
+  function init() {
+    fetchRealRam().then(function () {
+      try { notifyTier(); applyTierToModelManager(); } catch (_) {}
+    }).catch(function () {
+      try { notifyTier(); applyTierToModelManager(); } catch (_) {}
+    });
+  }
+
   try {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { notifyTier(); applyTierToModelManager(); }, 500); }, { once: true });
-    } else {
-      setTimeout(function () { notifyTier(); applyTierToModelManager(); }, 500);
+    if (typeof document !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 500); }, { once: true });
+      } else {
+        setTimeout(init, 500);
+      }
     }
   } catch (_) {}
 })(typeof window !== 'undefined' ? window : globalThis);

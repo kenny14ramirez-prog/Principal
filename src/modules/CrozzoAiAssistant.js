@@ -11,6 +11,7 @@
   var _history = [];
   var _abort = null;
   var _pulling = false;
+  var _sending = false;
 
   function ollamaUrl() { return (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434'; }
   function ollamaModel() { return (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini'; }
@@ -206,10 +207,12 @@
   }
 
   async function send() {
+    if (_sending) return;
     var inp = document.getElementById('crozzo-ai-input');
     if (!inp) return;
     var text = (inp.value || '').trim();
     if (!text) return;
+    _sending = true;
     inp.value = '';
     addMessage('user', text);
     _history.push({ role: 'user', content: text });
@@ -227,6 +230,7 @@
               adiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
             }
           }
+          _sending = false;
           return;
         }
       }
@@ -334,6 +338,7 @@
     } finally {
       var box2 = document.getElementById('crozzo-ai-messages');
       if (box2) box2.scrollHeight = box2.scrollHeight;
+      _sending = false;
     }
   }
 

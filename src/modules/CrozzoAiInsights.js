@@ -1147,7 +1147,7 @@
     }
   }
 
-  function readLocalKey() {
+  function readLocalKeySync() {
     try {
       return String(localStorage.getItem(LS_LOCAL_KEY) || '').trim();
     } catch (_) {
@@ -1155,10 +1155,55 @@
     }
   }
 
-  function writeLocalKey(key) {
+  async function readLocalKey() {
+    // Preferir almacén del SO (DPAPI) sobre localStorage.
     try {
-      if (key) localStorage.setItem(LS_LOCAL_KEY, String(key));
-      else localStorage.removeItem(LS_LOCAL_KEY);
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        var v = await global.__TAURI__.core.invoke('crozzo_secret_get', { name: LS_LOCAL_KEY });
+        if (v) return String(v).trim();
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined') {
+        var s = localStorage.getItem('crozzo_secret_' + LS_LOCAL_KEY);
+        if (s) return String(s).trim();
+      }
+    } catch (_) {}
+    // Backward compat + migración best-effort desde localStorage.
+    var legacy = readLocalKeySync();
+    if (legacy) {
+      try {
+        if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+          await global.__TAURI__.core.invoke('crozzo_secret_set', { name: LS_LOCAL_KEY, value: legacy });
+        }
+      } catch (_) {}
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_secret_' + LS_LOCAL_KEY, legacy);
+      } catch (_) {}
+    }
+    return legacy;
+  }
+
+  async function writeLocalKey(key) {
+    var k = String(key || '').trim();
+    // Almacén del SO (preferido).
+    try {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        if (k) await global.__TAURI__.core.invoke('crozzo_secret_set', { name: LS_LOCAL_KEY, value: k });
+        else await global.__TAURI__.core.invoke('crozzo_secret_delete', { name: LS_LOCAL_KEY });
+      }
+    } catch (_) {}
+    // Fallback localStorage (backward compat).
+    try {
+      if (typeof localStorage !== 'undefined') {
+        if (k) {
+          localStorage.setItem(LS_LOCAL_KEY, k);
+          localStorage.setItem('crozzo_secret_' + LS_LOCAL_KEY, k);
+        } else {
+          localStorage.removeItem(LS_LOCAL_KEY);
+          localStorage.removeItem('crozzo_secret_' + LS_LOCAL_KEY);
+        }
+      }
     } catch (_) {}
   }
 
@@ -1239,7 +1284,7 @@
 
   async function fetchKeyStatus(opts) {
     opts = opts || {};
-    var local = readLocalKey();
+    var local = await readLocalKey();
     if (local && local.indexOf('nvapi-') === 0) {
       var stLocal = { configured: true, last4: local.slice(-4), at: Date.now(), source: 'local' };
       cacheKeyStatus(stLocal);
@@ -1335,7 +1380,7 @@
       }
       var probeBtn = document.getElementById('crozzoAiBtnProbe');
       if (probeBtn) probeBtn.disabled = !!_probeSession.busy;
-      var local = readLocalKey();
+      var local = readLocalKeySync();
       if (local && local.indexOf('nvapi-') === 0) {
         var last4 = local.slice(-4);
         var hint = document.getElementById('crozzoAiKeyHint');
@@ -1391,9 +1436,9 @@
     if (isLikelyPlaceholderKey(key)) {
       return { ok: false, error: 'placeholder_key' };
     }
-    writeLocalKey(key);
+    await writeLocalKey(key);
     cacheKeyStatus({ configured: true, last4: key.slice(-4), at: Date.now(), source: 'local' });
-    var confirmed = readLocalKey() === key;
+    var confirmed = (await readLocalKey()) === key;
     if (!confirmed) {
       return { ok: false, error: 'local_persist_failed' };
     }
@@ -1412,7 +1457,7 @@
 
   async function chatNvidia(userText, opts) {
     opts = opts || {};
-    var key = readLocalKey();
+    var key = await readLocalKey();
     var typed = String(opts.apiKey || '').trim();
     if (typed && isLikelyPlaceholderKey(typed)) {
       return { ok: false, error: 'placeholder_key' };
@@ -1425,8 +1470,9 @@
       return { ok: false, error: 'placeholder_key' };
     }
     /* Si pegó key en el input y aún no estaba guardada, persistir local */
-    if (typed && typed.indexOf('nvapi-') === 0 && typed !== readLocalKey()) {
-      writeLocalKey(typed);
+    var _rk = await readLocalKey();
+    if (typed && typed.indexOf('nvapi-') === 0 && typed !== _rk) {
+      await writeLocalKey(typed);
       cacheKeyStatus({ configured: true, last4: typed.slice(-4), at: Date.now(), source: 'local' });
     }
     var system =
@@ -1699,7 +1745,7 @@
   function renderSuperAdminCardHtml() {
     var cfg = readCfg();
     var st = readKeyStatusCache();
-    var local = readLocalKey();
+    var local = readLocalKeySync();
     if (!st.configured && local) {
       st = { configured: true, last4: local.slice(-4), source: 'local' };
     }
@@ -1858,7 +1904,7 @@
               if (typeof showToast === 'function') showToast('Key no guardada', 'warning');
               return;
             }
-            if (readLocalKey() !== key) {
+            if (readLocalKeySync() !== key) {
               msg('Guardado incompleto — la key no quedó en este PC. Intente de nuevo.', true);
               return;
             }

@@ -1,31 +1,16 @@
 {
-  "id": "1.0.317-critical",
-  "version": "v1.0.317",
-  "semver": "1.0.317",
+  "id": "1.0.318-critical",
+  "version": "v1.0.318",
+  "semver": "1.0.318",
   "type": "critical",
-  "message": "Fix honeypot desbloquear + guardias robustas",
-  "publishedAt": "2026-11-21T21:02:46.072Z",
+  "message": "Fase A: honeypot guards, tiering RAM real, semaforo AI, secrets OS store",
+  "publishedAt": "2026-11-21T21:26:05.478Z",
   "installMode": "auto",
   "changelog": [
-    "Fix honeypot desbloquear",
-    "guardias robustas"
+    "Fase A: honeypot guards, tiering RAM real, semaforo AI, secrets OS store"
   ],
-  "updatedAt": "2026-11-21T21:02:46.072Z",
+  "updatedAt": "2026-11-21T21:26:05.478Z",
   "entries": [
-    {
-      "id": "1.0.293-critical",
-      "version": "v1.0.293",
-      "semver": "1.0.293",
-      "type": "critical",
-      "message": "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers; comando de IP movil en modulo propio (build Android corregido); auto-actualizacion del APK",
-      "publishedAt": "2026-11-10T00:40:36.161Z",
-      "installMode": "auto",
-      "changelog": [
-        "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers",
-        "comando de IP movil en modulo propio (build Android corregido)",
-        "auto-actualizacion del APK"
-      ]
-    },
     {
       "id": "1.0.294-critical",
       "version": "v1.0.294",
@@ -318,6 +303,18 @@
       "changelog": [
         "Fix honeypot desbloquear",
         "guardias robustas"
+      ]
+    },
+    {
+      "id": "1.0.318-critical",
+      "version": "v1.0.318",
+      "semver": "1.0.318",
+      "type": "critical",
+      "message": "Fase A: honeypot guards, tiering RAM real, semaforo AI, secrets OS store",
+      "publishedAt": "2026-11-21T21:26:05.478Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fase A: honeypot guards, tiering RAM real, semaforo AI, secrets OS store"
       ]
     }
   ]

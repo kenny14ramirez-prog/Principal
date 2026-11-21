@@ -941,6 +941,10 @@ function logoutCurrentUser(opts) {
   if (typeof window.__crozzoSupabaseSignOut === 'function') {
     window.__crozzoSupabaseSignOut().catch(() => {});
   }
+  try { if (window.CrozzoHoneypotJaula && typeof window.CrozzoHoneypotJaula.desactivar === 'function') window.CrozzoHoneypotJaula.desactivar(); } catch (_) {}
+  try { sessionStorage.removeItem('crozzo_modo_jaula'); sessionStorage.removeItem('crozzo_jaula_start'); sessionStorage.removeItem('crozzo_jaula_decoy'); } catch (_) {}
+  try { localStorage.removeItem('crozzo_jaula_bloqueado'); localStorage.removeItem('crozzo_jaula_log'); } catch (_) {}
+  try { window.__crozzoHoneypotLive = null; } catch (_) {}
 }
 // === Pantalla de login global ===
 function shouldRequireLogin() {
@@ -1040,6 +1044,7 @@ function crozzoPurgeStaleSessionOnBoot() {
       if (typeof crozzoHpRemoveAiDecoyNav === 'function') crozzoHpRemoveAiDecoyNav();
       if (typeof crozzoHpScrubDbChaff === 'function') crozzoHpScrubDbChaff();
     } catch (_) {}
+    try { if (window.CrozzoHoneypotJaula && typeof window.CrozzoHoneypotJaula.desactivar === 'function') window.CrozzoHoneypotJaula.desactivar(); } catch (_) {}
     if (typeof window.__crozzoSupabaseSignOut === 'function') {
       try {
         void window.__crozzoSupabaseSignOut();

@@ -105,6 +105,11 @@ description = "Puente a Ollama local (IA texto) para an√°lisis de cierres y res√
 commands.allow = ["crozzo_ollama_chat", "crozzo_ollama_tags"]
 
 [[permission]]
+identifier = "allow-crozzo-ai-semaphore"
+description = "Semaforo de inferencia IA (max 2 concurrentes)"
+commands.allow = ["crozzo_ai_acquire", "crozzo_ai_release", "crozzo_ai_semaphore_status"]
+
+[[permission]]
 identifier = "allow-crozzo-hotspot"
 description = "Hotspot de respaldo de la caja (Windows WinRT, stubs otros SO)"
 commands.allow = ["crozzo_hotspot_start", "crozzo_hotspot_stop", "crozzo_hotspot_status"]
