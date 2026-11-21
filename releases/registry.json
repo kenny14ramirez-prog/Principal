@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-21T20:55:17.344Z",
+  "updatedAt": "2026-11-21T21:02:46.072Z",
   "entries": [
-    {
-      "id": "1.0.292-critical",
-      "version": "v1.0.292",
-      "semver": "1.0.292",
-      "type": "critical",
-      "message": "LAN: servidor responde (CRLF real), conectividad/ping/canal usan IP LAN de la caja, comando de IP disponible en Android y auto-actualizacion del APK",
-      "publishedAt": "2026-11-10T00:33:05.298Z",
-      "installMode": "auto",
-      "changelog": [
-        "LAN: servidor responde (CRLF real), conectividad/ping/canal usan IP LAN de la caja, comando de IP disponible en Android y auto-actualizacion del APK"
-      ]
-    },
     {
       "id": "1.0.293-critical",
       "version": "v1.0.293",
@@ -306,6 +294,19 @@
       "installMode": "auto",
       "changelog": [
         "Fix honeypot: guardias robustas contra sesiones legitimas"
+      ]
+    },
+    {
+      "id": "1.0.317-critical",
+      "version": "v1.0.317",
+      "semver": "1.0.317",
+      "type": "critical",
+      "message": "Fix honeypot desbloquear + guardias robustas",
+      "publishedAt": "2026-11-21T21:02:46.072Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot desbloquear",
+        "guardias robustas"
       ]
     }
   ]

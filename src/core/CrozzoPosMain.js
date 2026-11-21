@@ -357,6 +357,7 @@ function crozzoInvalidateSession(reason) {
   } catch (_) {}
   try {
     sessionStorage.removeItem('crozzo_session_user');
+  try { if (window.CrozzoHoneypotJaula && typeof window.CrozzoHoneypotJaula.desactivar === 'function') window.CrozzoHoneypotJaula.desactivar(); } catch (_) {}
     sessionStorage.removeItem('crozzo_cloud_profile');
     sessionStorage.removeItem('crozzo_cloud_auth_uid');
   } catch (_) {}

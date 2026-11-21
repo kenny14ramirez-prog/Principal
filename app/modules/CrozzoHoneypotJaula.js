@@ -129,12 +129,27 @@
   // ── Activación del modo jaula ───────────────────────────────────
   function activar(decoy, opts) {
     if (jaula.active) return;
-    // Guardia: no activar si hay un usuario real logueado
-    try {
-      var su = sessionStorage.getItem('crozzo_session_user');
-      if (su && su !== 'null' && su !== '') return;
-    } catch (_) {}
     opts = opts || {};
+    var isAdminPreview = !!opts.adminPreview;
+    if (!isAdminPreview) {
+      // Guardia: no activar si hay un usuario real logueado
+      try {
+        var su = sessionStorage.getItem('crozzo_session_user');
+        if (su && su !== 'null' && su !== '') return;
+      } catch (_) {}
+      try {
+        if (typeof global.getCurrentUser === 'function') {
+          var u = global.getCurrentUser();
+          if (u) return;
+        }
+      } catch (_) {}
+    } else {
+      // adminPreview solo válido para KENNY/superadmin
+      try {
+        var u2 = (typeof global.getCurrentUser === 'function') ? global.getCurrentUser() : null;
+        if (!u2 || !(u2.id === 'KENNY' || u2.es_super_admin === true)) return;
+      } catch (_) { return; }
+    }
     jaula.active = true;
     jaula.decoy = decoy || { user: 'UNKNOWN', rol: 'caja', label: 'Usuario' };
     jaula.startTime = Date.now();
@@ -174,6 +189,21 @@
 
   function desactivar() {
     jaula.active = false;
+    if (_origConfigGet && typeof global.config !== 'undefined') global.config.get = _origConfigGet;
+    if (_origGetUsuariosConfig) global.getUsuariosConfig = _origGetUsuariosConfig;
+    if (_origCrozzoGetProductos) global.crozzoGetProductos = _origCrozzoGetProductos;
+    if (_origCrozzoGetClientes) global.crozzoGetClientes = _origCrozzoGetClientes;
+    if (_origCrozzoGetVentas) global.crozzoGetVentas = _origCrozzoGetVentas;
+    _origConfigGet = null; _origGetUsuariosConfig = null; _origCrozzoGetProductos = null; _origCrozzoGetClientes = null; _origCrozzoGetVentas = null;
+    _intercepted = false;
+    // Restaurar funciones originales
+    if (_origConfigGet && typeof global.config !== 'undefined') global.config.get = _origConfigGet;
+    if (_origGetUsuariosConfig) global.getUsuariosConfig = _origGetUsuariosConfig;
+    if (_origCrozzoGetProductos) global.crozzoGetProductos = _origCrozzoGetProductos;
+    if (_origCrozzoGetClientes) global.crozzoGetClientes = _origCrozzoGetClientes;
+    if (_origCrozzoGetVentas) global.crozzoGetVentas = _origCrozzoGetVentas;
+    _origConfigGet = null; _origGetUsuariosConfig = null; _origCrozzoGetProductos = null; _origCrozzoGetClientes = null; _origCrozzoGetVentas = null;
+    _intercepted = false;
     jaula.blocked = false;
     jaula.decoy = null;
     jaula.fakeUser = null;
@@ -187,11 +217,24 @@
   }
 
   // ── Interceptores de datos ──────────────────────────────────────
+  var _origConfigGet = null;
+  var _origGetUsuariosConfig = null;
+  var _origCrozzoGetProductos = null;
+  var _origCrozzoGetClientes = null;
+  var _origCrozzoGetVentas = null;
+  var _intercepted = false;
+
   function interceptarConfig() {
     if (!jaula.active) return;
+    if (_intercepted) return;
+    _intercepted = true;
+    if (_intercepted) return;
+    _intercepted = true;
     if (typeof global.config !== 'undefined' && typeof global.config.get === 'function') {
-      const origGet = global.config.get.bind(global.config);
+      _origConfigGet = global.config.get.bind(global.config);
+      const origGet = _origConfigGet;
       global.config.get = function (key) {
+        if (!jaula.active && _origConfigGet) return _origConfigGet(key);
         if (key === 'usuarios') {
           return { staff: [jaula.fakeUser] };
         }
@@ -214,27 +257,35 @@
       };
     }
     if (typeof global.getUsuariosConfig === 'function') {
+      _origGetUsuariosConfig = global.getUsuariosConfig;
       global.getUsuariosConfig = function () {
+        if (!jaula.active && _origGetUsuariosConfig) return _origGetUsuariosConfig();
         return { staff: [jaula.fakeUser] };
       };
     }
     // Interceptar funciones globales de datos para devolver datos ficticios
     if (typeof global.crozzoGetProductos === 'function') {
+      _origCrozzoGetProductos = global.crozzoGetProductos;
       global.crozzoGetProductos = function () {
+        if (!jaula.active && _origCrozzoGetProductos) return _origCrozzoGetProductos();
         return jaula.fakeProducts.map(function (p) {
           return { id: p.id, nombre: p.nombre, precio: p.precio, categoria: p.cat, icon: p.icon, stock: Math.floor(Math.random() * 50) + 5, activo: true };
         });
       };
     }
     if (typeof global.crozzoGetClientes === 'function') {
+      _origCrozzoGetClientes = global.crozzoGetClientes;
       global.crozzoGetClientes = function () {
+        if (!jaula.active && _origCrozzoGetClientes) return _origCrozzoGetClientes();
         return jaula.fakeClientes.map(function (c, i) {
           return { id: 'CL-' + (i + 1), nombre: c.nombre, telefono: c.tel, email: c.email, nit: c.nit || '' };
         });
       };
     }
     if (typeof global.crozzoGetVentas === 'function') {
+      _origCrozzoGetVentas = global.crozzoGetVentas;
       global.crozzoGetVentas = function () {
+        if (!jaula.active && _origCrozzoGetVentas) return _origCrozzoGetVentas();
         return jaula.fakeVentas.map(function (v, i) {
           return { id: 'V-' + (i + 1), total: v.total, metodoPago: v.metodo, fecha: new Date(Date.now() - Math.random() * 86400000).toISOString(), cliente: jaula.fakeClientes[Math.floor(Math.random() * jaula.fakeClientes.length)].nombre };
         });
@@ -656,23 +707,9 @@
             if (typeof callback === 'function') callback(false);
           }
         }).catch(function () {
-          // Fallback: verificar código localmente (solo si no hay internet)
-          if (codigo === 'CROZZO-UNLOCK-2026') {
-            try {
-              localStorage.removeItem(JAULA_BLOCKED_KEY);
-              localStorage.removeItem(JAULA_LOG_KEY);
-            } catch (_) {}
-            jaula.blocked = false;
-            var ov = document.getElementById('crozzoHoneypotOverlay');
-            if (ov) ov.setAttribute('hidden', '');
-            document.body.style.overflow = '';
-            document.body.classList.remove('crozzo-hp-containment-active');
-            if (typeof callback === 'function') callback(true);
-          } else {
-            if (typeof callback === 'function') callback(false);
-          }
+          // Fallback de código hardcodeado eliminado (seguridad).
+          // Usar solo verificación server-side (verify_unlock_code).
         });
-        return true; // Async — resultado via callback
       }
     } catch (_) {
       return false;
