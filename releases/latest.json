@@ -4,12 +4,12 @@
   "semver": "1.0.328",
   "type": "critical",
   "message": "Fix scrollHeight read-only bug en asistente IA",
-  "publishedAt": "2026-11-21T23:04:01.345Z",
+  "publishedAt": "2026-11-21T23:05:16.882Z",
   "installMode": "auto",
   "changelog": [
     "Fix scrollHeight read-only bug en asistente IA"
   ],
-  "updatedAt": "2026-11-21T23:04:01.345Z",
+  "updatedAt": "2026-11-21T23:05:16.882Z",
   "entries": [
     {
       "id": "1.0.304-critical",
@@ -312,7 +312,7 @@
       "semver": "1.0.328",
       "type": "critical",
       "message": "Fix scrollHeight read-only bug en asistente IA",
-      "publishedAt": "2026-11-21T23:04:01.345Z",
+      "publishedAt": "2026-11-21T23:05:16.882Z",
       "installMode": "auto",
       "changelog": [
         "Fix scrollHeight read-only bug en asistente IA"
