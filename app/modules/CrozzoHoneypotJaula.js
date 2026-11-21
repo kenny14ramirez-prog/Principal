@@ -155,6 +155,21 @@
   // ── Activación del modo jaula ───────────────────────────────────
   function activar(decoy, opts) {
     if (__HP_DISABLED) return;
+    // GUARDIA NUCLEAR: verificar que el decoy es un decoy real conocido
+    try {
+      var du = (decoy && decoy.user) ? String(decoy.user).trim().toUpperCase() : '';
+      if (du && typeof global.CrozzoAuthSecurity !== 'undefined' && typeof global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername === 'function') {
+        if (!global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername(du, {})) return;
+      }
+    } catch (_) {}
+    // GUARDIA NUCLEAR: si hay cualquier usuario real, no activar
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') return;
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) return;
+    } catch (_) {}
     if (jaula.active) return;
     opts = opts || {};
     var isAdminPreview = !!opts.adminPreview;
@@ -313,6 +328,14 @@
   // ── Alertas progresivas ─────────────────────────────────────────
   function programarAlertas(liveMs, shortDemo) {
     if (!jaula.active) return;
+    // GUARDIA NUCLEAR: no programar si hay usuario real
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') { desactivar(); return; }
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) { desactivar(); return; }
+    } catch (_) {}
     // NUCLEAR GUARD: never schedule alerts for a real logged-in user
     try {
       var su = sessionStorage.getItem('crozzo_session_user');
@@ -370,6 +393,22 @@
 
   function mostrarModal(msg) {
     // NUCLEAR GUARD: never show honeypot modal for a real logged-in user
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') { desactivar(); return; }
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) { desactivar(); return; }
+    } catch (_) {}
+    // Verificar que el decoy es real
+    try {
+      if (jaula.decoy && jaula.decoy.user) {
+        var du = String(jaula.decoy.user).trim().toUpperCase();
+        if (du && typeof global.CrozzoAuthSecurity !== 'undefined' && typeof global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername === 'function') {
+          if (!global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername(du, {})) { desactivar(); return; }
+        }
+      }
+    } catch (_) {}
     try {
       var su = sessionStorage.getItem('crozzo_session_user');
       if (su && su !== 'null' && su !== '') return;
@@ -777,6 +816,25 @@
   // ── Restaurar estado al recargar (Phase 3) ──────────────────────
   function restaurarEstado() {
     if (__HP_DISABLED) { desactivar(); return false; }
+    // GUARDIA NUCLEAR: si hay usuario real, no restaurar
+    try {
+      var su = sessionStorage.getItem('crozzo_session_user');
+      if (su && su !== 'null' && su !== '') { desactivar(); return false; }
+    } catch (_) {}
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) { desactivar(); return false; }
+    } catch (_) {}
+    // GUARDIA NUCLEAR: verificar que el decoy guardado es un decoy real
+    try {
+      var savedDecoyRaw = sessionStorage.getItem(JAULA_DECOY_KEY);
+      if (savedDecoyRaw) {
+        var sd = JSON.parse(savedDecoyRaw);
+        var du = (sd && sd.user) ? String(sd.user).trim().toUpperCase() : '';
+        if (du && typeof global.CrozzoAuthSecurity !== 'undefined' && typeof global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername === 'function') {
+          if (!global.CrozzoAuthSecurity.crozzoHoneypotIsDecoyUsername(du, {})) { desactivar(); return false; }
+        }
+      }
+    } catch (_) {}
     try {
       // Guardia 1: si hay un usuario real logueado (sessionStorage), nunca restaurar jaula
       try {
