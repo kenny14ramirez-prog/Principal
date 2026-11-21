@@ -15,6 +15,19 @@
   // GUARDIA GLOBAL: si hay usuario real logueado, deshabilitar todo el módulo
   var __HP_DISABLED = false;
   try {
+    // Si el overlay de login está oculto, hay un usuario logueado → deshabilitar
+    var loginOv = document.getElementById('loginOverlay');
+    if (loginOv && loginOv.hasAttribute('hidden')) __HP_DISABLED = true;
+    // También verificar si hay un usuario en sessionStorage
+    var _su = sessionStorage.getItem('crozzo_session_user');
+    if (_su && _su !== 'null' && _su !== '') __HP_DISABLED = true;
+    // Limpiar flags si está deshabilitado
+    if (__HP_DISABLED) {
+      try { sessionStorage.removeItem('crozzo_modo_jaula'); sessionStorage.removeItem('crozzo_jaula_start'); sessionStorage.removeItem('crozzo_jaula_decoy'); } catch (_) {}
+      try { localStorage.removeItem('crozzo_jaula_log'); localStorage.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
+    }
+  } catch (_) {}
+  try {
     var _su = sessionStorage.getItem('crozzo_session_user');
     if (_su && _su !== 'null' && _su !== '') {
       __HP_DISABLED = true;
@@ -958,7 +971,22 @@
     FAKE_CLIENTES: FAKE_CLIENTES,
   };
 
-  // SAFETY NET: cada 5s, si hay usuario real logueado, desactivar jaula
+  // SAFETY NET: cada 2s, si hay usuario real logueado, desactivar jaula
+  try {
+    global.setInterval(function () {
+      try {
+        var loginOv = document.getElementById('loginOverlay');
+        var isLoggedIn = loginOv && loginOv.hasAttribute('hidden');
+        var su = sessionStorage.getItem('crozzo_session_user');
+        if (isLoggedIn || (su && su !== 'null' && su !== '')) {
+          __HP_DISABLED = true;
+          if (jaula.active) desactivar();
+          try { sessionStorage.removeItem('crozzo_modo_jaula'); sessionStorage.removeItem('crozzo_jaula_start'); sessionStorage.removeItem('crozzo_jaula_decoy'); } catch (_) {}
+          try { localStorage.removeItem('crozzo_jaula_log'); localStorage.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
+        }
+      } catch (_) {}
+    }, 2000);
+  } catch (_) {}
   try {
     global.setInterval(function () {
       try {

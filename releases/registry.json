@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-21T22:17:40.286Z",
+  "updatedAt": "2026-11-21T22:18:38.872Z",
   "entries": [
-    {
-      "id": "1.0.300-critical",
-      "version": "v1.0.300",
-      "semver": "1.0.300",
-      "type": "critical",
-      "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion",
-      "publishedAt": "2026-11-17T21:09:37.621Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion"
-      ]
-    },
     {
       "id": "1.0.301-critical",
       "version": "v1.0.301",
@@ -306,6 +294,19 @@
       "changelog": [
         "Fix honeypot: guardias nucleares en programarAlertas/mostrarModal/bloquearFinal",
         "safety net"
+      ]
+    },
+    {
+      "id": "1.0.325-critical",
+      "version": "v1.0.325",
+      "semver": "1.0.325",
+      "type": "critical",
+      "message": "Fix honeypot: guardia por login overlay + safety net 2s",
+      "publishedAt": "2026-11-21T22:18:38.872Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot: guardia por login overlay",
+        "safety net 2s"
       ]
     }
   ]
