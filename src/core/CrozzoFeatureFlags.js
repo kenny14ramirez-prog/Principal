@@ -19,7 +19,8 @@
     useQrLocal: false,              // QR local (librería cliente)
     useTypeScriptModules: false,    // módulos TS (gradual)
     useSanitizeInnerHtml: true,    // sanitización automática de innerHTML (monkey-patch) - activado por defecto Fase -2
-    use2faAdmin: false            // 2FA TOTP para admin/superadmin (PoC)
+    use2faAdmin: false,           // 2FA TOTP para admin/superadmin (PoC)
+    useVisionOcr: false           // OCR con LLM de visión (opt-in, solo tier full; Tesseract sigue siendo primario)
   };
 
   function load() {

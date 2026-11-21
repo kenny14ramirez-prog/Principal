@@ -140,6 +140,7 @@
     document.addEventListener('keydown', _panelEsc);
     // Trigger background model download (non-blocking)
     setTimeout(ensureModelInBackground, 100);
+    restoreMessages();
     return ov;
   }
 
@@ -224,7 +225,9 @@
     _sending = true;
     inp.value = '';
     addMessage('user', text);
+    if (_history.length === 0) { try { if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') _history = global.CrozzoAiChatHistory.load() || []; } catch (_) {} }
     _history.push({ role: 'user', content: text });
+    persistHistory();
     // Fase 4: si el usuario pide una acción directa, ejecutarla sin llamar al modelo
     try {
       if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
@@ -239,6 +242,8 @@
               adiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
             }
           }
+          _history.push({ role: 'assistant', content: 'Ejecutado: ' + userIntents.join(', ') });
+          persistHistory();
           _sending = false;
           return;
         }
@@ -248,7 +253,7 @@
     var full = '';
     var ragChunks = [];
     try {
-      var rr = await llamaInvoke('crozzo_rag_search', { query: text, k: 5 });
+      var rr = await llamaInvoke('crozzo_rag_fts_search', { query: text, k: 5 });
       if (Array.isArray(rr)) ragChunks = rr;
     } catch (_) {}
     try {
@@ -341,6 +346,7 @@
       var box = document.getElementById('crozzo-ai-messages');
       if (box) box.scrollTop = box.scrollHeight;
       _history.push({ role: 'assistant', content: cleanText });
+      persistHistory();
       speak(cleanText);
     } catch (e) {
       assistantDiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
@@ -468,10 +474,16 @@
               if (inp) inp.value = text;
               setTranscriptPreview(text);
             } else {
-              addMessage('assistant', 'No se obtuvo transcripción.');
+              addMessage('assistant', 'Whisper no disponible o no produjo texto. Escriba su consulta manualmente.');
             }
           } catch (e) {
-            addMessage('assistant', 'Transcripción falló: ' + (e && e.message ? e.message : e));
+            var _em = (e && e.message) ? e.message : String(e);
+            if (/whisper|no disponible|no se pudo guardar audio/i.test(_em)) {
+              addMessage('assistant', 'Whisper no disponible: instale whisper-cli.exe y el modelo ggml-base.bin en src-tauri/binaries y src-tauri/models. Puede escribir su consulta manualmente.');
+            } else {
+              addMessage('assistant', 'Transcripción falló: ' + _em);
+            }
+            setTranscriptPreview('');
           } finally {
             if (_recStream) { try { _recStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {} }
             _recStream = null;
@@ -494,7 +506,31 @@
     }
   }
 
+  function persistHistory() {
+    try {
+      if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.save === 'function') {
+        global.CrozzoAiChatHistory.save(_history);
+      } else if (global.localStorage) {
+        global.localStorage.setItem('crozzo_ai_chat_history_v1', JSON.stringify(_history || []));
+      }
+    } catch (_) {}
+  }
+  function restoreMessages() {
+    try {
+      var box = document.getElementById('crozzo-ai-messages');
+      if (!box) return;
+      box.innerHTML = '';
+      (_history || []).forEach(function (m) { addMessage(m.role, m.content); });
+    } catch (_) {}
+  }
+  function clearHistory() {
+    _history = [];
+    persistHistory();
+    try { var box = document.getElementById('crozzo-ai-messages'); if (box) box.innerHTML = ''; } catch (_) {}
+  }
+
   function open() {
+    try { if ((!_history || _history.length === 0) && global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') _history = global.CrozzoAiChatHistory.load() || []; } catch (_) {}
     if (!isAllowedRole()) {
       try { if (typeof global.showToast === 'function') global.showToast('Asistente IA solo para Super Admin, Admin y Encargado.', 'warning'); } catch (_) {}
       return;
@@ -537,7 +573,7 @@
     document.body.appendChild(btn);
   }
 
-  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole };
+  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; } };
 
   // Hook para auditoría automática al cierre de turno
   global.crozzoTriggerAutoAudit = function () {

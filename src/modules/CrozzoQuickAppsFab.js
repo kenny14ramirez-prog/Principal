@@ -23,6 +23,7 @@
     { kind: 'dian', btnId: 'crozzoQuickAppsDianBtn' },
 
     { kind: 'dataico', btnId: 'crozzoQuickAppsDataicoBtn' },
+    { kind: 'einforma', btnId: 'crozzoQuickAppsEinformaBtn' },
 
     { kind: 'drive', btnId: 'crozzoQuickAppsDriveBtn' },
 
@@ -308,12 +309,20 @@
         drive: 'https://drive.google.com/',
         dataico: 'https://app.dataico.com/login',
         dian: 'https://catalogo-vpfe.dian.gov.co/',
+        einfoma: 'https://www.einforma.co/nit-empresas',
       };
       if (navUrls[kind] && typeof global.crozzoWebDockV2OpenNav === 'function') {
         global.crozzoWebDockV2OpenNav(navUrls[kind]);
         return;
       }
       // wa y otros: comportamiento actual
+    }
+
+    if (kind === 'einforma' && !useV2()) {
+      closeMenu();
+      if (typeof global.crozzoOpenExternal === 'function') global.crozzoOpenExternal('https://www.einforma.co/nit-empresas');
+      else if (window.open) window.open('https://www.einforma.co/nit-empresas', '_blank');
+      return;
     }
 
     var active = getActiveEmbed();
@@ -647,6 +656,10 @@
     var spotifyBtn = document.getElementById('crozzoQuickAppsSpotifyBtn');
 
     if (spotifyBtn) spotifyBtn.addEventListener('click', function () { openApp('spotify'); });
+
+    var einfomaBtn = document.getElementById('crozzoQuickAppsEinformaBtn');
+
+    if (einformaBtn) einfomaBtn.addEventListener('click', function () { openApp('einforma'); });
 
 
 

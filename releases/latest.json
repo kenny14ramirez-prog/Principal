@@ -1,28 +1,16 @@
 {
-  "id": "1.0.319-critical",
-  "version": "v1.0.319",
-  "semver": "1.0.319",
+  "id": "1.0.320-critical",
+  "version": "v1.0.320",
+  "semver": "1.0.320",
   "type": "critical",
-  "message": "Fase B: sidecar security, FE background, panel drawer",
-  "publishedAt": "2026-11-21T21:32:43.645Z",
+  "message": "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas",
+  "publishedAt": "2026-11-21T21:41:49.232Z",
   "installMode": "auto",
   "changelog": [
-    "Fase B: sidecar security, FE background, panel drawer"
+    "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas"
   ],
-  "updatedAt": "2026-11-21T21:32:43.645Z",
+  "updatedAt": "2026-11-21T21:41:49.232Z",
   "entries": [
-    {
-      "id": "1.0.295-critical",
-      "version": "v1.0.295",
-      "semver": "1.0.295",
-      "type": "critical",
-      "message": "LAN estable: el servidor cierra la conexion tras cada peticion (fin de los cuelgues de 5 s tras el preflight CORS), cachea el preflight y el registro QR interno siempre devuelve promesa (sin warnings de resolvePayloadFromScan)",
-      "publishedAt": "2026-11-10T01:33:57.898Z",
-      "installMode": "auto",
-      "changelog": [
-        "LAN estable: el servidor cierra la conexion tras cada peticion (fin de los cuelgues de 5 s tras el preflight CORS), cachea el preflight y el registro QR interno siempre devuelve promesa (sin warnings de resolvePayloadFromScan)"
-      ]
-    },
     {
       "id": "1.0.296-critical",
       "version": "v1.0.296",
@@ -314,6 +302,18 @@
       "installMode": "auto",
       "changelog": [
         "Fase B: sidecar security, FE background, panel drawer"
+      ]
+    },
+    {
+      "id": "1.0.320-critical",
+      "version": "v1.0.320",
+      "semver": "1.0.320",
+      "type": "critical",
+      "message": "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas",
+      "publishedAt": "2026-11-21T21:41:49.232Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas"
       ]
     }
   ]

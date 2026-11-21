@@ -253,6 +253,29 @@
     return sugeridos;
   }
 
+  // Motor OCR primario: Tesseract (offline). Vision-LLM es opt-in solo en tier full.
+  var PRIMARY_OCR_ENGINE = 'tesseract';
+
+  function getPrimaryOcrEngine() {
+    return PRIMARY_OCR_ENGINE;
+  }
+
+  function isVisionOcrEnabled() {
+    try {
+      if (!global.CrozzoFeatureFlags || typeof global.CrozzoFeatureFlags.isEnabled !== 'function') return false;
+      if (!global.CrozzoFeatureFlags.isEnabled('useVisionOcr')) return false;
+      var tier = 'full';
+      try {
+        if (global.CrozzoAiDeviceProfile && typeof global.CrozzoAiDeviceProfile.getTier === 'function') {
+          tier = global.CrozzoAiDeviceProfile.getTier();
+        }
+      } catch (_) {}
+      return tier === 'full';
+    } catch (_) {
+      return false;
+    }
+  }
+
   global.CrozzoOcrFactura = {
     loadTesseract: loadTesseract,
     escanearFactura: escanearFactura,
@@ -263,6 +286,9 @@
     parseNumber: parseNumber,
     extractHeader: extractHeader,
     extractItems: extractItems,
-    findMatch: findMatch
+    findMatch: findMatch,
+    getPrimaryOcrEngine: getPrimaryOcrEngine,
+    isVisionOcrEnabled: isVisionOcrEnabled,
+    PRIMARY_OCR_ENGINE: PRIMARY_OCR_ENGINE
   };
 })(typeof window !== 'undefined' ? window : globalThis);

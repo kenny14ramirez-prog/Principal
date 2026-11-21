@@ -32035,6 +32035,20 @@ function crozzoCrmSearchFromBar() {
   }
 }
 window.crozzoCrmSearchFromBar = crozzoCrmSearchFromBar;
+function crozzoCrmOpenEinforma(q) {
+  q = String(q || '').trim();
+  var url = 'https://www.einforma.co/nit-empresas';
+  if (q) url = 'https://www.einforma.co/servlet/app/portal/ENTP/screen/SProductoClienteWeb/prod/NIT_EMPRESAS/nit/' + encodeURIComponent(q.replace(/\D/g, ''));
+  if (typeof globalThis.crozzoWebDockV2OpenNav === 'function') {
+    try { globalThis.crozzoWebDockV2OpenNav(url); return; } catch (_) {}
+  }
+  if (typeof crozzoOpenExternal === 'function') {
+    crozzoOpenExternal(url);
+    return;
+  }
+  try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (_) {}
+}
+window.crozzoCrmOpenEinforma = crozzoCrmOpenEinforma;
 function crozzoCrmLookupSourceLabel(source) {
   if (source === 'dian_tauri' || source === 'dian_supabase' || source === 'dian_demo') return 'DIAN';
   if (source === 'rues_opendata' || source === 'rues_enrich') return 'RUES';
@@ -32888,6 +32902,12 @@ function crozzoCrmBuildLookupUiHtml(items, meta) {
       '<span style="color:var(--text-muted)">Doc. «' +
       crozzoCrmEscAttr(q) +
       '» · complete en ➕ Nuevo</span></div>';
+    html +=
+      '<div class="crozzo-crm-item crozzo-crm-item--action" role="button" tabindex="0" onclick="crozzoCrmOpenEinforma(\'' +
+      crozzoCrmEscAttr(q) +
+      '\')">' +
+      '<span><strong>Consultar en eInforma</strong></span>' +
+      '<span style="color:var(--text-muted)">Abrir NIT en navegador/dock</span></div>';
   }
   if (!items.length && !meta.pendingInternet && !meta.lookupCandidate && !meta.lookupMiss && q) {
     html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Sin coincidencias en directorio</div>';

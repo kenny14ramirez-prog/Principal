@@ -354,7 +354,7 @@
             a.click();
           } catch (_) {}
           // Pedir al LLM que analice
-          var prompt = 'Analiza la siguiente auditoría de cajero del POS y responde en español con: 1) anomalías detectadas, 2) acciones sospechosas, 3) recomendaciones. Datos JSON:\n' + JSON.stringify(data).slice(0, 4000);
+          var prompt = 'Eres un auditor de un punto de venta. Analiza la siguiente auditoria de cajero del POS y responde en espanol con conclusiones claras y accionables: 1) anomalias detectadas, 2) acciones sospechosas, 3) recomendaciones. Cita evidencias (eventos/timestamps) cuando sea posible. Datos JSON:\n' + JSON.stringify(data).slice(0, 6000);
           var modelUrl = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
           var model = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini';
           var full = '';

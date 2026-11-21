@@ -209,6 +209,8 @@ pub fn run() {
             #[cfg(desktop)]
             crozzo_rag::crozzo_rag_search,
             #[cfg(desktop)]
+            crozzo_rag::crozzo_rag_fts_search,
+            #[cfg(desktop)]
             crozzo_cert_vault::crozzo_cert_vault_set,
             #[cfg(desktop)]
             crozzo_cert_vault::crozzo_cert_vault_get,

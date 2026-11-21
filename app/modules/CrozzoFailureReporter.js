@@ -81,6 +81,40 @@
     return out;
   }
 
+  // --- P2.5: opt-in y redaccion de PII ---
+  function isOptIn() {
+    try { return global.localStorage && global.localStorage.getItem('crozzo_failure_report_optin') === '1'; } catch (_) { return false; }
+  }
+  function setOptIn(v) {
+    try { if (global.localStorage) global.localStorage.setItem('crozzo_failure_report_optin', v ? '1' : '0'); } catch (_) {}
+  }
+  function redactText(s) {
+    s = String(s == null ? '' : s);
+    // NITs / identificadores numericos largos
+    s = s.replace(/\b\d{6,10}(?:-\d)?\b/g, '[REDACTED]');
+    return s;
+  }
+  function redactReport(report) {
+    var out = null;
+    try { out = JSON.parse(JSON.stringify(report || {})); } catch (_) { out = report || {}; }
+    try {
+      if (out.user) {
+        if (out.user.nombre) out.user.nombre = '[redacted]';
+        if (out.user.name) out.user.name = '[redacted]';
+        if (out.user.id) out.user.id = '[redacted]';
+      }
+      if (Array.isArray(out.failures)) {
+        out.failures = out.failures.filter(function (f) { return !f || f.type !== 'console_error'; });
+        out.failures.forEach(function (f) { if (f && f.detail) f.detail = redactText(f.detail); });
+      }
+      if (out.health && out.health.consoleErrors) {
+        out.health.consoleErrors.recent = [];
+        out.health.consoleErrors.count = 0;
+      }
+    } catch (_) {}
+    return out;
+  }
+
   function honeypotStatus() {
     var st = { active: false, blocked: false, stats: null };
     try {
@@ -194,6 +228,10 @@
 
   async function upload(report) {
     report = report || {};
+    if (!isOptIn()) {
+      return { ok: false, error: 'opt-in required', via: 'none' };
+    }
+    report = redactReport(report);
     var creds = await resolveCreds();
     if (!creds || creds.ok === false || !creds.url || !creds.key) {
       return { ok: false, error: 'no credentials', via: 'none' };
@@ -296,6 +334,9 @@
     aggregate: generateReport,
     upload: upload,
     download: download,
-    runAll: runAll
+    runAll: runAll,
+    isOptIn: isOptIn,
+    setOptIn: setOptIn,
+    redactReport: redactReport
   };
 })(typeof window !== 'undefined' ? window : globalThis);

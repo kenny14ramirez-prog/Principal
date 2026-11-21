@@ -12,6 +12,7 @@
     { id: 'dataico', label: 'Dataico', page: 'dataico-web' },
     { id: 'dian', label: 'DIAN · CUFE', page: 'dian-vpfe-web' },
     { id: 'spotify', label: 'Spotify', page: 'spotify-web' },
+    { id: 'einforma', label: 'eInforma (NIT)', page: 'einforma-web' },
   ];
 
   var ROLE_ORDER = ['caja', 'mesero', 'cocina', 'inventario', 'user', 'admin'];
@@ -26,9 +27,9 @@
   };
 
   var DEFAULTS = {
-    admin: ['wa', 'gmail', 'drive', 'dataico', 'dian', 'spotify'],
-    caja: ['wa', 'dataico', 'dian'],
-    user: ['wa', 'dataico', 'dian'],
+    admin: ['wa', 'gmail', 'drive', 'dataico', 'dian', 'spotify', 'einforma'],
+    caja: ['wa', 'dataico', 'dian', 'einforma'],
+    user: ['wa', 'dataico', 'dian', 'einforma'],
     mesero: [],
     cocina: [],
     inventario: ['gmail', 'drive', 'dian'],

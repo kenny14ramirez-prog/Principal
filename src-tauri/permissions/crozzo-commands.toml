@@ -127,7 +127,7 @@ commands.allow = ["crozzo_ble_available", "crozzo_ble_status", "crozzo_ble_scan"
 [[permission]]
 identifier = "allow-crozzo-rag"
 description = "RAG: indexación y búsqueda semántica para el asistente IA"
-commands.allow = ["crozzo_rag_reindex", "crozzo_rag_index", "crozzo_rag_search"]
+commands.allow = ["crozzo_rag_reindex", "crozzo_rag_index", "crozzo_rag_search", "crozzo_rag_fts_search"]
 
 [[permission]]
 identifier = "allow-crozzo-whisper"
