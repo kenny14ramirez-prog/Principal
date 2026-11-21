@@ -1,29 +1,16 @@
 {
-  "id": "1.0.321-critical",
-  "version": "v1.0.321",
-  "semver": "1.0.321",
+  "id": "1.0.322-critical",
+  "version": "v1.0.322",
+  "semver": "1.0.322",
   "type": "critical",
-  "message": "Fix honeypot: guardia de arranque + verificarBloqueo limpia stale",
-  "publishedAt": "2026-11-21T21:48:47.103Z",
+  "message": "Fix honeypot: deshabilitar modulo si usuario real logueado",
+  "publishedAt": "2026-11-21T21:49:26.538Z",
   "installMode": "auto",
   "changelog": [
-    "Fix honeypot: guardia de arranque",
-    "verificarBloqueo limpia stale"
+    "Fix honeypot: deshabilitar modulo si usuario real logueado"
   ],
-  "updatedAt": "2026-11-21T21:48:47.103Z",
+  "updatedAt": "2026-11-21T21:49:26.538Z",
   "entries": [
-    {
-      "id": "1.0.297-critical",
-      "version": "v1.0.297",
-      "semver": "1.0.297",
-      "type": "critical",
-      "message": "Actualización completa: seguridad, MFA, honeypot, sync",
-      "publishedAt": "2026-11-16T03:41:42.585Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualización completa: seguridad, MFA, honeypot, sync"
-      ]
-    },
     {
       "id": "1.0.298-critical",
       "version": "v1.0.298",
@@ -315,6 +302,18 @@
       "changelog": [
         "Fix honeypot: guardia de arranque",
         "verificarBloqueo limpia stale"
+      ]
+    },
+    {
+      "id": "1.0.322-critical",
+      "version": "v1.0.322",
+      "semver": "1.0.322",
+      "type": "critical",
+      "message": "Fix honeypot: deshabilitar modulo si usuario real logueado",
+      "publishedAt": "2026-11-21T21:49:26.538Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix honeypot: deshabilitar modulo si usuario real logueado"
       ]
     }
   ]

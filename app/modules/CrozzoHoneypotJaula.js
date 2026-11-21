@@ -12,6 +12,20 @@
 (function (global) {
   'use strict';
 
+  // GUARDIA GLOBAL: si hay usuario real logueado, deshabilitar todo el módulo
+  var __HP_DISABLED = false;
+  try {
+    var _su = sessionStorage.getItem('crozzo_session_user');
+    if (_su && _su !== 'null' && _su !== '') {
+      __HP_DISABLED = true;
+      sessionStorage.removeItem('crozzo_modo_jaula');
+      sessionStorage.removeItem('crozzo_jaula_start');
+      sessionStorage.removeItem('crozzo_jaula_decoy');
+      try { localStorage.removeItem('crozzo_jaula_log'); } catch (_) {}
+      try { localStorage.removeItem('crozzo_jaula_bloqueado'); } catch (_) {}
+    }
+  } catch (_) {}
+
   // GUARDIA DE ARRANQUE: si hay un usuario real logueado, limpiar flags honeypot stale
   try {
     var _su = sessionStorage.getItem('crozzo_session_user');
@@ -140,6 +154,7 @@
 
   // ── Activación del modo jaula ───────────────────────────────────
   function activar(decoy, opts) {
+    if (__HP_DISABLED) return;
     if (jaula.active) return;
     opts = opts || {};
     var isAdminPreview = !!opts.adminPreview;
@@ -737,6 +752,7 @@
 
   // ── Restaurar estado al recargar (Phase 3) ──────────────────────
   function restaurarEstado() {
+    if (__HP_DISABLED) { desactivar(); return false; }
     try {
       // Guardia 1: si hay un usuario real logueado (sessionStorage), nunca restaurar jaula
       try {
@@ -805,6 +821,7 @@
 
   // ── Modo preview para admin (Phase 4) ───────────────────────────
   function modoPreview(decoy) {
+    if (__HP_DISABLED) return false;
     // Activar honeypot sin bloqueo real, para que el admin vea cómo se ve
     if (jaula.active) return false;
     activar(decoy || { user: 'PREVIEW', rol: 'caja', label: 'Preview' }, { adminPreview: true, shortDemo: true, liveMs: 30000 });
