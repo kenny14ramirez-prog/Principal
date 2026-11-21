@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-21T22:18:38.872Z",
+  "updatedAt": "2026-11-21T22:38:47.982Z",
   "entries": [
-    {
-      "id": "1.0.301-critical",
-      "version": "v1.0.301",
-      "semver": "1.0.301",
-      "type": "critical",
-      "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta",
-      "publishedAt": "2026-11-17T21:44:43.144Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta"
-      ]
-    },
     {
       "id": "1.0.302-critical",
       "version": "v1.0.302",
@@ -307,6 +295,18 @@
       "changelog": [
         "Fix honeypot: guardia por login overlay",
         "safety net 2s"
+      ]
+    },
+    {
+      "id": "1.0.326-critical",
+      "version": "v1.0.326",
+      "semver": "1.0.326",
+      "type": "critical",
+      "message": "Fix model download: usar modelos no-gated (Qwen/Phi/Gemma) para evitar http_401",
+      "publishedAt": "2026-11-21T22:38:47.982Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix model download: usar modelos no-gated (Qwen/Phi/Gemma) para evitar http_401"
       ]
     }
   ]
