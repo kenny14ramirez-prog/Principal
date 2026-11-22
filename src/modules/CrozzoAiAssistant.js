@@ -1,14 +1,11 @@
 /**
- * Bona Origen — Asistente IA (Fase 3: descarga en segundo plano + voz + contexto).
- * - Descarga el modelo via Ollama /api/pull en background (no bloquea el arranque).
- * - Voz: Web Speech API si está disponible (fallback texto).
- * - Contexto: inyecta estado del sistema (health) en el prompt.
+ * Bona Origen — Asistente IA conversacional (Fase 3+4+P0).
+ * Chat local contra Ollama/llama.cpp sidecar con RAG (FTS5), voz, acciones.
  */
 (function (global) {
   'use strict';
 
   var PANEL_ID = 'crozzo-ai-assistant-panel';
-  var _panelEsc = null;
   var _history = [];
   var _abort = null;
   var _pulling = false;
@@ -17,7 +14,7 @@
   function ollamaUrl() { return (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434'; }
   function ollamaModel() { return (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini'; }
 
-  async function llamaInvoke(method, args) {
+  async function ollamaInvoke(method, args) {
     args = args || {};
     try {
       if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
@@ -29,7 +26,7 @@
 
   async function ensureSidecar() {
     try {
-      var r = await llamaInvoke('crozzo_llama_ensure_sidecar');
+      var r = await ollamaInvoke('crozzo_llama_ensure_sidecar');
       if (r === true) return true;
     } catch (_) {}
     return false;
@@ -39,7 +36,6 @@
     if (_pulling) return;
     var url = ollamaUrl();
     var model = ollamaModel();
-    // Check if model exists
     try {
       var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 5000 });
       var exists = false;
@@ -50,7 +46,6 @@
       }
       if (exists) return;
     } catch (_) {}
-    // Pull in background
     _pulling = true;
     updateStatus('Descargando modelo ' + model + ' en segundo plano…');
     try {
@@ -90,25 +85,18 @@
     if (existing) return existing;
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
-    ov.className = 'crozzo-ai-drawer-backdrop';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.45);';
-    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
     var card = document.createElement('div');
-    card.className = 'crozzo-ai-drawer';
-    card.style.cssText = 'position:fixed;top:0;right:0;width:100%;max-width:420px;height:100vh;display:flex;flex-direction:column;background:#fff;box-shadow:-24px 0 60px rgba(0,0,0,0.32);overflow:hidden;';
+    card.style.cssText = 'background:#fff;border-radius:16px;width:92%;max-width:420px;height:76vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;margin-left:auto;margin-right:16px;';
     card.innerHTML =
       '<div style="padding:14px 18px;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;display:flex;align-items:center;justify-content:space-between;">' +
         '<strong>Asistente IA · Bona Origen</strong>' +
         '<div style="display:flex;gap:6px;">' +
-          '<button type="button" id="crozzo-ai-reindex" title="Reindexar documentos" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.8rem;">↻ Reindexar</button>' +
-          '<button type="button" id="crozzo-ai-tts" title="Lectura en voz alta" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">🔊</button>' +
-          '<button type="button" id="crozzo-ai-voice" title="Dictar" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">🎤</button>' +
+          '<button type="button" id="crozzo-ai-voice" title="Voz" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">🎤</button>' +
           '<button type="button" id="crozzo-ai-close" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">×</button>' +
         '</div>' +
       '</div>' +
       '<div id="crozzo-ai-status" style="padding:6px 14px;font-size:0.75rem;color:#666;background:#f5f5f5;">Estado: verificando modelo local…</div>' +
-      '<div id="crozzo-ai-transcript" style="padding:6px 14px;font-size:0.8rem;color:#333;background:#fafafa;border-bottom:1px solid #eee;display:none;"></div>' +
-      '<div id="crozzo-ai-modelmgr" style="padding:8px 14px;border-bottom:1px solid #eee;background:#fafafa;"></div>' +
       '<div id="crozzo-ai-messages" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;"></div>' +
       '<div style="padding:10px 14px;border-top:1px solid #eee;display:flex;gap:8px;">' +
         '<input id="crozzo-ai-input" type="text" placeholder="Escribe o dicta tu consulta…" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">' +
@@ -118,34 +106,20 @@
     document.body.appendChild(ov);
     document.getElementById('crozzo-ai-close').onclick = close;
     document.getElementById('crozzo-ai-send').onclick = send;
-    var reindexBtn = document.getElementById('crozzo-ai-reindex');
-    if (reindexBtn) reindexBtn.onclick = reindex;
     var inp = document.getElementById('crozzo-ai-input');
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
     var voiceBtn = document.getElementById('crozzo-ai-voice');
-    if (voiceBtn) voiceBtn.onclick = toggleVoice;
-    var ttsBtn = document.getElementById('crozzo-ai-tts');
-    if (ttsBtn) { ttsBtn.onclick = toggleTts; updateTtsButton(); }
-    if (global.CrozzoAiModelManager && typeof global.CrozzoAiModelManager.mount === 'function') {
-      global.CrozzoAiModelManager.mount('#crozzo-ai-modelmgr');
-    } else {
-      setTimeout(function () {
-        if (global.CrozzoAiModelManager && typeof global.CrozzoAiModelManager.mount === 'function') global.CrozzoAiModelManager.mount('#crozzo-ai-modelmgr');
-      }, 300);
-    }
+    if (voiceBtn) voiceBtn.onclick = startVoice;
     checkStatus();
-    // Close on Esc
-    if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} }
-    _panelEsc = function (e) { if (e && e.key === 'Escape') close(); };
-    document.addEventListener('keydown', _panelEsc);
-    // Trigger background model download (non-blocking)
     setTimeout(ensureModelInBackground, 100);
-    restoreMessages();
+    // Onboarding
+    if (global.CrozzoAiOnboarding && typeof global.CrozzoAiOnboarding.show === 'function') {
+      setTimeout(function () { global.CrozzoAiOnboarding.show(); }, 500);
+    }
     return ov;
   }
 
   function close() {
-    if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} _panelEsc = null; }
     var ov = document.getElementById(PANEL_ID);
     if (ov) ov.remove();
   }
@@ -168,7 +142,7 @@
     if (!st) return;
     // Try internal sidecar first
     try {
-      var h = await llamaInvoke('crozzo_llama_health');
+      var h = await ollamaInvoke('crozzo_llama_health');
       if (h && h.ok) { st.textContent = 'Estado: modelo interno activo ✔'; return; }
     } catch (_) {}
     // Fallback to Ollama
@@ -181,8 +155,7 @@
       var resp = await fetch(url + '/api/tags', { method: 'GET' });
       if (resp.ok) { st.textContent = 'Estado: Ollama conectado ✔'; return; }
     } catch (_) {}
-    st.textContent = 'Estado: modelo no disponible. Iniciando sidecar interno…';
-    // Try to start sidecar in background
+    st.textContent = 'Estado: Ollama no disponible. Inicie Ollama (ollama serve) o configure la URL.';
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
       if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: modelo no disponible. Instale Ollama o coloque llama-server en src-tauri/binaries/.';
@@ -206,69 +179,67 @@
     return ctx.join(' | ');
   }
 
-  async function reindex() {
-    updateStatus('Reindexando documentos…');
-    try {
-      var n = await llamaInvoke('crozzo_rag_reindex');
-      updateStatus('Reindexado: ' + (n != null ? n : '?') + ' chunks ✔');
-    } catch (e) {
-      updateStatus('Reindexado falló: ' + (e && e.message ? e.message : e));
-    }
-  }
-
   async function send() {
     if (_sending) return;
-    var inp = document.getElementById('crozzo-ai-input');
-    if (!inp) return;
-    var text = (inp.value || '').trim();
-    if (!text) return;
     _sending = true;
+    var inp = document.getElementById('crozzo-ai-input');
+    if (!inp) { _sending = false; return; }
+    var text = (inp.value || '').trim();
+    if (!text) { _sending = false; return; }
     inp.value = '';
     addMessage('user', text);
-    if (_history.length === 0) { try { if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') _history = global.CrozzoAiChatHistory.load() || []; } catch (_) {} }
     _history.push({ role: 'user', content: text });
-    persistHistory();
-    // Fase 4: si el usuario pide una acción directa, ejecutarla sin llamar al modelo
-    try {
-      if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
-        var userIntents = global.CrozzoAiIntentParser.parse(text).intents || [];
-        if (userIntents.length > 0 && global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.execute === 'function') {
-          var adiv = addMessage('assistant', 'Ejecutando: ' + userIntents.join(', ') + '…');
-          for (var ui = 0; ui < userIntents.length; ui++) {
-            try {
-              var res = await global.CrozzoAiActionRegistry.execute(userIntents[ui]);
-              adiv.textContent = 'Resultado: ' + (typeof res === 'string' ? res : JSON.stringify(res));
-            } catch (e) {
-              adiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
-            }
-          }
-          _history.push({ role: 'assistant', content: 'Ejecutado: ' + userIntents.join(', ') });
-          persistHistory();
-          _sending = false;
-          return;
-        }
-      }
-    } catch (_) {}
+    if (_history.length > 60) _history.splice(0, _history.length - 60);
     var assistantDiv = addMessage('assistant', '…');
     var full = '';
-    var ragChunks = [];
     try {
-      var rr = await llamaInvoke('crozzo_rag_fts_search', { query: text, k: 5 });
-      if (Array.isArray(rr)) ragChunks = rr;
-    } catch (_) {}
-    try {
-      var ragContext = '';
-      if (ragChunks.length) {
-        ragContext = 'Contexto documental (RAG):\n' + ragChunks.map(function (c, i) { return '[' + (i + 1) + '] (' + (c.source || '') + ') ' + (c.text || ''); }).join('\n\n') + '\n\n';
-      }
-      var prompt = ragContext + 'Contexto del sistema POS: ' + systemContext() + '\n' +
-        _history.slice(-12).map(function (m) { return (m.role === 'user' ? 'Usuario: ' : 'Asistente: ') + m.content; }).join('\n') + '\nAsistente:';
-      // 1) Sidecar interno (llama.cpp)
+      // Check if user input triggers a direct action
       try {
-        var r0 = await llamaInvoke('crozzo_llama_chat', { prompt: prompt, timeout_ms: 60000 });
+        if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
+          var userIntents = global.CrozzoAiIntentParser.parse(text).intents || [];
+          if (userIntents.length > 0 && global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.execute === 'function') {
+            assistantDiv.textContent = 'Ejecutando: ' + userIntents.join(', ') + '…';
+            for (var ui = 0; ui < userIntents.length; ui++) {
+              try {
+                var res = await global.CrozzoAiActionRegistry.execute(userIntents[ui]);
+                assistantDiv.textContent = 'Resultado: ' + (typeof res === 'string' ? res : (res && res.result) ? res.result : JSON.stringify(res));
+              } catch (e) {
+                assistantDiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
+              }
+            }
+            _history.push({ role: 'assistant', content: assistantDiv.textContent });
+            _sending = false;
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // RAG retrieval
+      var ragChunks = [];
+      try {
+        if (global.CrozzoRag && typeof global.CrozzoRag.search === 'function') {
+          ragChunks = await global.CrozzoRag.search(text, 5);
+        } else {
+          var rr = await ollamaInvoke('crozzo_rag_fts_search', { query: text, k: 5 });
+          if (rr) { try { var rj = JSON.parse(rr); ragChunks = (rj && rj.chunks) ? rj.chunks : []; } catch (_) {} }
+        }
+      } catch (_) {}
+      var ragContext = '';
+      var sourceList = [];
+      if (ragChunks && ragChunks.length) {
+        ragContext = '\nContexto relevante:\n' + ragChunks.map(function (c) { return '- ' + (c.text || c); }).join('\n');
+        ragChunks.forEach(function (c) { if (c.source && sourceList.indexOf(c.source) === -1) sourceList.push(c.source); });
+      }
+
+      var prompt = 'Contexto del sistema POS: ' + systemContext() + ragContext + '\n' +
+        _history.slice(-12).map(function (m) { return (m.role === 'user' ? 'Usuario: ' : 'Asistente: ') + m.content; }).join('\n') + '\nAsistente:';
+      var full = '';
+      // Try internal sidecar first
+      try {
+        var r0 = await ollamaInvoke('crozzo_llama_chat', { prompt: prompt, timeout_ms: 60000 });
         if (r0) { try { var j0 = JSON.parse(r0); full = (j0 && j0.choices && j0.choices[0] && j0.choices[0].message && j0.choices[0].message.content) ? j0.choices[0].message.content : (j0 && j0.response) ? j0.response : ''; } catch (_) { full = String(r0); } }
       } catch (_) {}
-      // 2) Ollama externo
+      // Fallback to Ollama
       if (!full) {
         var url = ollamaUrl();
         var model = ollamaModel();
@@ -281,256 +252,77 @@
         }
       }
       if (!full) throw new Error('sin respuesta');
-      var answerText = full;
-      var sourceList = [];
-      var seenSrc = {};
-      ragChunks.forEach(function (c) {
-        if (c && c.source && !seenSrc[c.source]) { seenSrc[c.source] = 1; sourceList.push(c.source); }
-      });
-      // Fase 4: detectar etiquetas de acción [ACTION:id]
+      // Detect action tags in response
       var actionIds = [];
       try {
         if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
-          actionIds = (global.CrozzoAiIntentParser.parse(answerText).intents || []).slice();
+          actionIds = (global.CrozzoAiIntentParser.parse(full).intents || []).slice();
         } else {
           var mm;
           var rre = /\[ACTION:([a-zA-Z0-9_\-]+)\]/g;
-          while ((mm = rre.exec(answerText)) !== null) { if (actionIds.indexOf(mm[1]) === -1) actionIds.push(mm[1]); }
+          while ((mm = rre.exec(full)) !== null) { if (actionIds.indexOf(mm[1]) === -1) actionIds.push(mm[1]); }
         }
       } catch (_) {}
-      var cleanText = String(answerText).replace(/\[ACTION:[a-zA-Z0-9_\-]+\]/g, '').trim();
-      var displayText = cleanText;
+      // Render response
+      assistantDiv.textContent = full;
       if (sourceList.length) {
-        displayText += '\n\nFuentes:\n' + sourceList.map(function (s) { return '- ' + s; }).join('\n');
+        var srcDiv = document.createElement('div');
+        srcDiv.style.cssText = 'font-size:0.75rem;color:#888;margin-top:4px;';
+        srcDiv.textContent = 'Fuentes: ' + sourceList.join(', ');
+        assistantDiv.appendChild(srcDiv);
       }
-      assistantDiv.textContent = '';
-      var textNode = document.createElement('div');
-      textNode.style.cssText = 'white-space:pre-wrap;';
-      textNode.textContent = displayText;
-      assistantDiv.appendChild(textNode);
       if (actionIds.length) {
-        var btnWrap = document.createElement('div');
-        btnWrap.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;';
+        var btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;';
         actionIds.forEach(function (aid) {
-          var reg = global.CrozzoAiActionRegistry;
-          var meta = reg && typeof reg.get === 'function' ? reg.get(aid) : null;
-          var label = (meta && meta.label) ? meta.label : aid;
           var btn = document.createElement('button');
           btn.type = 'button';
-          btn.textContent = '\u25B6 ' + label;
-          btn.style.cssText = 'padding:6px 12px;border:none;border-radius:8px;background:#7A6342;color:#fff;cursor:pointer;font-size:0.85rem;font-weight:600;';
-          btn.onclick = async function () {
-            btn.disabled = true;
-            var orig = btn.textContent;
-            btn.textContent = 'Ejecutando\u2026';
-            try {
-              var r = reg && typeof reg.execute === 'function' ? await reg.execute(aid) : { error: 'Registro de acciones no disponible' };
-              if (r && r.cancelled) {
-                addMessage('assistant', 'Acción cancelada: ' + label);
-              } else if (r && r.error) {
-                addMessage('assistant', 'Error ejecutando ' + label + ': ' + r.error);
-              } else {
-                addMessage('assistant', 'Resultado (' + label + '): ' + ((r && r.result != null) ? r.result : 'OK'));
-              }
-            } catch (e) {
-              addMessage('assistant', 'Error ejecutando ' + label + ': ' + (e && e.message ? e.message : e));
-            } finally {
-              btn.disabled = false;
-              btn.textContent = orig;
+          btn.textContent = aid;
+          btn.style.cssText = 'padding:4px 10px;border:1px solid #B59A6D;border-radius:6px;background:#fff;cursor:pointer;font-size:0.8rem;';
+          btn.onclick = function () {
+            if (global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.execute === 'function') {
+              global.CrozzoAiActionRegistry.execute(aid).then(function (r) {
+                addMessage('assistant', 'Resultado: ' + (typeof r === 'string' ? r : (r && r.result) ? r.result : JSON.stringify(r)));
+              });
             }
           };
-          btnWrap.appendChild(btn);
+          btnContainer.appendChild(btn);
         });
-        assistantDiv.appendChild(btnWrap);
+        assistantDiv.appendChild(btnContainer);
       }
-      var box = document.getElementById('crozzo-ai-messages');
-      if (box) box.scrollTop = box.scrollHeight;
-      _history.push({ role: 'assistant', content: cleanText });
-      persistHistory();
-      speak(cleanText);
+      _history.push({ role: 'assistant', content: full });
     } catch (e) {
       assistantDiv.textContent = 'Error: ' + (e && e.message ? e.message : e);
     } finally {
+      _sending = false;
       var box2 = document.getElementById('crozzo-ai-messages');
       if (box2) box2.scrollTop = box2.scrollHeight;
-      _sending = false;
     }
   }
 
-  var _recorder = null;
-  var _recChunks = [];
-  var _recStream = null;
-
-  function setTranscriptPreview(text) {
-    var el = document.getElementById('crozzo-ai-transcript');
-    if (!el) return;
-    if (text) { el.style.display = 'block'; el.textContent = 'Transcripción: ' + text; }
-    else { el.style.display = 'none'; el.textContent = ''; }
-  }
-
-  function updateVoiceButton(recording) {
-    var btn = document.getElementById('crozzo-ai-voice');
-    if (!btn) return;
-    btn.textContent = recording ? '⏹' : '🎤';
-    btn.style.background = recording ? 'rgba(220,60,60,0.85)' : 'rgba(255,255,255,0.2)';
-    btn.title = recording ? 'Detener grabación' : 'Dictar';
-  }
-
-  function toggleTts() {
-    var cur = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_tts') === '1');
-    if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_tts', cur ? '0' : '1');
-    updateTtsButton();
-  }
-  function updateTtsButton() {
-    var btn = document.getElementById('crozzo-ai-tts');
-    if (!btn) return;
-    var on = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_tts') === '1');
-    btn.textContent = on ? '🔊' : '🔇';
-    btn.style.opacity = on ? '1' : '0.6';
-  }
-  function speak(text) {
+  function startVoice() {
+    var SR = global.SpeechRecognition || global.webkitSpeechRecognition;
+    if (!SR) { addMessage('assistant', 'Voz no disponible en este navegador. Use texto.'); return; }
     try {
-      if (typeof localStorage === 'undefined' || localStorage.getItem('crozzo_tts') !== '1') return;
-      if (!global.speechSynthesis) return;
-      var u = new SpeechSynthesisUtterance(String(text || ''));
-      u.lang = 'es-CO';
-      global.speechSynthesis.cancel();
-      global.speechSynthesis.speak(u);
-    } catch (_) {}
-  }
-
-  function blobToBase64(blob) {
-    return new Promise(function (resolve, reject) {
-      var r = new FileReader();
-      r.onloadend = function () { resolve(String(r.result || '').split(',')[1] || ''); };
-      r.onerror = function () { reject(r.error); };
-      r.readAsDataURL(blob);
-    });
-  }
-
-  function encodeWav(audioBuffer) {
-    var samples = audioBuffer.getChannelData(0);
-    var sampleRate = audioBuffer.sampleRate;
-    var buffer = new ArrayBuffer(44 + samples.length * 2);
-    var view = new DataView(buffer);
-    function ws(off, s) { for (var i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); }
-    ws(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); ws(8, 'WAVE');
-    ws(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-    ws(36, 'data'); view.setUint32(40, samples.length * 2, true);
-    var off = 44;
-    for (var i = 0; i < samples.length; i++) {
-      var s = Math.max(-1, Math.min(1, samples[i]));
-      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      off += 2;
-    }
-    return new Blob([view], { type: 'audio/wav' });
-  }
-
-  async function blobToWavBase64(blob) {
-    var AC = global.AudioContext || global.webkitAudioContext;
-    var ctx = new AC();
-    var ab = await blob.arrayBuffer();
-    var audioBuf = await ctx.decodeAudioData(ab);
-    var targetRate = 16000;
-    var OfflineAC = global.OfflineAudioContext || global.webkitOfflineAudioContext;
-    var offline = new OfflineAC(1, Math.ceil(audioBuf.duration * targetRate), targetRate);
-    var src = offline.createBufferSource();
-    src.buffer = audioBuf;
-    src.connect(offline.destination);
-    src.start(0);
-    var rendered = await offline.startRendering();
-    var wav = encodeWav(rendered);
-    return await blobToBase64(wav);
-  }
-
-  async function toggleVoice() {
-    if (_recorder && _recorder.state === 'recording') {
-      try { _recorder.stop(); } catch (_) {}
-      return;
-    }
-    try {
-      _recChunks = [];
-      _recStream = await global.navigator.mediaDevices.getUserMedia({ audio: true });
-      _recorder = new MediaRecorder(_recStream);
-      _recorder.ondataavailable = function (e) { if (e.data && e.data.size) _recChunks.push(e.data); };
-      _recorder.onstop = async function () {
-        try {
-          var mime = (_recorder && _recorder.mimeType) || 'audio/webm';
-          var blob = new Blob(_recChunks, { type: mime });
-          updateVoiceButton(false);
-          var statusEl = document.getElementById('crozzo-ai-status');
-          if (statusEl) statusEl.textContent = 'Transcribiendo…';
-          var b64;
-          var ext = 'webm';
-          try { b64 = await blobToWavBase64(blob); ext = 'wav'; }
-          catch (e) { b64 = await blobToBase64(blob); ext = 'webm'; }
-          try {
-            var path = await llamaInvoke('crozzo_whisper_save_audio', { audio_b64: b64, ext: ext });
-            if (!path) throw new Error('no se pudo guardar audio');
-            var text = await llamaInvoke('crozzo_whisper_transcribe', { audio_path: path });
-            if (text) {
-              var inp = document.getElementById('crozzo-ai-input');
-              if (inp) inp.value = text;
-              setTranscriptPreview(text);
-            } else {
-              addMessage('assistant', 'Whisper no disponible o no produjo texto. Escriba su consulta manualmente.');
-            }
-          } catch (e) {
-            var _em = (e && e.message) ? e.message : String(e);
-            if (/whisper|no disponible|no se pudo guardar audio/i.test(_em)) {
-              addMessage('assistant', 'Whisper no disponible: instale whisper-cli.exe y el modelo ggml-base.bin en src-tauri/binaries y src-tauri/models. Puede escribir su consulta manualmente.');
-            } else {
-              addMessage('assistant', 'Transcripción falló: ' + _em);
-            }
-            setTranscriptPreview('');
-          } finally {
-            if (_recStream) { try { _recStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {} }
-            _recStream = null;
-            _recorder = null;
-            var st = document.getElementById('crozzo-ai-status');
-            if (st) st.textContent = 'Estado: listo';
-          }
-        } catch (e) {
-          addMessage('assistant', 'Error procesando audio: ' + (e && e.message ? e.message : e));
-          updateVoiceButton(false);
+      var rec = new SR();
+      rec.lang = 'es-CO';
+      rec.interimResults = false;
+      rec.onresult = function (e) {
+        var t = e.results && e.results[0] && e.results[0][0] && e.results[0][0].transcript;
+        if (t) {
+          var inp = document.getElementById('crozzo-ai-input');
+          if (inp) inp.value = t;
         }
       };
-      _recorder.start();
-      updateVoiceButton(true);
-      var st2 = document.getElementById('crozzo-ai-status');
-      if (st2) st2.textContent = 'Grabando… (pulse ⏹ para detener)';
+      rec.onerror = function (e) { addMessage('assistant', 'Error de voz: ' + (e && e.error ? e.error : e)); };
+      rec.start();
+      addMessage('assistant', '🎤 Escuchando…');
     } catch (e) {
-      addMessage('assistant', 'Micrófono no disponible: ' + (e && e.message ? e.message : e));
-      updateVoiceButton(false);
+      addMessage('assistant', 'Voz no disponible: ' + (e && e.message ? e.message : e));
     }
-  }
-
-  function persistHistory() {
-    try {
-      if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.save === 'function') {
-        global.CrozzoAiChatHistory.save(_history);
-      } else if (global.localStorage) {
-        global.localStorage.setItem('crozzo_ai_chat_history_v1', JSON.stringify(_history || []));
-      }
-    } catch (_) {}
-  }
-  function restoreMessages() {
-    try {
-      var box = document.getElementById('crozzo-ai-messages');
-      if (!box) return;
-      box.innerHTML = '';
-      (_history || []).forEach(function (m) { addMessage(m.role, m.content); });
-    } catch (_) {}
-  }
-  function clearHistory() {
-    _history = [];
-    persistHistory();
-    try { var box = document.getElementById('crozzo-ai-messages'); if (box) box.innerHTML = ''; } catch (_) {}
   }
 
   function open() {
-    try { if ((!_history || _history.length === 0) && global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') _history = global.CrozzoAiChatHistory.load() || []; } catch (_) {}
     if (!isAllowedRole()) {
       try { if (typeof global.showToast === 'function') global.showToast('Asistente IA solo para Super Admin, Admin y Encargado.', 'warning'); } catch (_) {}
       return;
@@ -541,8 +333,29 @@
       return;
     }
     ensurePanel();
+    if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') {
+      try { var hist = global.CrozzoAiChatHistory.load(); if (hist && hist.length) _history = hist; } catch (_) {}
+    }
   }
-  function close() { if (_panelEsc) { try { document.removeEventListener('keydown', _panelEsc); } catch (_) {} _panelEsc = null; } var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
+
+  function close() { var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
+
+  function injectFab() {
+    if (!isAllowedRole()) return;
+    if (document.getElementById('crozzo-ai-fab')) return;
+    var btn = document.createElement('button');
+    btn.id = 'crozzo-ai-fab';
+    btn.type = 'button';
+    btn.textContent = '🤖';
+    btn.title = 'Asistente IA';
+    btn.style.cssText = 'position:fixed;right:16px;bottom:90px;z-index:9000;width:48px;height:48px;border-radius:50%;border:1px solid rgba(181,154,109,0.6);background:#1c1c1c;color:#faf9f7;font-size:1.3rem;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,0.28);';
+    btn.onclick = open;
+    document.body.appendChild(btn);
+  }
+
+  function reindex() {
+    return ollamaInvoke('crozzo_rag_reindex').then(function (r) { return r; });
+  }
 
   function isAllowedRole() {
     try {
@@ -565,31 +378,19 @@
     return false;
   }
 
-  function injectFab() {
-    if (!isAllowedRole()) return;
-    if (document.getElementById('crozzo-ai-fab')) return;
-    var btn = document.createElement('button');
-    btn.id = 'crozzo-ai-fab';
-    btn.type = 'button';
-    btn.textContent = '🤖';
-    btn.title = 'Asistente IA';
-    btn.style.cssText = 'position:fixed;right:16px;bottom:90px;z-index:9000;width:48px;height:48px;border-radius:50%;border:1px solid rgba(181,154,109,0.6);background:#1c1c1c;color:#faf9f7;font-size:1.3rem;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,0.28);';
-    btn.onclick = open;
-    document.body.appendChild(btn);
-  }
-
   global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; }, injectFab: injectFab };
+
   global.crozzoInjectAiFab = function () { setTimeout(injectFab, 100); setTimeout(injectFab, 1000); setTimeout(injectFab, 3000); };
 
-  // Hook para auditoría automática al cierre de turno
-  global.crozzoTriggerAutoAudit = function () {
-    try {
-      if (!isAllowedRole()) return;
-      if (global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.execute === 'function') {
-        global.CrozzoAiActionRegistry.execute('auditoria_cajero');
-      }
-    } catch (_) {}
-  };
+  // Onboarding
+  if (global.CrozzoAiOnboarding && typeof global.CrozzoAiOnboarding.show === 'function') {
+    // will be called on open
+  }
+
+  function clearHistory() {
+    _history = [];
+    try { if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.clear === 'function') global.CrozzoAiChatHistory.clear(); } catch (_) {}
+  }
 
   try {
     if (document.readyState === 'loading') {
