@@ -1,28 +1,16 @@
 {
-  "id": "1.0.335-critical",
-  "version": "v1.0.335",
-  "semver": "1.0.335",
+  "id": "1.0.336-critical",
+  "version": "v1.0.336",
+  "semver": "1.0.336",
   "type": "critical",
-  "message": "Fix asistente: POS se encoge para dar espacio al panel IA",
-  "publishedAt": "2026-11-22T02:34:49.926Z",
+  "message": "Fix layout: POS se encoge cuando asistente IA esta abierto",
+  "publishedAt": "2026-11-22T02:38:12.001Z",
   "installMode": "auto",
   "changelog": [
-    "Fix asistente: POS se encoge para dar espacio al panel IA"
+    "Fix layout: POS se encoge cuando asistente IA esta abierto"
   ],
-  "updatedAt": "2026-11-22T02:34:49.926Z",
+  "updatedAt": "2026-11-22T02:38:12.001Z",
   "entries": [
-    {
-      "id": "1.0.311-critical",
-      "version": "v1.0.311",
-      "semver": "1.0.311",
-      "type": "critical",
-      "message": "Obra maestra IA: asistente, voz, RAG, acciones, auditoria, reportes, perfil dispositivo",
-      "publishedAt": "2026-11-21T00:31:41.788Z",
-      "installMode": "auto",
-      "changelog": [
-        "Obra maestra IA: asistente, voz, RAG, acciones, auditoria, reportes, perfil dispositivo"
-      ]
-    },
     {
       "id": "1.0.312-critical",
       "version": "v1.0.312",
@@ -317,6 +305,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix asistente: POS se encoge para dar espacio al panel IA"
+      ]
+    },
+    {
+      "id": "1.0.336-critical",
+      "version": "v1.0.336",
+      "semver": "1.0.336",
+      "type": "critical",
+      "message": "Fix layout: POS se encoge cuando asistente IA esta abierto",
+      "publishedAt": "2026-11-22T02:38:12.001Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix layout: POS se encoge cuando asistente IA esta abierto"
       ]
     }
   ]
