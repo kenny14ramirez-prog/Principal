@@ -84,10 +84,17 @@
     }
 
     // Mostrar banner de modo demo
+    // Enviar a la campana de notificaciones en vez de banner flotante
+    try {
+      if (global.CrozzoNotificationCenter && typeof global.CrozzoNotificationCenter.push === 'function') {
+        global.CrozzoNotificationCenter.push('MODO DEMO — Datos ficticios activos', 'info');
+      }
+    } catch (_) {}
+    // Banner mínimo (no cubre botones)
     var banner = document.createElement('div');
     banner.id = 'demoModeBanner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;text-align:center;padding:4px 8px;font-size:0.75rem;font-weight:600;';
-    banner.innerHTML = CrozzoSanitize.sanitizeHtml('MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>');
+    banner.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:9000;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;text-align:center;padding:6px 12px;font-size:0.75rem;font-weight:600;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);max-width:320px;';
+    banner.innerHTML = CrozzoSanitize.sanitizeHtml('MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir</button>');
     document.body.appendChild(banner);
 
     // Desplazar contenido para el banner

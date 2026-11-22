@@ -102,8 +102,21 @@
     el.style.background = color === 'red' ? '#fee2e2' : color === 'yellow' ? '#fef9c3' : '#dcfce7';
     el.style.color = color === 'red' ? '#991b1b' : color === 'yellow' ? '#854d0e' : '#166534';
     el.style.display = 'block';
+    el.style.top = 'auto';
+    el.style.bottom = '12px';
+    el.style.left = '12px';
+    el.style.right = 'auto';
+    el.style.maxWidth = '320px';
+    el.style.borderRadius = '8px';
     if (__bannerTimer) clearTimeout(__bannerTimer);
-    __bannerTimer = setTimeout(function () { if (el) el.style.display = 'none'; }, 4000);
+    __bannerTimer = setTimeout(function () { if (el) el.style.display = 'none'; }, 3000);
+    // También enviar a la campana de notificaciones
+    try {
+      if (global.CrozzoNotificationCenter && typeof global.CrozzoNotificationCenter.push === 'function') {
+        var type = color === 'red' ? 'error' : color === 'yellow' ? 'warning' : 'info';
+        global.CrozzoNotificationCenter.push(msg, type);
+      }
+    } catch (_) {}
   }
 
   function playBeep(freq, ms) {

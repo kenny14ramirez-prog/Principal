@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-22T00:26:47.312Z",
+  "updatedAt": "2026-11-22T00:31:53.520Z",
   "entries": [
-    {
-      "id": "1.0.306-critical",
-      "version": "v1.0.306",
-      "semver": "1.0.306",
-      "type": "critical",
-      "message": "Actualizacion: fix solucionador de problemas (onclick + getLogs), fix dc-menu-btn, centro notificaciones, honeypot fix",
-      "publishedAt": "2026-11-18T01:03:56.776Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: fix solucionador de problemas (onclick",
-        "getLogs), fix dc-menu-btn, centro notificaciones, honeypot fix"
-      ]
-    },
     {
       "id": "1.0.307-critical",
       "version": "v1.0.307",
@@ -307,6 +294,18 @@
       "changelog": [
         "Fix ollamaInvoke typo",
         "FAB visible tras login"
+      ]
+    },
+    {
+      "id": "1.0.331-critical",
+      "version": "v1.0.331",
+      "semver": "1.0.331",
+      "type": "critical",
+      "message": "Fix banners: mover a campana de notificaciones, menos intrusivos",
+      "publishedAt": "2026-11-22T00:31:53.520Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix banners: mover a campana de notificaciones, menos intrusivos"
       ]
     }
   ]
