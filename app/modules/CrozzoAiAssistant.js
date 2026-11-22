@@ -1,6 +1,7 @@
 /**
- * Bona Origen — Asistente IA conversacional (Fase 3+4+P0).
+ * Bona Origen — Asistente IA conversacional (side panel, no bloqueante).
  * Chat local contra Ollama/llama.cpp sidecar con RAG (FTS5), voz, acciones.
+ * Panel lateral derecho que no bloquea el POS.
  */
 (function (global) {
   'use strict';
@@ -37,7 +38,7 @@
     var url = ollamaUrl();
     var model = ollamaModel();
     try {
-      var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 5000 });
+      var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 3000 });
       var exists = false;
       if (r) {
         try { var j = JSON.parse(r); exists = !!(j && Array.isArray(j.models) && j.models.some(function (m) { return (m.name || '').indexOf(model) === 0; })); } catch (_) {}
@@ -69,7 +70,7 @@
       }
       updateStatus('Modelo ' + model + ' listo ✔');
     } catch (e) {
-      updateStatus('Descarga falló: ' + (e && e.message ? e.message : e));
+      updateStatus('No se pudo descargar. Instale Ollama (ollama.com) manualmente.');
     } finally {
       _pulling = false;
     }
@@ -82,29 +83,33 @@
 
   function ensurePanel() {
     var existing = document.getElementById(PANEL_ID);
-    if (existing) return existing;
+    if (existing) {
+      existing.style.transform = 'translateX(0)';
+      return existing;
+    }
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
-    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;';
+    ov.style.cssText = 'position:fixed;top:0;right:0;bottom:0;z-index:9000;width:420px;max-width:90vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;';
     var card = document.createElement('div');
-    card.style.cssText = 'background:#fff;border-radius:16px;width:92%;max-width:420px;height:76vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;margin-left:auto;margin-right:16px;';
+    card.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
     card.innerHTML =
-      '<div style="padding:14px 18px;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;display:flex;align-items:center;justify-content:space-between;">' +
+      '<div style="padding:14px 18px;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
         '<strong>Asistente IA · Bona Origen</strong>' +
         '<div style="display:flex;gap:6px;">' +
           '<button type="button" id="crozzo-ai-voice" title="Voz" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">🎤</button>' +
           '<button type="button" id="crozzo-ai-close" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;">×</button>' +
         '</div>' +
       '</div>' +
-      '<div id="crozzo-ai-status" style="padding:6px 14px;font-size:0.75rem;color:#666;background:#f5f5f5;">Estado: verificando modelo local…</div>' +
-      '<div id="crozzo-ai-model-mgr" style="padding:4px 14px;border-bottom:1px solid #eee;"></div>' +
+      '<div id="crozzo-ai-status" style="padding:6px 14px;font-size:0.75rem;color:#666;background:#f5f5f5;flex-shrink:0;">Estado: verificando modelo local…</div>' +
+      '<div id="crozzo-ai-model-mgr" style="padding:4px 14px;border-bottom:1px solid #eee;flex-shrink:0;"></div>' +
       '<div id="crozzo-ai-messages" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;"></div>' +
-      '<div style="padding:10px 14px;border-top:1px solid #eee;display:flex;gap:8px;">' +
+      '<div style="padding:10px 14px;border-top:1px solid #eee;display:flex;gap:8px;flex-shrink:0;">' +
         '<input id="crozzo-ai-input" type="text" placeholder="Escribe o dicta tu consulta…" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">' +
         '<button type="button" id="crozzo-ai-send" style="padding:10px 16px;border:none;border-radius:8px;background:#B59A6D;color:#fff;cursor:pointer;font-weight:600;">Enviar</button>' +
       '</div>';
     ov.appendChild(card);
     document.body.appendChild(ov);
+    requestAnimationFrame(function () { ov.style.transform = 'translateX(0)'; });
     document.getElementById('crozzo-ai-close').onclick = close;
     document.getElementById('crozzo-ai-send').onclick = send;
     var inp = document.getElementById('crozzo-ai-input');
@@ -113,23 +118,28 @@
     if (voiceBtn) voiceBtn.onclick = startVoice;
     checkStatus();
     setTimeout(ensureModelInBackground, 100);
-    // Mount model manager
     try {
       if (global.CrozzoAiModelManager && typeof global.CrozzoAiModelManager.mount === 'function') {
         var mgrRoot = document.getElementById('crozzo-ai-model-mgr');
         if (mgrRoot) global.CrozzoAiModelManager.mount(mgrRoot);
       }
     } catch (_) {}
-    // Onboarding
     if (global.CrozzoAiOnboarding && typeof global.CrozzoAiOnboarding.show === 'function') {
       setTimeout(function () { global.CrozzoAiOnboarding.show(); }, 500);
+    }
+    // Restore history
+    if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.load === 'function') {
+      try { var hist = global.CrozzoAiChatHistory.load(); if (hist && hist.length) _history = hist; } catch (_) {}
     }
     return ov;
   }
 
   function close() {
     var ov = document.getElementById(PANEL_ID);
-    if (ov) ov.remove();
+    if (ov) {
+      ov.style.transform = 'translateX(100%)';
+      setTimeout(function () { if (ov.parentNode) ov.remove(); }, 250);
+    }
   }
 
   function addMessage(role, text) {
@@ -148,19 +158,16 @@
   async function checkStatus() {
     var st = document.getElementById('crozzo-ai-status');
     if (!st) return;
-    // Try internal sidecar first
     try {
       var h = await ollamaInvoke('crozzo_llama_health');
       if (h && h.ok) { st.textContent = 'Estado: modelo interno activo ✔'; return; }
     } catch (_) {}
-    // Try Ollama
     var url = ollamaUrl();
     try {
       var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 3000 });
       if (r) {
         try { var j = JSON.parse(r); if (j && Array.isArray(j.models) && j.models.length > 0) { st.textContent = 'Estado: Ollama conectado ✔ (' + j.models.length + ' modelos)'; return; } } catch (_) {}
       }
-      // Ollama available but no models -> auto-pull
       var resp = await fetch(url + '/api/tags', { method: 'GET' });
       if (resp.ok) {
         st.textContent = 'Estado: descargando modelo automáticamente…';
@@ -235,7 +242,7 @@
     var assistantDiv = addMessage('assistant', '…');
     var full = '';
     try {
-      // Check if user input triggers a direct action
+      // Direct action check
       try {
         if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
           var userIntents = global.CrozzoAiIntentParser.parse(text).intents || [];
@@ -276,12 +283,10 @@
       var prompt = 'Contexto del sistema POS: ' + systemContext() + ragContext + '\n' +
         _history.slice(-12).map(function (m) { return (m.role === 'user' ? 'Usuario: ' : 'Asistente: ') + m.content; }).join('\n') + '\nAsistente:';
       var full = '';
-      // Try internal sidecar first
       try {
         var r0 = await ollamaInvoke('crozzo_llama_chat', { prompt: prompt, timeout_ms: 60000 });
         if (r0) { try { var j0 = JSON.parse(r0); full = (j0 && j0.choices && j0.choices[0] && j0.choices[0].message && j0.choices[0].message.content) ? j0.choices[0].message.content : (j0 && j0.response) ? j0.response : ''; } catch (_) { full = String(r0); } }
       } catch (_) {}
-      // Fallback to Ollama
       if (!full) {
         var url = ollamaUrl();
         var model = ollamaModel();
@@ -294,7 +299,6 @@
         }
       }
       if (!full) throw new Error('sin respuesta');
-      // Detect action tags in response
       var actionIds = [];
       try {
         if (global.CrozzoAiIntentParser && typeof global.CrozzoAiIntentParser.parse === 'function') {
@@ -305,7 +309,6 @@
           while ((mm = rre.exec(full)) !== null) { if (actionIds.indexOf(mm[1]) === -1) actionIds.push(mm[1]); }
         }
       } catch (_) {}
-      // Render response
       assistantDiv.textContent = full;
       if (sourceList.length) {
         var srcDiv = document.createElement('div');
@@ -380,7 +383,13 @@
     }
   }
 
-  function close() { var ov = document.getElementById(PANEL_ID); if (ov) ov.remove(); }
+  function close() {
+    var ov = document.getElementById(PANEL_ID);
+    if (ov) {
+      ov.style.transform = 'translateX(100%)';
+      setTimeout(function () { if (ov.parentNode) ov.remove(); }, 250);
+    }
+  }
 
   function injectFab() {
     if (!isAllowedRole()) return;
@@ -423,11 +432,6 @@
   global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; }, injectFab: injectFab };
 
   global.crozzoInjectAiFab = function () { setTimeout(injectFab, 100); setTimeout(injectFab, 1000); setTimeout(injectFab, 3000); };
-
-  // Onboarding
-  if (global.CrozzoAiOnboarding && typeof global.CrozzoAiOnboarding.show === 'function') {
-    // will be called on open
-  }
 
   function clearHistory() {
     _history = [];

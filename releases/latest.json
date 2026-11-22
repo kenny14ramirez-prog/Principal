@@ -1,28 +1,16 @@
 {
-  "id": "1.0.333-critical",
-  "version": "v1.0.333",
-  "semver": "1.0.333",
+  "id": "1.0.334-critical",
+  "version": "v1.0.334",
+  "semver": "1.0.334",
   "type": "critical",
-  "message": "Auto-descarga modelo IA: intenta Ollama pull automaticamente",
-  "publishedAt": "2026-11-22T01:01:35.520Z",
+  "message": "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama",
+  "publishedAt": "2026-11-22T02:07:50.726Z",
   "installMode": "auto",
   "changelog": [
-    "Auto-descarga modelo IA: intenta Ollama pull automaticamente"
+    "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama"
   ],
-  "updatedAt": "2026-11-22T01:01:35.520Z",
+  "updatedAt": "2026-11-22T02:07:50.726Z",
   "entries": [
-    {
-      "id": "1.0.309-critical",
-      "version": "v1.0.309",
-      "semver": "1.0.309",
-      "type": "critical",
-      "message": "Pulido premium y agentes",
-      "publishedAt": "2026-11-18T20:07:38.855Z",
-      "installMode": "auto",
-      "changelog": [
-        "Pulido premium y agentes"
-      ]
-    },
     {
       "id": "1.0.310-critical",
       "version": "v1.0.310",
@@ -317,6 +305,18 @@
       "installMode": "auto",
       "changelog": [
         "Auto-descarga modelo IA: intenta Ollama pull automaticamente"
+      ]
+    },
+    {
+      "id": "1.0.334-critical",
+      "version": "v1.0.334",
+      "semver": "1.0.334",
+      "type": "critical",
+      "message": "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama",
+      "publishedAt": "2026-11-22T02:07:50.726Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama"
       ]
     }
   ]
