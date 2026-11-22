@@ -153,21 +153,55 @@
       var h = await ollamaInvoke('crozzo_llama_health');
       if (h && h.ok) { st.textContent = 'Estado: modelo interno activo ✔'; return; }
     } catch (_) {}
-    // Fallback to Ollama
+    // Try Ollama
     var url = ollamaUrl();
     try {
-      var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 5000 });
+      var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 3000 });
       if (r) {
-        try { var j = JSON.parse(r); if (j && Array.isArray(j.models)) { st.textContent = 'Estado: Ollama conectado ✔ (' + j.models.length + ' modelos)'; return; } } catch (_) {}
+        try { var j = JSON.parse(r); if (j && Array.isArray(j.models) && j.models.length > 0) { st.textContent = 'Estado: Ollama conectado ✔ (' + j.models.length + ' modelos)'; return; } } catch (_) {}
       }
+      // Ollama available but no models -> auto-pull
       var resp = await fetch(url + '/api/tags', { method: 'GET' });
-      if (resp.ok) { st.textContent = 'Estado: Ollama conectado ✔'; return; }
+      if (resp.ok) {
+        st.textContent = 'Estado: descargando modelo automáticamente…';
+        autoPullOllamaModel(url);
+        return;
+      }
     } catch (_) {}
-    st.textContent = 'Estado: Ollama no disponible. Para usar IA: 1) Instale Ollama (ollama.com) y ejecute "ollama serve", o 2) Use el gestor de modelos abajo.';
+    st.textContent = 'Estado: instalando asistente IA automáticamente…';
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
-      if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: modelo no disponible. Instale Ollama (ollama.com) o descargue el sidecar con el gestor de modelos.';
+      if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: descargando modelo…';
     });
+    ensureModelInBackground();
+  }
+
+  async function autoPullOllamaModel(url) {
+    var model = ollamaModel();
+    try {
+      var resp = await fetch(url + '/api/pull', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: model, stream: true }) });
+      if (!resp.ok || !resp.body) throw new Error('pull failed');
+      var reader = resp.body.getReader();
+      var dec = new TextDecoder();
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        var txt = dec.decode(chunk.value, { stream: true });
+        var lines = txt.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line) continue;
+          try {
+            var j = JSON.parse(line);
+            if (j && j.status) updateStatus('Modelo: ' + j.status + (j.completed && j.total ? ' ' + Math.round((j.completed / j.total) * 100) + '%' : ''));
+          } catch (_) {}
+        }
+      }
+      updateStatus('Modelo ' + model + ' listo ✔');
+      checkStatus();
+    } catch (e) {
+      updateStatus('No se pudo descargar. Instale Ollama (ollama.com) manualmente.');
+    }
   }
 
   function systemContext() {

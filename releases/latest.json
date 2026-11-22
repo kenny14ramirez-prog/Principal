@@ -1,29 +1,16 @@
 {
-  "id": "1.0.332-critical",
-  "version": "v1.0.332",
-  "semver": "1.0.332",
+  "id": "1.0.333-critical",
+  "version": "v1.0.333",
+  "semver": "1.0.333",
   "type": "critical",
-  "message": "Integrar gestor de modelos en panel IA + mensajes claros",
-  "publishedAt": "2026-11-22T00:51:07.730Z",
+  "message": "Auto-descarga modelo IA: intenta Ollama pull automaticamente",
+  "publishedAt": "2026-11-22T01:01:35.520Z",
   "installMode": "auto",
   "changelog": [
-    "Integrar gestor de modelos en panel IA",
-    "mensajes claros"
+    "Auto-descarga modelo IA: intenta Ollama pull automaticamente"
   ],
-  "updatedAt": "2026-11-22T00:51:07.730Z",
+  "updatedAt": "2026-11-22T01:01:35.520Z",
   "entries": [
-    {
-      "id": "1.0.308-critical",
-      "version": "v1.0.308",
-      "semver": "1.0.308",
-      "type": "critical",
-      "message": "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones",
-      "publishedAt": "2026-11-18T01:39:53.666Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: fix palette click, fix solucionador, fix exportar reporte, honeypot fix, centro notificaciones"
-      ]
-    },
     {
       "id": "1.0.309-critical",
       "version": "v1.0.309",
@@ -318,6 +305,18 @@
       "changelog": [
         "Integrar gestor de modelos en panel IA",
         "mensajes claros"
+      ]
+    },
+    {
+      "id": "1.0.333-critical",
+      "version": "v1.0.333",
+      "semver": "1.0.333",
+      "type": "critical",
+      "message": "Auto-descarga modelo IA: intenta Ollama pull automaticamente",
+      "publishedAt": "2026-11-22T01:01:35.520Z",
+      "installMode": "auto",
+      "changelog": [
+        "Auto-descarga modelo IA: intenta Ollama pull automaticamente"
       ]
     }
   ]
