@@ -160,27 +160,46 @@
   async function checkStatus() {
     var st = document.getElementById('crozzo-ai-status');
     if (!st) return;
+    st.textContent = 'Verificando asistente IA…';
+
+    // 1) Try internal sidecar
     try {
       var h = await ollamaInvoke('crozzo_llama_health');
-      if (h && h.ok) { st.textContent = 'Estado: modelo interno activo ✔'; return; }
+      if (h && h.ok) { st.textContent = '✔ Asistente IA listo'; return; }
     } catch (_) {}
+
+    // 2) Try Ollama
     var url = ollamaUrl();
     try {
       var r = await ollamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 3000 });
       if (r) {
-        try { var j = JSON.parse(r); if (j && Array.isArray(j.models) && j.models.length > 0) { st.textContent = 'Estado: Ollama conectado ✔ (' + j.models.length + ' modelos)'; return; } } catch (_) {}
+        try {
+          var j = JSON.parse(r);
+          if (j && Array.isArray(j.models) && j.models.length > 0) {
+            st.textContent = '✔ Asistente IA listo (Ollama)';
+            return;
+          }
+          // Ollama available but no model -> auto-pull
+          if (j && Array.isArray(j.models)) {
+            st.textContent = 'Descargando modelo automáticamente…';
+            autoPullOllamaModel(url);
+            return;
+          }
+        } catch (_) {}
       }
       var resp = await fetch(url + '/api/tags', { method: 'GET' });
       if (resp.ok) {
-        st.textContent = 'Estado: descargando modelo automáticamente…';
+        st.textContent = 'Descargando modelo automáticamente…';
         autoPullOllamaModel(url);
         return;
       }
     } catch (_) {}
-    st.textContent = 'Estado: instalando asistente IA automáticamente…';
+
+    // 3) No Ollama available -> try sidecar
+    st.textContent = 'Instalando asistente IA…';
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
-      if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: descargando modelo…';
+      if (st2) st2.textContent = ok ? '✔ Asistente IA listo' : 'Descargando modelo…';
     });
     ensureModelInBackground();
   }
@@ -202,11 +221,11 @@
           if (!line) continue;
           try {
             var j = JSON.parse(line);
-            if (j && j.status) updateStatus('Modelo: ' + j.status + (j.completed && j.total ? ' ' + Math.round((j.completed / j.total) * 100) + '%' : ''));
+            if (j && j.status) updateStatus('Descargando… ' + j.status + (j.completed && j.total ? ' ' + Math.round((j.completed / j.total) * 100) + '%' : ''));
           } catch (_) {}
         }
       }
-      updateStatus('Modelo ' + model + ' listo ✔');
+      updateStatus('✔ Asistente IA listo');
       checkStatus();
     } catch (e) {
       updateStatus('No se pudo descargar. Instale Ollama (ollama.com) manualmente.');
@@ -432,7 +451,7 @@
     return false;
   }
 
-  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; }, injectFab: injectFab };
+  global.CrozzoAiAssistant = { open: open, close: close, send: send, reindex: reindex, ensureModel: ensureModelInBackground, isAllowedRole: isAllowedRole, clearHistory: clearHistory, getHistory: function () { return _history; }, injectFab: injectFab, checkStatus: checkStatus };
 
   global.crozzoInjectAiFab = function () { setTimeout(injectFab, 100); setTimeout(injectFab, 1000); setTimeout(injectFab, 3000); };
 

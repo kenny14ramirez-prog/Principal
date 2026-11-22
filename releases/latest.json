@@ -1,28 +1,16 @@
 {
-  "id": "1.0.337-critical",
-  "version": "v1.0.337",
-  "semver": "1.0.337",
+  "id": "1.0.338-critical",
+  "version": "v1.0.338",
+  "semver": "1.0.338",
   "type": "critical",
-  "message": "Fix layout: POS se encoge para dar espacio al panel IA (v2)",
-  "publishedAt": "2026-11-22T11:03:30.445Z",
+  "message": "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico",
+  "publishedAt": "2026-11-22T11:12:46.133Z",
   "installMode": "auto",
   "changelog": [
-    "Fix layout: POS se encoge para dar espacio al panel IA (v2)"
+    "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico"
   ],
-  "updatedAt": "2026-11-22T11:03:30.445Z",
+  "updatedAt": "2026-11-22T11:12:46.133Z",
   "entries": [
-    {
-      "id": "1.0.313-critical",
-      "version": "v1.0.313",
-      "semver": "1.0.313",
-      "type": "critical",
-      "message": "Fix build CI: remover externalBin bloqueante",
-      "publishedAt": "2026-11-21T01:21:41.042Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix build CI: remover externalBin bloqueante"
-      ]
-    },
     {
       "id": "1.0.314-critical",
       "version": "v1.0.314",
@@ -317,6 +305,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix layout: POS se encoge para dar espacio al panel IA (v2)"
+      ]
+    },
+    {
+      "id": "1.0.338-critical",
+      "version": "v1.0.338",
+      "semver": "1.0.338",
+      "type": "critical",
+      "message": "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico",
+      "publishedAt": "2026-11-22T11:12:46.133Z",
+      "installMode": "auto",
+      "changelog": [
+        "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico"
       ]
     }
   ]
