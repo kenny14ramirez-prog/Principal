@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-22T02:07:50.726Z",
+  "updatedAt": "2026-11-22T02:34:49.926Z",
   "entries": [
-    {
-      "id": "1.0.310-critical",
-      "version": "v1.0.310",
-      "semver": "1.0.310",
-      "type": "critical",
-      "message": "Fix animaciones premium y honeypot stale",
-      "publishedAt": "2026-11-19T23:08:04.188Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix animaciones premium y honeypot stale"
-      ]
-    },
     {
       "id": "1.0.311-critical",
       "version": "v1.0.311",
@@ -307,6 +295,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama"
+      ]
+    },
+    {
+      "id": "1.0.335-critical",
+      "version": "v1.0.335",
+      "semver": "1.0.335",
+      "type": "critical",
+      "message": "Fix asistente: POS se encoge para dar espacio al panel IA",
+      "publishedAt": "2026-11-22T02:34:49.926Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix asistente: POS se encoge para dar espacio al panel IA"
       ]
     }
   ]

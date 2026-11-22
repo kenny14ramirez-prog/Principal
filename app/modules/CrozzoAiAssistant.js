@@ -87,6 +87,7 @@
       existing.style.transform = 'translateX(0)';
       return existing;
     }
+    document.body.classList.add('crozzo-ai-panel-open');
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
     ov.style.cssText = 'position:fixed;top:0;right:0;bottom:0;z-index:9000;width:420px;max-width:90vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;';
@@ -135,6 +136,7 @@
   }
 
   function close() {
+    document.body.classList.remove('crozzo-ai-panel-open');
     var ov = document.getElementById(PANEL_ID);
     if (ov) {
       ov.style.transform = 'translateX(100%)';
@@ -384,6 +386,7 @@
   }
 
   function close() {
+    document.body.classList.remove('crozzo-ai-panel-open');
     var ov = document.getElementById(PANEL_ID);
     if (ov) {
       ov.style.transform = 'translateX(100%)';

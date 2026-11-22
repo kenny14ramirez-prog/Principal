@@ -1287,6 +1287,19 @@ body.crozzo-premium .crozzo-tour-step {
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
 
+/* Asistente IA: panel lateral no bloqueante — encoger contenido principal */
+body.crozzo-ai-panel-open #mainContent,
+body.crozzo-ai-panel-open .main-body {
+  margin-right: 420px;
+  transition: margin-right 0.25s ease;
+}
+@media (max-width: 900px) {
+  body.crozzo-ai-panel-open #mainContent,
+  body.crozzo-ai-panel-open .main-body {
+    margin-right: 0;
+  }
+}
+
 /* Detalles finales — sensación de dedicación */
 body.crozzo-premium ::selection { background: rgba(var(--cz-gold-rgb), 0.25); color: var(--text-primary, #1c1c1c); }
 body.crozzo-premium { scroll-behavior: smooth; }
@@ -1407,6 +1420,19 @@ body.crozzo-premium .crozzo-tour-step {
   margin: 0 0 8px; font-size: 0.9rem; color: var(--text-secondary, #4a4a4a); line-height: 1.5;
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
+
+/* Asistente IA: panel lateral no bloqueante — encoger contenido principal */
+body.crozzo-ai-panel-open #mainContent,
+body.crozzo-ai-panel-open .main-body {
+  margin-right: 420px;
+  transition: margin-right 0.25s ease;
+}
+@media (max-width: 900px) {
+  body.crozzo-ai-panel-open #mainContent,
+  body.crozzo-ai-panel-open .main-body {
+    margin-right: 0;
+  }
+}
 
 /* Detalles finales — sensación de dedicación */
 body.crozzo-premium ::selection { background: rgba(var(--cz-gold-rgb), 0.25); color: var(--text-primary, #1c1c1c); }
