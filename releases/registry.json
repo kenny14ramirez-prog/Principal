@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-22T02:38:12.001Z",
+  "updatedAt": "2026-11-22T11:03:30.445Z",
   "entries": [
-    {
-      "id": "1.0.312-critical",
-      "version": "v1.0.312",
-      "semver": "1.0.312",
-      "type": "critical",
-      "message": "Obra maestra IA: asistente completo, voz, RAG, acciones, auditoria, reportes, perfil dispositivo, permisos Tauri",
-      "publishedAt": "2026-11-21T01:09:43.783Z",
-      "installMode": "auto",
-      "changelog": [
-        "Obra maestra IA: asistente completo, voz, RAG, acciones, auditoria, reportes, perfil dispositivo, permisos Tauri"
-      ]
-    },
     {
       "id": "1.0.313-critical",
       "version": "v1.0.313",
@@ -307,6 +295,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix layout: POS se encoge cuando asistente IA esta abierto"
+      ]
+    },
+    {
+      "id": "1.0.337-critical",
+      "version": "v1.0.337",
+      "semver": "1.0.337",
+      "type": "critical",
+      "message": "Fix layout: POS se encoge para dar espacio al panel IA (v2)",
+      "publishedAt": "2026-11-22T11:03:30.445Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix layout: POS se encoge para dar espacio al panel IA (v2)"
       ]
     }
   ]

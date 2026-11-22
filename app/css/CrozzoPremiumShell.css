@@ -1287,18 +1287,22 @@ body.crozzo-premium .crozzo-tour-step {
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
 
-/* Asistente IA: panel lateral no bloqueante — encoger contenido principal */
+/* Asistente IA: panel lateral — POS se encoge para dar espacio */
+body.crozzo-ai-panel-open .app-container {
+  padding-right: 420px;
+  transition: padding-right 0.25s ease;
+}
 body.crozzo-ai-panel-open .main-body,
 body.crozzo-ai-panel-open #mainContent {
-  width: calc(100% - 420px) !important;
-  max-width: calc(100% - 420px) !important;
-  transition: width 0.25s ease, max-width 0.25s ease;
+  max-width: 100% !important;
 }
 @media (max-width: 900px) {
-  body.crozzo-ai-panel-open .main-body,
-  body.crozzo-ai-panel-open #mainContent {
-    width: 100% !important;
-    max-width: 100% !important;
+  body.crozzo-ai-panel-open .app-container {
+    padding-right: 0;
+  }
+  body.crozzo-ai-panel-open #crozzo-ai-assistant-panel {
+    width: 100vw;
+    max-width: 100vw;
   }
 }
 
@@ -1423,18 +1427,22 @@ body.crozzo-premium .crozzo-tour-step {
 }
 body.crozzo-premium .crozzo-tour-card .btn { margin-top: 14px; }
 
-/* Asistente IA: panel lateral no bloqueante — encoger contenido principal */
+/* Asistente IA: panel lateral — POS se encoge para dar espacio */
+body.crozzo-ai-panel-open .app-container {
+  padding-right: 420px;
+  transition: padding-right 0.25s ease;
+}
 body.crozzo-ai-panel-open .main-body,
 body.crozzo-ai-panel-open #mainContent {
-  width: calc(100% - 420px) !important;
-  max-width: calc(100% - 420px) !important;
-  transition: width 0.25s ease, max-width 0.25s ease;
+  max-width: 100% !important;
 }
 @media (max-width: 900px) {
-  body.crozzo-ai-panel-open .main-body,
-  body.crozzo-ai-panel-open #mainContent {
-    width: 100% !important;
-    max-width: 100% !important;
+  body.crozzo-ai-panel-open .app-container {
+    padding-right: 0;
+  }
+  body.crozzo-ai-panel-open #crozzo-ai-assistant-panel {
+    width: 100vw;
+    max-width: 100vw;
   }
 }
 

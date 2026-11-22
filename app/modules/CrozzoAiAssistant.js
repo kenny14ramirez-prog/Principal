@@ -441,12 +441,22 @@
     try { if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.clear === 'function') global.CrozzoAiChatHistory.clear(); } catch (_) {}
   }
 
+  // Listen for page changes to update context
   try {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () { setTimeout(injectFab, 200); setTimeout(ensureModelInBackground, 2000); }, { once: true });
-    } else {
-      setTimeout(injectFab, 200);
-      setTimeout(ensureModelInBackground, 2000);
+    if (typeof global.navigateTo === 'function' && !global.__crozzoAiNavPatched) {
+      global.__crozzoAiNavPatched = true;
+      var origNav = global.navigateTo;
+      global.navigateTo = function () {
+        var r = origNav.apply(this, arguments);
+        try {
+          var panel = document.getElementById(PANEL_ID);
+          if (panel) {
+            var st = document.getElementById('crozzo-ai-status');
+            if (st) st.textContent = 'Pantalla: ' + (typeof global.currentPage !== 'undefined' ? global.currentPage : '?') + ' · ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.getTier() : '');
+          }
+        } catch (_) {}
+        return r;
+      };
     }
   } catch (_) {}
 })(typeof window !== 'undefined' ? window : globalThis);
