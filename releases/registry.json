@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-22T00:31:53.520Z",
+  "updatedAt": "2026-11-22T00:51:07.730Z",
   "entries": [
-    {
-      "id": "1.0.307-critical",
-      "version": "v1.0.307",
-      "semver": "1.0.307",
-      "type": "critical",
-      "message": "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa",
-      "publishedAt": "2026-11-18T01:12:34.326Z",
-      "installMode": "auto",
-      "changelog": [
-        "Actualizacion: fix honeypot demo (no bloquea), fix solucionador de problemas, centro notificaciones, seguridad completa"
-      ]
-    },
     {
       "id": "1.0.308-critical",
       "version": "v1.0.308",
@@ -306,6 +294,19 @@
       "installMode": "auto",
       "changelog": [
         "Fix banners: mover a campana de notificaciones, menos intrusivos"
+      ]
+    },
+    {
+      "id": "1.0.332-critical",
+      "version": "v1.0.332",
+      "semver": "1.0.332",
+      "type": "critical",
+      "message": "Integrar gestor de modelos en panel IA + mensajes claros",
+      "publishedAt": "2026-11-22T00:51:07.730Z",
+      "installMode": "auto",
+      "changelog": [
+        "Integrar gestor de modelos en panel IA",
+        "mensajes claros"
       ]
     }
   ]

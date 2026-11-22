@@ -97,6 +97,7 @@
         '</div>' +
       '</div>' +
       '<div id="crozzo-ai-status" style="padding:6px 14px;font-size:0.75rem;color:#666;background:#f5f5f5;">Estado: verificando modelo local…</div>' +
+      '<div id="crozzo-ai-model-mgr" style="padding:4px 14px;border-bottom:1px solid #eee;"></div>' +
       '<div id="crozzo-ai-messages" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;"></div>' +
       '<div style="padding:10px 14px;border-top:1px solid #eee;display:flex;gap:8px;">' +
         '<input id="crozzo-ai-input" type="text" placeholder="Escribe o dicta tu consulta…" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">' +
@@ -112,6 +113,13 @@
     if (voiceBtn) voiceBtn.onclick = startVoice;
     checkStatus();
     setTimeout(ensureModelInBackground, 100);
+    // Mount model manager
+    try {
+      if (global.CrozzoAiModelManager && typeof global.CrozzoAiModelManager.mount === 'function') {
+        var mgrRoot = document.getElementById('crozzo-ai-model-mgr');
+        if (mgrRoot) global.CrozzoAiModelManager.mount(mgrRoot);
+      }
+    } catch (_) {}
     // Onboarding
     if (global.CrozzoAiOnboarding && typeof global.CrozzoAiOnboarding.show === 'function') {
       setTimeout(function () { global.CrozzoAiOnboarding.show(); }, 500);
@@ -155,10 +163,10 @@
       var resp = await fetch(url + '/api/tags', { method: 'GET' });
       if (resp.ok) { st.textContent = 'Estado: Ollama conectado ✔'; return; }
     } catch (_) {}
-    st.textContent = 'Estado: Ollama no disponible. Inicie Ollama (ollama serve) o configure la URL.';
+    st.textContent = 'Estado: Ollama no disponible. Para usar IA: 1) Instale Ollama (ollama.com) y ejecute "ollama serve", o 2) Use el gestor de modelos abajo.';
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
-      if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: modelo no disponible. Instale Ollama o coloque llama-server en src-tauri/binaries/.';
+      if (st2) st2.textContent = ok ? 'Estado: modelo interno activo ✔' : 'Estado: modelo no disponible. Instale Ollama (ollama.com) o descargue el sidecar con el gestor de modelos.';
     });
   }
 
