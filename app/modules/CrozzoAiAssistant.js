@@ -196,7 +196,7 @@
     } catch (_) {}
 
     // 3) No Ollama available -> try sidecar
-    st.textContent = 'Instalando asistente IA…';
+    st.textContent = 'Instalando asistente IA automáticamente…';
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
       if (st2) st2.textContent = ok ? '✔ Asistente IA listo' : 'Descargando modelo…';
