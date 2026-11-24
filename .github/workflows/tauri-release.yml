@@ -16,7 +16,7 @@ jobs:
     outputs:
       releaseId: ${{ steps.meta.outputs.id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Asegurar release del tag (idempotente)
         id: meta
@@ -55,12 +55,12 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             args: '--target x86_64-pc-windows-msvc'
             android: false
-          - platform: macos-latest
+          - platform: macos-14
             label: macOS Apple Silicon
             rust_target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
             android: false
-          - platform: macos-latest
+          - platform: macos-13
             label: macOS Intel
             rust_target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
@@ -76,16 +76,16 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Java (Android)
         if: matrix.android
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -103,7 +103,7 @@ jobs:
 
       - name: Cache Gradle (Android)
         if: matrix.android
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -146,7 +146,7 @@ jobs:
 
       - name: Cache keystore Android (sideload estable)
         if: matrix.android
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: android-keystore-cache
         with:
           path: ${{ runner.temp }}/crozzo-upload.jks
@@ -280,10 +280,10 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Comprobar instaladores para todos los dispositivos
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
