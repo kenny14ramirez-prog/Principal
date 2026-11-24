@@ -20,6 +20,14 @@
   function notify(msg) {
     if (!canNotify()) return;
     markNotified();
+    // Enviar a la campana de notificaciones en vez de toast flotante
+    try {
+      if (global.CrozzoNotificationCenter && typeof global.CrozzoNotificationCenter.push === 'function') {
+        global.CrozzoNotificationCenter.push(msg, 'warning');
+        return;
+      }
+    } catch (_) {}
+    // Fallback a toast solo si no hay campana
     try { if (typeof global.showToast === 'function') global.showToast(msg, 'warning'); } catch (_) {}
     try {
       if (global.Notification && Notification.permission === 'granted') {

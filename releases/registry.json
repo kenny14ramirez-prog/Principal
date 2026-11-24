@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-24T12:54:11.080Z",
+  "updatedAt": "2026-11-24T12:56:24.806Z",
   "entries": [
-    {
-      "id": "1.0.324-critical",
-      "version": "v1.0.324",
-      "semver": "1.0.324",
-      "type": "critical",
-      "message": "Fix honeypot: guardias nucleares en programarAlertas/mostrarModal/bloquearFinal + safety net",
-      "publishedAt": "2026-11-21T22:17:40.286Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: guardias nucleares en programarAlertas/mostrarModal/bloquearFinal",
-        "safety net"
-      ]
-    },
     {
       "id": "1.0.325-critical",
       "version": "v1.0.325",
@@ -304,6 +291,18 @@
       "installMode": "auto",
       "changelog": [
         "Agregar consultas en lenguaje natural: datos, inventario, ventas"
+      ]
+    },
+    {
+      "id": "1.0.349-critical",
+      "version": "v1.0.349",
+      "semver": "1.0.349",
+      "type": "critical",
+      "message": "Alertas a campana de notificaciones (no banners flotantes)",
+      "publishedAt": "2026-11-24T12:56:24.806Z",
+      "installMode": "auto",
+      "changelog": [
+        "Alertas a campana de notificaciones (no banners flotantes)"
       ]
     }
   ]
