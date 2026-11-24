@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T11:19:08.541Z",
+  "updatedAt": "2026-11-24T11:19:40.410Z",
   "entries": [
-    {
-      "id": "1.0.316-critical",
-      "version": "v1.0.316",
-      "semver": "1.0.316",
-      "type": "critical",
-      "message": "Fix honeypot: guardias robustas contra sesiones legitimas",
-      "publishedAt": "2026-11-21T20:55:17.344Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: guardias robustas contra sesiones legitimas"
-      ]
-    },
     {
       "id": "1.0.317-critical",
       "version": "v1.0.317",
@@ -306,6 +294,18 @@
       "installMode": "auto",
       "changelog": [
         "Adaptacion Android: permisos, UI touch, form factor, capabilities"
+      ]
+    },
+    {
+      "id": "1.0.341-critical",
+      "version": "v1.0.341",
+      "semver": "1.0.341",
+      "type": "critical",
+      "message": "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)",
+      "publishedAt": "2026-11-24T11:19:40.410Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)"
       ]
     }
   ]
