@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T19:10:47.723Z",
+  "updatedAt": "2026-11-24T19:25:32.326Z",
   "entries": [
-    {
-      "id": "1.0.329-critical",
-      "version": "v1.0.329",
-      "semver": "1.0.329",
-      "type": "critical",
-      "message": "Reporte general del sistema: auditoria, fallas, IA, acciones, huella digital",
-      "publishedAt": "2026-11-21T23:09:42.930Z",
-      "installMode": "auto",
-      "changelog": [
-        "Reporte general del sistema: auditoria, fallas, IA, acciones, huella digital"
-      ]
-    },
     {
       "id": "1.0.330-critical",
       "version": "v1.0.330",
@@ -305,6 +293,20 @@
       "installMode": "auto",
       "changelog": [
         "Fix CSP resolveFn not defined (nav roto)"
+      ]
+    },
+    {
+      "id": "1.0.354-critical",
+      "version": "v1.0.354",
+      "semver": "1.0.354",
+      "type": "critical",
+      "message": "Reporte de dispositivo: WhatsApp Web + más diagnóstico + solo 2 botones",
+      "publishedAt": "2026-11-24T19:25:32.326Z",
+      "installMode": "auto",
+      "changelog": [
+        "Reporte de dispositivo: WhatsApp Web",
+        "más diagnóstico",
+        "solo 2 botones"
       ]
     }
   ]

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS - Reporte de diagnostico del dispositivo.
+ * Bona Origen - Reporte de diagnostico del dispositivo.
  * Boton en menu de usuario: "Reporte de conexion"
  */
 (function () {
@@ -143,7 +143,7 @@
     var s = getSummary();
     var diag = getDiagnostics();
     var lines = [];
-    lines.push('=== CROZZO POS - REPORTE DE DISPOSITIVO ===');
+    lines.push('=== BONA ORIGEN - REPORTE DE DISPOSITIVO ===');
     lines.push('Fecha: ' + s.startTime);
     lines.push('Duracion: ' + Math.round(s.durationMs / 1000) + 's');
     lines.push('Dispositivo: ' + s.deviceId + ' (Rol ' + s.role + ')');
@@ -182,6 +182,27 @@
       lines.push('[' + l.t + '] [' + l.type.toUpperCase() + '] ' + l.msg + (l.data ? ' | ' + JSON.stringify(l.data) : ''));
     }
     lines.push(internalSectionsText());
+    lines.push('');
+    // ── Módulos y estado de la sesión ──
+    lines.push('=== MÓDULOS Y SESIÓN ===');
+    lines.push(safe(function () {
+      var mods = [];
+      var modNames = ['CrozzoPosMain', 'CrozzoCierreTurnos', 'CrozzoCarteraComercial', 'CrozzoSistemaCostos', 'CrozzoCentroCompras', 'CrozzoCentroProcesos', 'CrozzoPlanilla2026', 'CrozzoSuperAdminConsole', 'CrozzoAiAssistant', 'CrozzoDevicePerf', 'CrozzoA11yUser', 'CrozzoCspDomWire'];
+      for (var mi = 0; mi < modNames.length; mi++) {
+        var m = global[modNames[mi]];
+        mods.push(modNames[mi] + ': ' + (m ? 'cargado' : 'NO cargado'));
+      }
+      return mods.join(' | ');
+    }));
+    lines.push('Sesión usuario: ' + safe(function () { try { return sessionStorage.getItem('crozzo_session_user') || '(no definido)'; } catch (_) { return '(error)'; } }));
+    lines.push('Rol: ' + safe(function () { try { return localStorage.getItem('crozzo_user_role') || '(no definido)'; } catch (_) { return '(error)'; } }));
+    lines.push('Tema: ' + safe(function () { try { return localStorage.getItem('crozzo_theme') || '(default)'; } catch (_) { return '(error)'; } }));
+    lines.push('Menú expandido: ' + safe(function () { try { return localStorage.getItem('crozzo_sidebar_expanded') || '(default)'; } catch (_) { return '(error)'; } }));
+    lines.push('localStorage keys: ' + safe(function () { try { return localStorage.length; } catch (_) { return '(error)'; } }));
+    lines.push('sessionStorage keys: ' + safe(function () { try { return sessionStorage.length; } catch (_) { return '(error)'; } }));
+    lines.push('Heap usado (MB): ' + safe(function () { if (performance && performance.memory) return Math.round(performance.memory.usedJSHeapSize / 1048576); return 'N/A'; }));
+    lines.push('Pantalla: ' + safe(function () { return (global.innerWidth || '?') + 'x' + (global.innerHeight || '?') + ' · DPR ' + (global.devicePixelRatio || 1); }));
+    lines.push('URL actual: ' + safe(function () { return global.location ? global.location.href : '(N/A)'; }));
     lines.push('');
     // ── Diario operativo (auditoría de acciones) ──
     try {
@@ -265,13 +286,71 @@
   function shareReport() {
     var text = buildTextReport();
     if (navigator.share) {
-      navigator.share({ title: 'Crozzo POS - Reporte', text: text }).then(function() {
+      navigator.share({ title: 'Bona Origen - Reporte de dispositivo', text: text }).then(function() {
         log('info', 'Reporte compartido');
       }).catch(function() {
         copyToClipboard(text);
       });
     } else {
       copyToClipboard(text);
+    }
+  }
+
+  /** Compartir por WhatsApp Web (no app de escritorio). Comprime el reporte y abre wa.me. */
+  function shareWhatsAppWeb() {
+    try {
+      var text = buildTextReport();
+      var phone = '3135859608';
+      // Comprimir: intentar gzip via CompressionStream; si no, truncar.
+      var doOpen = function (payload) {
+        try {
+          var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(payload);
+          // WhatsApp Web: abrir en nueva pestaña
+          try { window.open(url, '_blank'); } catch (_) { window.location.href = url; }
+          log('info', 'WhatsApp Web abierto para enviar reporte');
+          showToast('Se abrió WhatsApp Web. Revisa el mensaje y pulsa Enviar.');
+        } catch (e) {
+          console.error('Error WhatsApp Web:', e);
+          copyToClipboard(text);
+          showToast('No se pudo abrir WhatsApp Web. Reporte copiado al portapapeles.');
+        }
+      };
+      // Intentar compresión gzip (CompressionStream)
+      if (typeof CompressionStream !== 'undefined') {
+        try {
+          var stream = new Blob([text], { type: 'text/plain' }).stream().pipeThrough(new CompressionStream('gzip'));
+          var reader = stream.getReader();
+          var chunks = [];
+          (function pump() {
+            reader.read().then(function (r) {
+              if (r.done) {
+                var blob = new Blob(chunks);
+                var fr = new FileReader();
+                fr.onload = function () {
+                  // base64 del gzip
+                  var b64 = fr.result.split(',')[1];
+                  var payload = '[BONA-ORIGEN-REPORTE-GZIP]' + b64;
+                  doOpen(payload);
+                };
+                fr.readAsDataURL(blob);
+              } else {
+                chunks.push(r.value);
+                pump();
+              }
+            }).catch(function () {
+              // Fallback: texto truncado
+              doOpen(text.length > 3500 ? text.slice(0, 3500) + '\n... (truncado)' : text);
+            });
+          })();
+          return;
+        } catch (_) {}
+      }
+      // Fallback sin compresión: truncar a ~3500 chars (límite razonable de URL)
+      doOpen(text.length > 3500 ? text.slice(0, 3500) + '\n... (reporte truncado, descargue el .txt completo)' : text);
+    } catch (e) {
+      console.error('Error shareWhatsAppWeb:', e);
+      try { copyToClipboard(buildTextReport()); } catch (_) {}
+      showToast('Error. Reporte copiado al portapapeles.');
     }
   }
 
@@ -318,7 +397,7 @@
       el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow-y:auto;background:rgba(0,0,0,.9);color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99998;display:none;border-top:2px solid #0f0;';
       var header = document.createElement('div');
       header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
-      header.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="font-weight:bold;">Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>');
+      header.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="font-weight:bold;">Bona Origen - Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>');
       el.appendChild(header);
       var content = document.createElement('div');
       content.id = 'crozzoReportContent';
@@ -361,11 +440,10 @@
       var menu = document.createElement('div');
       menu.id = 'crozzoReportMenu';
       menu.style.cssText = 'position:fixed;bottom:60px;right:10px;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px;z-index:100000;box-shadow:0 4px 12px rgba(0,0,0,.2);min-width:220px;';
-      menu.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crShowPanel">Ver log en vivo</div><div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crDownload">Descargar reporte</div><div style="padding:10px;cursor:pointer;font-size:14px;" id="crShare">Compartir por WhatsApp</div>');
+      menu.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crDownload">Descargar reporte (.txt)</div><div style="padding:10px;cursor:pointer;font-size:14px;" id="crWhatsApp">Enviar por WhatsApp Web (comprimido)</div>');
       document.body.appendChild(menu);
-      menu.querySelector('#crShowPanel').addEventListener('click', function() { togglePanel(); menu.remove(); });
       menu.querySelector('#crDownload').addEventListener('click', function() { downloadReport(); menu.remove(); });
-      menu.querySelector('#crShare').addEventListener('click', function() { shareReport(); menu.remove(); });
+      menu.querySelector('#crWhatsApp').addEventListener('click', function() { shareWhatsAppWeb(); menu.remove(); });
       setTimeout(function() { if (menu.parentNode) menu.parentNode.removeChild(menu); }, 8000);
     } catch (e) {
       console.error('Error showMenu:', e);
