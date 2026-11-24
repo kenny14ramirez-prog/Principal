@@ -277,6 +277,11 @@
   }
 
   function systemContext() {
+    try {
+      if (global.CrozzoAiContext && typeof global.CrozzoAiContext.forPrompt === 'function') {
+        return global.CrozzoAiContext.forPrompt(typeof global.currentPage !== 'undefined' ? global.currentPage : '');
+      }
+    } catch (_) {}
     var ctx = [];
     try {
       if (typeof global.currentPage !== 'undefined') ctx.push('Pantalla actual: ' + global.currentPage);
@@ -508,7 +513,7 @@
     try { if (global.CrozzoAiChatHistory && typeof global.CrozzoAiChatHistory.clear === 'function') global.CrozzoAiChatHistory.clear(); } catch (_) {}
   }
 
-  // Listen for page changes to update context
+  // Listen for page changes to update context and trigger auto-analysis
   try {
     document.addEventListener('crozzo-ready', function (e) {
       try {
@@ -516,6 +521,29 @@
         if (panel) {
           var st = document.getElementById('crozzo-ai-status');
           if (st) st.textContent = 'Pantalla: ' + (typeof global.currentPage !== 'undefined' ? global.currentPage : '?') + ' · ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.getTier() : '');
+        }
+        // Auto-analysis for high-value pages
+        var page = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
+        var autoPages = ['rentabilidad', 'inventarios', 'compras-dashboard', 'cierre-caja', 'auditoria', 'costos-matriz', 'facturas', 'cartera-comercial'];
+        if (autoPages.indexOf(page) >= 0 && global.CrozzoAiActionRegistry) {
+          // Debounced auto-analysis
+          if (global.__crozzoAiAutoTimer) clearTimeout(global.__crozzoAiAutoTimer);
+          global.__crozzoAiAutoTimer = setTimeout(function () {
+            var actionMap = {
+              'rentabilidad': 'sugerencias_optimizacion',
+              'inventarios': 'alertas_stock',
+              'cierre-caja': 'verificar_cierre',
+              'auditoria': 'auditoria_cajero',
+              'costos-matriz': 'analizar_costos',
+            };
+            var actionId = actionMap[page];
+            if (actionId && typeof global.CrozzoAiActionRegistry.execute === 'function') {
+              global.CrozzoAiActionRegistry.execute(actionId).then(function (r) {
+                var msg = (typeof r === 'string') ? r : (r && r.result) ? r.result : '';
+                if (msg && typeof global.showToast === 'function') global.showToast('IA: ' + msg.slice(0, 120), 'info');
+              }).catch(function () {});
+            }
+          }, 2000);
         }
       } catch (_) {}
     });

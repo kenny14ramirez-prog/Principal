@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T12:43:00.705Z",
+  "updatedAt": "2026-11-24T12:51:23.959Z",
   "entries": [
-    {
-      "id": "1.0.322-critical",
-      "version": "v1.0.322",
-      "semver": "1.0.322",
-      "type": "critical",
-      "message": "Fix honeypot: deshabilitar modulo si usuario real logueado",
-      "publishedAt": "2026-11-21T21:49:26.538Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: deshabilitar modulo si usuario real logueado"
-      ]
-    },
     {
       "id": "1.0.323-critical",
       "version": "v1.0.323",
@@ -305,6 +293,18 @@
       "installMode": "auto",
       "changelog": [
         "Super Admin: consola unificada con KPIs, tabs, honeypot, IA, diagnostico"
+      ]
+    },
+    {
+      "id": "1.0.347-critical",
+      "version": "v1.0.347",
+      "semver": "1.0.347",
+      "type": "critical",
+      "message": "Integrar IA por todo el sistema: contexto por pagina, auto-analisis, chips inline",
+      "publishedAt": "2026-11-24T12:51:23.959Z",
+      "installMode": "auto",
+      "changelog": [
+        "Integrar IA por todo el sistema: contexto por pagina, auto-analisis, chips inline"
       ]
     }
   ]
