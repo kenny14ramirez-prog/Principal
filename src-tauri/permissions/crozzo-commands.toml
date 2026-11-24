@@ -143,3 +143,8 @@ commands.allow = ["crozzo_llama_health", "crozzo_llama_ensure_sidecar", "crozzo_
 identifier = "allow-crozzo-llama-modelmgr"
 description = "Gestion de modelos LLM"
 commands.allow = ["crozzo_llama_model_status", "crozzo_llama_model_list", "crozzo_llama_model_download", "crozzo_llama_model_cancel", "crozzo_llama_model_delete"]
+
+[[permission]]
+identifier = "allow-crozzo-device-ram"
+description = "RAM total del dispositivo para tiering de IA (Android/mobile)"
+commands.allow = ["crozzo_device_ram"]

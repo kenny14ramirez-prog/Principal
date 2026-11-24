@@ -90,7 +90,10 @@
     document.body.classList.add('crozzo-ai-panel-open');
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
-    ov.style.cssText = 'position:fixed;top:0;right:0;bottom:0;z-index:9000;width:420px;max-width:90vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;';
+    var _touch = false;
+    try { _touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches; } catch (_) {}
+    var _panelW = _touch ? '100vw' : '420px';
+    ov.style.cssText = 'position:fixed;top:0;right:0;bottom:0;z-index:9000;width:' + _panelW + ';max-width:100vw;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
     var card = document.createElement('div');
     card.style.cssText = 'display:flex;flex-direction:column;height:100%;overflow:hidden;';
     card.innerHTML =

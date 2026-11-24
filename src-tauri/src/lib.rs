@@ -39,7 +39,9 @@ mod adq_enrich_sidecar;
 mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_device_profile;
+#[cfg(desktop)]
 mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
@@ -163,6 +165,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_device_profile::crozzo_device_ram,
             crozzo_secret_store::crozzo_secret_set,
             crozzo_secret_store::crozzo_secret_get,

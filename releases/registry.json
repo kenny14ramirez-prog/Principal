@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-23T23:45:40.435Z",
+  "updatedAt": "2026-11-24T00:50:23.973Z",
   "entries": [
-    {
-      "id": "1.0.315-critical",
-      "version": "v1.0.315",
-      "semver": "1.0.315",
-      "type": "critical",
-      "message": "Fix honeypot: no activar en sesiones legitimas",
-      "publishedAt": "2026-11-21T20:38:40.079Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: no activar en sesiones legitimas"
-      ]
-    },
     {
       "id": "1.0.316-critical",
       "version": "v1.0.316",
@@ -306,6 +294,18 @@
       "installMode": "auto",
       "changelog": [
         "Mejorar mensajes instalacion IA: instrucciones claras paso a paso"
+      ]
+    },
+    {
+      "id": "1.0.340-critical",
+      "version": "v1.0.340",
+      "semver": "1.0.340",
+      "type": "critical",
+      "message": "Adaptacion Android: permisos, UI touch, form factor, capabilities",
+      "publishedAt": "2026-11-24T00:50:23.973Z",
+      "installMode": "auto",
+      "changelog": [
+        "Adaptacion Android: permisos, UI touch, form factor, capabilities"
       ]
     }
   ]

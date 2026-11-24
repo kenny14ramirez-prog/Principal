@@ -5,7 +5,8 @@
 (function (global) {
   'use strict';
 
-  var BREAK_MOBILE = 480;
+  var BREAK_PHONE = 600;
+  var BREAK_MOBILE = 600;
   var BREAK_TABLET = 1024;
   var BREAK_PHONE_LG = 768;
   var BREAK_PHONE_SM = 360;
@@ -95,7 +96,7 @@
         gap: 8,
         pad: 10,
         navH: 0,
-        btn: 44,
+        btn: 48,
         font: 15,
         icon: 1.3,
         posCols: t.posCols,
@@ -288,8 +289,9 @@
 
     if (!doc) return factor;
 
-    doc.classList.remove('crozzo-form-mobile', 'crozzo-form-tablet', 'crozzo-form-desktop');
+    doc.classList.remove('crozzo-form-mobile', 'crozzo-form-tablet', 'crozzo-form-desktop', 'crozzo-form-phone');
     doc.classList.add('crozzo-form-' + factor);
+    if (factor === 'mobile') doc.classList.add('crozzo-form-phone');
     doc.classList.toggle('tauri-shell', tauri);
     doc.classList.toggle('tauri-desktop', tauri && factor === 'desktop');
 

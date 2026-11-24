@@ -1,40 +1,41 @@
 {
-  "identifier": "desktop-capability",
-  "platforms": [
-    "macOS",
-    "windows",
-    "linux"
-  ],
-  "windows": [
-    "main",
-    "crozzo-gmail-dock",
-    "crozzo-drive-dock",
-    "crozzo-dataico-dock",
-    "crozzo-dian-vpfe-dock",
-    "crozzo-spotify-dock"
-  ],
-  "permissions": [
-    "core:default",
-    "allow-crozzo-external",
-    "process:default",
-    "allow-crozzo-list-printers",
-    "allow-crozzo-get-default-printer",
-    "allow-crozzo-print-raw",
-    "allow-crozzo-http",
-    "allow-crozzo-install",
-    "allow-crozzo-dian",
-    "allow-crozzo-lan-sync",
-    "allow-crozzo-gossip-udp",
-    "allow-crozzo-ble-mesh",
-    "allow-crozzo-lan-ws",
-    "allow-crozzo-mdns",
-    "allow-crozzo-wifi-direct",
-    "allow-crozzo-webview-camera",
-    "allow-crozzo-devtools",
-    "updater:default",
-    "allow-crozzo-hotspot",
-    "allow-crozzo-rag",
-    "allow-crozzo-tls",
-    "allow-crozzo-ble"
-  ]
+    "identifier":  "desktop-capability",
+    "platforms":  [
+                      "macOS",
+                      "windows",
+                      "linux"
+                  ],
+    "windows":  [
+                    "main",
+                    "crozzo-gmail-dock",
+                    "crozzo-drive-dock",
+                    "crozzo-dataico-dock",
+                    "crozzo-dian-vpfe-dock",
+                    "crozzo-spotify-dock"
+                ],
+    "permissions":  [
+                        "core:default",
+                        "allow-crozzo-external",
+                        "process:default",
+                        "allow-crozzo-list-printers",
+                        "allow-crozzo-get-default-printer",
+                        "allow-crozzo-print-raw",
+                        "allow-crozzo-http",
+                        "allow-crozzo-install",
+                        "allow-crozzo-dian",
+                        "allow-crozzo-lan-sync",
+                        "allow-crozzo-gossip-udp",
+                        "allow-crozzo-ble-mesh",
+                        "allow-crozzo-lan-ws",
+                        "allow-crozzo-mdns",
+                        "allow-crozzo-wifi-direct",
+                        "allow-crozzo-webview-camera",
+                        "allow-crozzo-devtools",
+                        "updater:default",
+                        "allow-crozzo-hotspot",
+                        "allow-crozzo-rag",
+                        "allow-crozzo-tls",
+                        "allow-crozzo-ble",
+                        "allow-crozzo-device-ram"
+                    ]
 }
