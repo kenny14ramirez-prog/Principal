@@ -1,31 +1,16 @@
 {
-  "id": "1.0.354-critical",
-  "version": "v1.0.354",
-  "semver": "1.0.354",
+  "id": "1.0.355-critical",
+  "version": "v1.0.355",
+  "semver": "1.0.355",
   "type": "critical",
-  "message": "Reporte de dispositivo: WhatsApp Web + más diagnóstico + solo 2 botones",
-  "publishedAt": "2026-11-24T19:25:32.326Z",
+  "message": "Fix reporte dispositivo: safe is not defined (botones rotos)",
+  "publishedAt": "2026-11-24T21:16:09.368Z",
   "installMode": "auto",
   "changelog": [
-    "Reporte de dispositivo: WhatsApp Web",
-    "más diagnóstico",
-    "solo 2 botones"
+    "Fix reporte dispositivo: safe is not defined (botones rotos)"
   ],
-  "updatedAt": "2026-11-24T19:25:32.326Z",
+  "updatedAt": "2026-11-24T21:16:09.368Z",
   "entries": [
-    {
-      "id": "1.0.330-critical",
-      "version": "v1.0.330",
-      "semver": "1.0.330",
-      "type": "critical",
-      "message": "Fix ollamaInvoke typo + FAB visible tras login",
-      "publishedAt": "2026-11-22T00:26:47.312Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix ollamaInvoke typo",
-        "FAB visible tras login"
-      ]
-    },
     {
       "id": "1.0.331-critical",
       "version": "v1.0.331",
@@ -319,6 +304,18 @@
         "Reporte de dispositivo: WhatsApp Web",
         "más diagnóstico",
         "solo 2 botones"
+      ]
+    },
+    {
+      "id": "1.0.355-critical",
+      "version": "v1.0.355",
+      "semver": "1.0.355",
+      "type": "critical",
+      "message": "Fix reporte dispositivo: safe is not defined (botones rotos)",
+      "publishedAt": "2026-11-24T21:16:09.368Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix reporte dispositivo: safe is not defined (botones rotos)"
       ]
     }
   ]

@@ -142,6 +142,7 @@
   function buildTextReport() {
     var s = getSummary();
     var diag = getDiagnostics();
+    function safe(fn) { try { return fn(); } catch (e) { return 'error: ' + (e && e.message ? e.message : e); } }
     var lines = [];
     lines.push('=== BONA ORIGEN - REPORTE DE DISPOSITIVO ===');
     lines.push('Fecha: ' + s.startTime);
