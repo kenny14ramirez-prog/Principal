@@ -8,6 +8,7 @@ const ALLOWED_HOSTS: &[&str] = &[
     "raw.githubusercontent.com",
     "github.com",
     "api.github.com",
+    "ollama.com",
 ];
 
 fn is_allowed_host(url: &str) -> bool {
