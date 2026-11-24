@@ -857,11 +857,11 @@
         forcePerf = perfPref === '1' || perfPref === 'true';
         forceOff = perfPref === '0';
       } catch (_) {}
+      // No tocar clases CSS de perf-lite (identidad visual estable).
+      // Solo métrica interna:
       if (stressActive && !forceOff) {
-        document.documentElement.classList.add('crozzo-perf-lite');
         document.documentElement.setAttribute('data-crozzo-peak-perf', '1');
       } else if (!forcePerf && document.documentElement.getAttribute('data-crozzo-peak-perf') === '1') {
-        document.documentElement.classList.remove('crozzo-perf-lite');
         document.documentElement.removeAttribute('data-crozzo-peak-perf');
       }
     }

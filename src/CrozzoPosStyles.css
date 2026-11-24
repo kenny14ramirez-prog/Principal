@@ -10905,7 +10905,8 @@ body.crozzo-update-detail-open {
     max-width: 200px;
   }
 }
-/* --- Crozzo perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Crozzo perf-lite: SOLO animaciones/transiciones/filtros (performance). NUNCA tipografía, color, contraste ni font-size. --- */
+/* --- PERF-LITE GUARD --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;

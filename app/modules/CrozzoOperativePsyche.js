@@ -565,11 +565,11 @@
       try {
         forceOff = localStorage.getItem('crozzo_perf_lite') === '0';
       } catch (_) {}
+      // No tocar clases CSS de perf-lite (identidad visual estable).
+      // Solo métrica interna:
       if ((tempo === TEMPO_RUSH || tempo === TEMPO_FLOW) && !forceOff) {
-        document.documentElement.classList.add('crozzo-perf-lite');
         document.documentElement.setAttribute('data-crozzo-tempo-perf', '1');
       } else if (document.documentElement.getAttribute('data-crozzo-tempo-perf') === '1') {
-        document.documentElement.classList.remove('crozzo-perf-lite');
         document.documentElement.removeAttribute('data-crozzo-tempo-perf');
       }
     }

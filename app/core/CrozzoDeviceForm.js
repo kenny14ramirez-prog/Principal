@@ -61,6 +61,16 @@
   }
 
   function applyTouchShellTokens(doc, factor, w) {
+    // Solo aplicar tokens touch en equipos coarse-touch reales y pantalla <= ~10".
+    var coarse = false;
+    try { coarse = isCoarseTouchShell(); } catch (_) { coarse = false; }
+    if (!coarse || w > 1024) {
+      // Limpiar tokens previos para no arrastrar agrandado.
+      var cleanKeys = ['--crozzo-touch-scale','--crozzo-touch-gap','--crozzo-touch-pad','--crozzo-touch-nav-h','--crozzo-touch-btn-min','--crozzo-touch-font','--crozzo-touch-icon','--crozzo-touch-pos-cols','--crozzo-touch-sidebar-max'];
+      cleanKeys.forEach(function (k) { try { doc.style.removeProperty(k); } catch (_) {} });
+      doc.classList.remove('crozzo-touch-shell');
+      return '';
+    }
     var touch = factor === 'mobile' || factor === 'tablet';
     var androidApk = isAndroidTauriShell();
     doc.classList.toggle('crozzo-touch-shell', touch);
@@ -104,6 +114,9 @@
         sidebarVw: androidApk ? 100 : t.sidebarVw,
       };
     }
+    // Clamp para no agrandar texto en exceso (+/-5%).
+    t.scale = Math.min(1.05, Math.max(0.95, (typeof t.scale === 'number' ? t.scale : 1)));
+    t.font = Math.min(17, Math.max(15, (typeof t.font === 'number' ? t.font : 16)));
     doc.style.setProperty('--crozzo-touch-scale', String(t.scale));
     doc.style.setProperty('--crozzo-touch-gap', t.gap + 'px');
     doc.style.setProperty('--crozzo-touch-pad', t.pad + 'px');

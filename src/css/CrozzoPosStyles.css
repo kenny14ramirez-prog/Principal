@@ -30902,16 +30902,20 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   justify-content: flex-end;
 }
 .crozzo-header__status--elite .crozzo-status-pill {
-  padding: 5px 10px;
-  font-size: 0.625rem;
+  padding: 4px 8px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   box-shadow: none;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crozzo-header__status--elite .crozzo-status-dot {
   width: 6px;
@@ -31030,14 +31034,17 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--bg-card);
   border: 1px solid var(--border);
   white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .crozzo-status-dot {
   width: 8px;
@@ -33598,7 +33605,8 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: SOLO animaciones/transiciones/filtros (performance). NUNCA tipografía, color, contraste ni font-size. --- */
+/* --- PERF-LITE GUARD: si añades reglas aquí, NO toques font-size/font-family/color/background/--text-*/--bg-*/--accent/--border. --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -67035,16 +67043,20 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   justify-content: flex-end;
 }
 .crozzo-header__status--elite .crozzo-status-pill {
-  padding: 5px 10px;
-  font-size: 0.625rem;
+  padding: 4px 8px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   box-shadow: none;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .crozzo-header__status--elite .crozzo-status-dot {
   width: 6px;
@@ -67163,14 +67175,17 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--bg-card);
   border: 1px solid var(--border);
   white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .crozzo-status-dot {
   width: 8px;
@@ -69490,7 +69505,8 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: SOLO animaciones/transiciones/filtros (performance). NUNCA tipografía, color, contraste ni font-size. --- */
+/* --- PERF-LITE GUARD: si añades reglas aquí, NO toques font-size/font-family/color/background/--text-*/--bg-*/--accent/--border. --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;

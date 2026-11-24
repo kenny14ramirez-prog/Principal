@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.351">
+<meta name="crozzo-app-version" content="1.0.352">
 <meta name="crozzo-build-stamp" content="2026-11-01T00:00:00.000Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
@@ -161,20 +161,38 @@ window.crozzoAppDisplayName = function () {
 (function (w, d) {
   var KEY = 'crozzo_a11y_prefs';
   var def = { fontScale: 1, highContrast: false, reduceMotion: false, focusMode: false };
+  function clampFs(v) { var n = Number(v); if (!isFinite(n) || n < 0.9 || n > 1.15) return 1; return n; }
   function parse(raw) {
-    try { return Object.assign({}, def, JSON.parse(raw)); } catch (e) { return null; }
+    try {
+      var o = JSON.parse(raw);
+      if (!o || typeof o !== 'object') return null;
+      var hcExplicit = false;
+      try { hcExplicit = w.localStorage.getItem('crozzo_a11y_highcontrast_explicit') === '1'; } catch (_) {}
+      return {
+        fontScale: clampFs(o.fontScale),
+        highContrast: (o.highContrast === true && hcExplicit),
+        reduceMotion: !!o.reduceMotion,
+        focusMode: !!o.focusMode
+      };
+    } catch (e) { return null; }
   }
   var p = def;
   try {
     var raw = w.localStorage.getItem(KEY);
     if (raw) {
       var parsed = parse(raw);
-      if (parsed) p = parsed;
+      if (parsed) {
+        p = parsed;
+        try { w.localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) {}
+      } else {
+        try { w.localStorage.setItem(KEY, JSON.stringify(def)); } catch (_) {}
+        p = def;
+      }
     } else if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       p.reduceMotion = true;
     }
   } catch (e) {}
-  d.documentElement.style.setProperty('--a11y-font-scale', String(p.fontScale || 1));
+  d.documentElement.style.setProperty('--a11y-font-scale', String(p.fontScale));
   d.documentElement.classList.toggle('theme-high-contrast', !!p.highContrast);
   d.documentElement.classList.toggle('crozzo-a11y-reduce-motion', !!p.reduceMotion);
   d.documentElement.classList.toggle('crozzo-a11y-focus-mode', !!p.focusMode);

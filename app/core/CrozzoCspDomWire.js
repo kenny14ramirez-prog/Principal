@@ -62,7 +62,7 @@
     return parts;
   }
 
-  function resolveFn(path) {
+  function resolveObj(path) {
     if (!path) return null;
     var parts = String(path).split('.');
     var o = global;
@@ -70,7 +70,7 @@
       if (o == null) return null;
       o = o[parts[i]];
     }
-    return typeof o === 'function' ? o : null;
+    return o;
   }
 
   function evalArg(expr, el, event) {
@@ -115,10 +115,20 @@
     }
     var callM = s.match(/^([a-zA-Z_$][\w$.]*)\s*\((.*)\)\s*;?$/s);
     if (!callM) return;
-    var fn = resolveFn(callM[1]);
+    var path = callM[1];
+    var fn = resolveFn(path);
     if (!fn) {
-      try { console.warn('[crozzo-csp] función no disponible:', callM[1]); } catch (_) {}
+      try { console.warn('[crozzo-csp] función no disponible:', path); } catch (_) {}
       return;
+    }
+    // Resolver el contexto `this` correcto para evitar "Illegal invocation"
+    // cuando fn es un método (ej. console.log, document.getElementById).
+    var ctx = global;
+    var parts = String(path).split('.');
+    if (parts.length > 1) {
+      var parentPath = parts.slice(0, -1).join('.');
+      var parent = resolveObj(parentPath);
+      if (parent != null) ctx = parent;
     }
     var argsStr = String(callM[2] || '').trim();
     var args = [];
@@ -126,7 +136,7 @@
       var rawArgs = splitTopLevelCommas(argsStr);
       for (var i = 0; i < rawArgs.length; i++) args.push(evalArg(rawArgs[i], el, event));
     }
-    return fn.apply(global, args);
+    return fn.apply(ctx, args);
   }
 
   function runInlineHandler(code, el, event) {

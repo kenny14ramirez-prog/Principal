@@ -1,28 +1,19 @@
 {
-  "id": "1.0.351-critical",
-  "version": "v1.0.351",
-  "semver": "1.0.351",
+  "id": "1.0.352-critical",
+  "version": "v1.0.352",
+  "semver": "1.0.352",
   "type": "critical",
-  "message": "Fix analizar_factura action key en registro",
-  "publishedAt": "2026-11-24T13:29:27.997Z",
+  "message": "Fix visual estabilidad + CSP nav + badges unificados + consola superadmin carbono",
+  "publishedAt": "2026-11-24T18:49:05.628Z",
   "installMode": "auto",
   "changelog": [
-    "Fix analizar_factura action key en registro"
+    "Fix visual estabilidad",
+    "CSP nav",
+    "badges unificados",
+    "consola superadmin carbono"
   ],
-  "updatedAt": "2026-11-24T13:29:27.997Z",
+  "updatedAt": "2026-11-24T18:49:05.628Z",
   "entries": [
-    {
-      "id": "1.0.327-critical",
-      "version": "v1.0.327",
-      "semver": "1.0.327",
-      "type": "critical",
-      "message": "Fix FAB visible: isAllowedRole fallback a session user KENNY",
-      "publishedAt": "2026-11-21T22:44:47.299Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix FAB visible: isAllowedRole fallback a session user KENNY"
-      ]
-    },
     {
       "id": "1.0.328-critical",
       "version": "v1.0.328",
@@ -312,6 +303,21 @@
       "installMode": "auto",
       "changelog": [
         "Fix analizar_factura action key en registro"
+      ]
+    },
+    {
+      "id": "1.0.352-critical",
+      "version": "v1.0.352",
+      "semver": "1.0.352",
+      "type": "critical",
+      "message": "Fix visual estabilidad + CSP nav + badges unificados + consola superadmin carbono",
+      "publishedAt": "2026-11-24T18:49:05.628Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix visual estabilidad",
+        "CSP nav",
+        "badges unificados",
+        "consola superadmin carbono"
       ]
     }
   ]

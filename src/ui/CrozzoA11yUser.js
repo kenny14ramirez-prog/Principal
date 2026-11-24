@@ -18,7 +18,21 @@
   function loadPrefs() {
     try {
       var raw = localStorage.getItem(A11Y_LS_KEY);
-      if (raw) return Object.assign({}, DEFAULT_PREFS, safeParse(raw, DEFAULT_PREFS));
+      if (raw) {
+        var parsed = safeParse(raw, null);
+        if (parsed && typeof parsed === 'object') {
+          // Validar y sanear: nunca aplicar valores corruptos/absurdos por defecto.
+          var fs = Number(parsed.fontScale);
+          if (!isFinite(fs) || fs < 0.9 || fs > 1.15) fs = 1;
+          var hc = parsed.highContrast === true && localStorage.getItem('crozzo_a11y_highcontrast_explicit') === '1';
+          var rm = !!parsed.reduceMotion;
+          var fm = !!parsed.focusMode;
+          var clean = { fontScale: fs, highContrast: hc, reduceMotion: rm, focusMode: fm };
+          // Persistir saneado para no arrastrar basura.
+          try { localStorage.setItem(A11Y_LS_KEY, JSON.stringify(clean)); } catch (_) {}
+          return clean;
+        }
+      }
     } catch (_) {}
     var reduce = false;
     try {
@@ -29,14 +43,29 @@
 
   function savePrefs(prefs) {
     try {
-      localStorage.setItem(A11Y_LS_KEY, JSON.stringify(prefs));
+      var p = prefs || {};
+      var fs = Number(p.fontScale);
+      if (!isFinite(fs) || fs < 0.9 || fs > 1.15) fs = 1;
+      var hc = !!p.highContrast;
+      // Marcar explícito solo si el usuario activó alto contraste.
+      try {
+        if (hc) localStorage.setItem('crozzo_a11y_highcontrast_explicit', '1');
+        else localStorage.removeItem('crozzo_a11y_highcontrast_explicit');
+      } catch (_) {}
+      var clean = { fontScale: fs, highContrast: hc, reduceMotion: !!p.reduceMotion, focusMode: !!p.focusMode };
+      localStorage.setItem(A11Y_LS_KEY, JSON.stringify(clean));
     } catch (_) {}
   }
 
   function applyPrefs(prefs) {
     var p = prefs || loadPrefs();
+    // Saneo defensivo aunque vengan prefs externas.
+    var fs = Number(p.fontScale);
+    if (!isFinite(fs) || fs < 0.9 || fs > 1.15) fs = 1;
+    p.fontScale = fs;
+    p.highContrast = (p.highContrast === true && (function(){try{return localStorage.getItem('crozzo_a11y_highcontrast_explicit')==='1';}catch(_){return false;}})());
     var root = document.documentElement;
-    root.style.setProperty('--a11y-font-scale', String(p.fontScale || 1));
+    root.style.setProperty('--a11y-font-scale', String(p.fontScale));
     ['theme-high-contrast', 'crozzo-a11y-reduce-motion', 'crozzo-a11y-focus-mode'].forEach(function (cls) {
       root.classList.remove(cls);
       if (document.body) document.body.classList.remove(cls);
@@ -520,6 +549,12 @@
 
   function updatePref(key, value) {
     prefs[key] = value;
+    if (key === 'highContrast') {
+      try {
+        if (value) localStorage.setItem('crozzo_a11y_highcontrast_explicit', '1');
+        else localStorage.removeItem('crozzo_a11y_highcontrast_explicit');
+      } catch (_) {}
+    }
     savePrefs(prefs);
     applyPrefs(prefs);
   }

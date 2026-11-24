@@ -70,10 +70,10 @@
       score += 2;
     }
 
-    if (apk) score += 2;
+    if (apk) score += 1; // un solo +1 por APK (antes +2 duplicado)
 
     try {
-      if (global.matchMedia && global.matchMedia('(pointer: coarse)').matches) score += 1;
+      if (global.matchMedia && global.matchMedia('(pointer: coarse)').matches) score += 0; // no degradar por touch
     } catch (_) {}
 
     if (!apk && cores >= 8 && (mem == null || mem >= 8)) score = Math.max(0, score - 3);
@@ -82,8 +82,8 @@
   }
 
   function scoreToTier(score) {
-    if (score >= 6) return TIER_LOW;
-    if (score >= 3) return TIER_MED;
+    if (score >= 8) return TIER_LOW;
+    if (score >= 4) return TIER_MED;
     return TIER_HIGH;
   }
 
@@ -119,6 +119,7 @@
     var run = function () {
       if (_jankDone || readManualTier()) return;
       _jankDone = true;
+      var doc = global.document && global.document.documentElement;
       var last = 0;
       var spikes = 0;
       var n = 0;
@@ -132,9 +133,10 @@
           global.requestAnimationFrame(frame);
           return;
         }
-        if (spikes >= 5 && _tier !== TIER_LOW) {
-          applyTier(TIER_LOW, { fromJank: true });
-          journalPerf('jank_boot', { spikes: spikes });
+        if (spikes >= 5) {
+          try { doc.classList.add('crozzo-perf-lite'); } catch (_) {}
+          try { doc.setAttribute('data-crozzo-perf-jank', '1'); } catch (_) {}
+          journalPerf('jank_boot', { spikes: spikes, tier: _tier });
         }
       }
       global.requestAnimationFrame(function (t) {
@@ -168,9 +170,9 @@
         global.requestAnimationFrame(frame);
         return;
       }
-      if (spikes >= 4 && _tier !== TIER_LOW) {
-        applyTier(TIER_LOW, { fromJank: true });
-        journalPerf('jank_sustained', { spikes: spikes, tier: TIER_LOW });
+      if (spikes >= 4) {
+        try { var d = global.document && global.document.documentElement; if (d) d.classList.add('crozzo-perf-lite'); } catch (_) {}
+        journalPerf('jank_sustained', { spikes: spikes, tier: _tier });
       }
     }
     global.requestAnimationFrame(function (t) {
