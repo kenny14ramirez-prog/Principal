@@ -148,3 +148,8 @@ commands.allow = ["crozzo_llama_model_status", "crozzo_llama_model_list", "crozz
 identifier = "allow-crozzo-device-ram"
 description = "RAM total del dispositivo para tiering de IA (Android/mobile)"
 commands.allow = ["crozzo_device_ram"]
+
+[[permission]]
+identifier = "allow-crozzo-ollama-installer"
+description = "Descarga e instala Ollama automaticamente"
+commands.allow = ["crozzo_download_and_run_installer"]

@@ -24,13 +24,14 @@
                         "allow-crozzo-webview-camera",
                         "allow-crozzo-secret-store",
                         "allow-crozzo-ollama",
-"allow-crozzo-ai-semaphore",
+                        "allow-crozzo-ai-semaphore",
                         "allow-crozzo-rag",
                         "allow-crozzo-whisper",
                         "allow-crozzo-hotspot",
                         "allow-crozzo-tls",
                         "allow-crozzo-ble",
                         "allow-crozzo-llama-sidecar",
-                        "allow-crozzo-llama-modelmgr"
+                        "allow-crozzo-llama-modelmgr",
+                        "allow-crozzo-ollama-installer"
                     ]
 }

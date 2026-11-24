@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T12:21:10.024Z",
+  "updatedAt": "2026-11-24T12:34:42.470Z",
   "entries": [
-    {
-      "id": "1.0.319-critical",
-      "version": "v1.0.319",
-      "semver": "1.0.319",
-      "type": "critical",
-      "message": "Fase B: sidecar security, FE background, panel drawer",
-      "publishedAt": "2026-11-21T21:32:43.645Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fase B: sidecar security, FE background, panel drawer"
-      ]
-    },
     {
       "id": "1.0.320-critical",
       "version": "v1.0.320",
@@ -305,6 +293,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix sintaxis asistente IA"
+      ]
+    },
+    {
+      "id": "1.0.344-critical",
+      "version": "v1.0.344",
+      "semver": "1.0.344",
+      "type": "critical",
+      "message": "Auto-instalar Ollama desde el asistente IA",
+      "publishedAt": "2026-11-24T12:34:42.470Z",
+      "installMode": "auto",
+      "changelog": [
+        "Auto-instalar Ollama desde el asistente IA"
       ]
     }
   ]

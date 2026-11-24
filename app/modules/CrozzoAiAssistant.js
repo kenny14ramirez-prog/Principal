@@ -172,14 +172,11 @@
   async function checkStatus() {
     var st = document.getElementById('crozzo-ai-status');
     if (!st) return;
-    st.textContent = 'Verificando asistente IA…';
-
     // 1) Try internal sidecar
     try {
       var h = await ollamaInvoke('crozzo_llama_health');
       if (h && h.ok) { st.textContent = '✔ Asistente IA listo'; return; }
     } catch (_) {}
-
     // 2) Try Ollama
     var url = ollamaUrl();
     try {
@@ -187,11 +184,7 @@
       if (r) {
         try {
           var j = JSON.parse(r);
-          if (j && Array.isArray(j.models) && j.models.length > 0) {
-            st.textContent = '✔ Asistente IA listo (Ollama)';
-            return;
-          }
-          // Ollama available but no model -> auto-pull
+          if (j && Array.isArray(j.models) && j.models.length > 0) { st.textContent = '✔ Asistente IA listo (Ollama)'; return; }
           if (j && Array.isArray(j.models)) {
             st.textContent = 'Descargando modelo automáticamente…';
             autoPullOllamaModel(url);
@@ -206,8 +199,7 @@
         return;
       }
     } catch (_) {}
-
-    // 3) No Ollama available -> auto-install Ollama
+    // 3) No Ollama available -> auto-install
     st.textContent = 'Activando asistente IA...';
     var mgr = document.getElementById('crozzo-ai-model-mgr');
     if (mgr) {
@@ -219,11 +211,9 @@
         '<p style="margin:0;font-size:0.75rem;color:#999;">Esto puede tomar unos minutos. No cierre la app.</p>' +
       '</div>';
     }
-    // Try to install Ollama via Tauri (if available)
     try {
       if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
-        await global.__TAURI__.core.invoke('install_setup_from_url', { url: 'https://ollama.com/download/OllamaSetup.exe' });
-        // Poll for Ollama availability
+        await global.__TAURI__.core.invoke('crozzo_download_and_run_installer', { url: 'https://ollama.com/download/OllamaSetup.exe' });
         var pollCount = 0;
         var pollInterval = setInterval(function () {
           pollCount++;
@@ -238,9 +228,8 @@
         return;
       }
     } catch (e) {
-      // Fallback: show manual instructions
+      // Fallback
     }
-    // Manual fallback
     st.textContent = 'Para activar el asistente IA, instale Ollama (programa gratuito):';
     if (mgr) {
       mgr.innerHTML = '<div style="padding:8px 0;font-size:0.85rem;color:#333;">' +
@@ -257,7 +246,7 @@
       var st2 = document.getElementById('crozzo-ai-status');
       if (st2) st2.textContent = ok ? 'Asistente IA listo' : 'Esperando Ollama...';
     });
-
+  }
 
   async function autoPullOllamaModel(url) {
     var model = ollamaModel();
@@ -557,5 +546,4 @@
       setTimeout(ensureModelInBackground, 2000);
     }
   } catch (_) {}
-}
 })(typeof window !== 'undefined' ? window : globalThis);
