@@ -1,29 +1,16 @@
 {
-  "id": "1.0.349-critical",
-  "version": "v1.0.349",
-  "semver": "1.0.349",
+  "id": "1.0.350-critical",
+  "version": "v1.0.350",
+  "semver": "1.0.350",
   "type": "critical",
-  "message": "Alertas a campana de notificaciones (no banners flotantes)",
-  "publishedAt": "2026-11-24T12:56:24.806Z",
+  "message": "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)",
+  "publishedAt": "2026-11-24T12:57:59.976Z",
   "installMode": "auto",
   "changelog": [
-    "Alertas a campana de notificaciones (no banners flotantes)"
+    "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)"
   ],
-  "updatedAt": "2026-11-24T12:56:24.806Z",
+  "updatedAt": "2026-11-24T12:57:59.976Z",
   "entries": [
-    {
-      "id": "1.0.325-critical",
-      "version": "v1.0.325",
-      "semver": "1.0.325",
-      "type": "critical",
-      "message": "Fix honeypot: guardia por login overlay + safety net 2s",
-      "publishedAt": "2026-11-21T22:18:38.872Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: guardia por login overlay",
-        "safety net 2s"
-      ]
-    },
     {
       "id": "1.0.326-critical",
       "version": "v1.0.326",
@@ -313,6 +300,18 @@
       "installMode": "auto",
       "changelog": [
         "Alertas a campana de notificaciones (no banners flotantes)"
+      ]
+    },
+    {
+      "id": "1.0.350-critical",
+      "version": "v1.0.350",
+      "semver": "1.0.350",
+      "type": "critical",
+      "message": "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)",
+      "publishedAt": "2026-11-24T12:57:59.976Z",
+      "installMode": "auto",
+      "changelog": [
+        "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)"
       ]
     }
   ]

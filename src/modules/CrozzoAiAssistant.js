@@ -286,6 +286,21 @@
     try {
       if (typeof global.currentPage !== 'undefined') ctx.push('Pantalla actual: ' + global.currentPage);
     } catch (_) {}
+    // Web-embed pages: add context
+    try {
+      var page = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
+      var webEmbedMap = {
+        'whatsapp-web': 'WhatsApp Web (mensajes y clientes)',
+        'gmail-web': 'Gmail (correo)',
+        'drive-web': 'Google Drive (archivos)',
+        'dataico-web': 'Dataico (facturación electrónica)',
+        'dian-vpfe-web': 'DIAN (consulta CUFE)',
+        'spotify-web': 'Spotify (música)',
+        'einforma-web': 'eInforma (consulta empresas)',
+        'supabase-nube-web': 'Supabase (nube)',
+      };
+      if (webEmbedMap[page]) ctx.push('Aplicación web: ' + webEmbedMap[page]);
+    } catch (_) {}
     try {
       if (typeof global.getCurrentUser === 'function') {
         var u = global.getCurrentUser();
