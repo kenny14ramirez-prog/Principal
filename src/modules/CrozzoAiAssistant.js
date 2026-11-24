@@ -88,6 +88,11 @@
       return existing;
     }
     document.body.classList.add('crozzo-ai-panel-open');
+    // Shrink POS content to make room
+    try {
+      var appContainer = document.querySelector('.app-container');
+      if (appContainer) appContainer.style.paddingRight = '420px';
+    } catch (_) {}
     var ov = document.createElement('div');
     ov.id = PANEL_ID;
     var _touch = false;
@@ -140,6 +145,10 @@
 
   function close() {
     document.body.classList.remove('crozzo-ai-panel-open');
+    try {
+      var appContainer = document.querySelector('.app-container');
+      if (appContainer) appContainer.style.paddingRight = '';
+    } catch (_) {}
     var ov = document.getElementById(PANEL_ID);
     if (ov) {
       ov.style.transform = 'translateX(100%)';
@@ -409,6 +418,10 @@
 
   function close() {
     document.body.classList.remove('crozzo-ai-panel-open');
+    try {
+      var appContainer = document.querySelector('.app-container');
+      if (appContainer) appContainer.style.paddingRight = '';
+    } catch (_) {}
     var ov = document.getElementById(PANEL_ID);
     if (ov) {
       ov.style.transform = 'translateX(100%)';
@@ -465,6 +478,18 @@
 
   // Listen for page changes to update context
   try {
+    document.addEventListener('crozzo-ready', function (e) {
+      try {
+        var panel = document.getElementById(PANEL_ID);
+        if (panel) {
+          var st = document.getElementById('crozzo-ai-status');
+          if (st) st.textContent = 'Pantalla: ' + (typeof global.currentPage !== 'undefined' ? global.currentPage : '?') + ' · ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.getTier() : '');
+        }
+      } catch (_) {}
+    });
+  } catch (_) {}
+  // Also patch navigateTo
+  try {
     if (typeof global.navigateTo === 'function' && !global.__crozzoAiNavPatched) {
       global.__crozzoAiNavPatched = true;
       var origNav = global.navigateTo;
@@ -479,6 +504,14 @@
         } catch (_) {}
         return r;
       };
+    }
+  } catch (_) {}
+  try {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { setTimeout(injectFab, 200); setTimeout(ensureModelInBackground, 2000); }, { once: true });
+    } else {
+      setTimeout(injectFab, 200);
+      setTimeout(ensureModelInBackground, 2000);
     }
   } catch (_) {}
 })(typeof window !== 'undefined' ? window : globalThis);

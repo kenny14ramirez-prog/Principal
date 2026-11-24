@@ -1,15 +1,15 @@
 {
-  "id": "1.0.340-critical",
-  "version": "v1.0.340",
-  "semver": "1.0.340",
+  "id": "1.0.339-critical",
+  "version": "v1.0.339",
+  "semver": "1.0.339",
   "type": "critical",
-  "message": "Adaptacion Android: permisos, UI touch, form factor, capabilities",
-  "publishedAt": "2026-11-24T00:50:23.973Z",
+  "message": "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)",
+  "publishedAt": "2026-11-24T11:19:08.541Z",
   "installMode": "auto",
   "changelog": [
-    "Adaptacion Android: permisos, UI touch, form factor, capabilities"
+    "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)"
   ],
-  "updatedAt": "2026-11-24T00:50:23.973Z",
+  "updatedAt": "2026-11-24T11:19:08.541Z",
   "entries": [
     {
       "id": "1.0.316-critical",
@@ -299,11 +299,11 @@
       "version": "v1.0.339",
       "semver": "1.0.339",
       "type": "critical",
-      "message": "Mejorar mensajes instalacion IA: instrucciones claras paso a paso",
-      "publishedAt": "2026-11-23T23:45:40.435Z",
+      "message": "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)",
+      "publishedAt": "2026-11-24T11:19:08.541Z",
       "installMode": "auto",
       "changelog": [
-        "Mejorar mensajes instalacion IA: instrucciones claras paso a paso"
+        "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)"
       ]
     },
     {
