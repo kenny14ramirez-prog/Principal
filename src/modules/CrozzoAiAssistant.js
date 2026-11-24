@@ -208,12 +208,23 @@
     } catch (_) {}
 
     // 3) No Ollama available -> try sidecar
-    st.textContent = 'Instalando asistente IA automáticamente…';
+    st.textContent = 'Para activar el asistente IA, instale Ollama (programa gratuito):';
+    var mgr = document.getElementById('crozzo-ai-model-mgr');
+    if (mgr) {
+      mgr.innerHTML = '<div style="padding:8px 0;font-size:0.85rem;color:#333;">' +
+        '<p style="margin:0 0 6px;font-weight:600;">Pasos (solo una vez):</p>' +
+        '<p style="margin:0 0 4px;">1. Descargue Ollama: <a href="https://ollama.com/download" target="_blank" style="color:#B59A6D;font-weight:600;">ollama.com/download</a></p>' +
+        '<p style="margin:0 0 4px;">2. Instalelo (siguiente, siguiente, finalizar)</p>' +
+        '<p style="margin:0 0 8px;">3. Vuelva aqui - el sistema descarga el modelo automaticamente</p>' +
+        '<button type="button" id="mm-open-ollama" style="padding:6px 12px;border:none;border-radius:8px;background:#B59A6D;color:#fff;cursor:pointer;font-size:0.85rem;">Abrir ollama.com</button>' +
+      '</div>';
+      var btn = mgr.querySelector('#mm-open-ollama');
+      if (btn) btn.onclick = function () { try { window.open('https://ollama.com/download', '_blank'); } catch (_) {} };
+    }
     ensureSidecar().then(function (ok) {
       var st2 = document.getElementById('crozzo-ai-status');
-      if (st2) st2.textContent = ok ? '✔ Asistente IA listo' : 'Descargando modelo…';
+      if (st2) st2.textContent = ok ? '✔ Asistente IA listo' : 'Esperando Ollama...';
     });
-    ensureModelInBackground();
   }
 
   async function autoPullOllamaModel(url) {

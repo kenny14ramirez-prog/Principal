@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const URL = process.env.LLAMA_URL || 'https://github.com/ggml-org/llama.cpp/releases/latest/download/llama-b5786-bin-win-cpu-x64.zip';
+const URL = process.env.LLAMA_URL || 'https://github.com/ggml-org/llama.cpp/releases/download/b5786/llama-b5786-bin-win-cpu-x64.zip';
 const BIN_DIR = join(ROOT, 'src-tauri', 'binaries');
 const DEST = join(BIN_DIR, 'llama-server-x86_64-pc-windows-msvc.exe');
 const ZIP_PATH = join(os.tmpdir(), 'llama-server-sidecar.zip');

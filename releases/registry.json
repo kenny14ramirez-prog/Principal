@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-24T11:19:40.410Z",
+  "updatedAt": "2026-11-24T12:06:12.296Z",
   "entries": [
-    {
-      "id": "1.0.317-critical",
-      "version": "v1.0.317",
-      "semver": "1.0.317",
-      "type": "critical",
-      "message": "Fix honeypot desbloquear + guardias robustas",
-      "publishedAt": "2026-11-21T21:02:46.072Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot desbloquear",
-        "guardias robustas"
-      ]
-    },
     {
       "id": "1.0.318-critical",
       "version": "v1.0.318",
@@ -306,6 +293,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)"
+      ]
+    },
+    {
+      "id": "1.0.342-critical",
+      "version": "v1.0.342",
+      "semver": "1.0.342",
+      "type": "critical",
+      "message": "Simplificar instalacion IA: solo Ollama, un boton, instrucciones claras",
+      "publishedAt": "2026-11-24T12:06:12.296Z",
+      "installMode": "auto",
+      "changelog": [
+        "Simplificar instalacion IA: solo Ollama, un boton, instrucciones claras"
       ]
     }
   ]
