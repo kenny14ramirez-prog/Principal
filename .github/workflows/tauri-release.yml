@@ -6,6 +6,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag a compilar (ej. v1.0.355)'
+        required: true
+        type: string
 
 jobs:
   release-meta:
@@ -23,7 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ inputs.tag || github.ref_name }}"
           TITLE="Crozzo POS ${TAG}"
           BODY="Instaladores multiplataforma Crozzo POS.
 
@@ -55,16 +61,6 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             args: '--target x86_64-pc-windows-msvc'
             android: false
-          - platform: macos-14
-            label: macOS Apple Silicon
-            rust_target: aarch64-apple-darwin
-            args: '--target aarch64-apple-darwin'
-            android: false
-          - platform: macos-13
-            label: macOS Intel
-            rust_target: x86_64-apple-darwin
-            args: '--target x86_64-apple-darwin'
-            android: false
           - platform: ubuntu-22.04
             label: Android ARM64 (APK)
             rust_target: aarch64-linux-android
@@ -77,6 +73,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -125,7 +123,7 @@ jobs:
           targets: ${{ matrix.android && 'aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android' || matrix.rust_target }}
 
       - name: Versión desde tag
-        run: node scripts/sync-version-from-tag.mjs "${{ github.ref_name }}"
+        run: node scripts/sync-version-from-tag.mjs "${{ inputs.tag || github.ref_name }}"
 
       - name: Sync frontend app → src
         run: node scripts/sync-frontend-to-src.mjs
@@ -177,8 +175,8 @@ jobs:
           NDK_HOME: ${{ matrix.android && steps.android-ndk.outputs.ndk-path || '' }}
         with:
           releaseId: ${{ needs.release-meta.outputs.releaseId }}
-          tagName: ${{ github.ref_name }}
-          releaseName: Crozzo POS ${{ github.ref_name }}
+          tagName: ${{ inputs.tag || github.ref_name }}
+          releaseName: Crozzo POS ${{ inputs.tag || github.ref_name }}
           releaseBody: |
             Instaladores multiplataforma Crozzo POS.
 
@@ -214,8 +212,8 @@ jobs:
           NDK_HOME: ${{ matrix.android && steps.android-ndk.outputs.ndk-path || '' }}
         with:
           releaseId: ${{ needs.release-meta.outputs.releaseId }}
-          tagName: ${{ github.ref_name }}
-          releaseName: Crozzo POS ${{ github.ref_name }}
+          tagName: ${{ inputs.tag || github.ref_name }}
+          releaseName: Crozzo POS ${{ inputs.tag || github.ref_name }}
           releaseBody: |
             Instaladores multiplataforma Crozzo POS.
 
@@ -248,7 +246,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ inputs.tag || github.ref_name }}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG no encontrado (job release-meta debería haberlo creado)."
             exit 1
@@ -273,7 +271,7 @@ jobs:
         if: matrix.label == 'Windows x64'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/verify-release-updater-json.mjs "${{ github.ref_name }}"
+        run: node scripts/verify-release-updater-json.mjs "${{ inputs.tag || github.ref_name }}"
 
   verify-multiplatform:
     name: Release estable (Win + Mac + Android)
@@ -287,4 +285,4 @@ jobs:
       - name: Comprobar instaladores para todos los dispositivos
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/verify-release-multiplatform.mjs "${{ github.ref_name }}"
+        run: node scripts/verify-release-multiplatform.mjs "${{ inputs.tag || github.ref_name }}"
