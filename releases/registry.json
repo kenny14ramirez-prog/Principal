@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-24T12:36:03.602Z",
+  "updatedAt": "2026-11-24T12:43:00.705Z",
   "entries": [
-    {
-      "id": "1.0.321-critical",
-      "version": "v1.0.321",
-      "semver": "1.0.321",
-      "type": "critical",
-      "message": "Fix honeypot: guardia de arranque + verificarBloqueo limpia stale",
-      "publishedAt": "2026-11-21T21:48:47.103Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: guardia de arranque",
-        "verificarBloqueo limpia stale"
-      ]
-    },
     {
       "id": "1.0.322-critical",
       "version": "v1.0.322",
@@ -306,6 +293,18 @@
       "changelog": [
         "Conectar asistente IA con cierre de turno: auditoria",
         "verificacion automatica"
+      ]
+    },
+    {
+      "id": "1.0.346-critical",
+      "version": "v1.0.346",
+      "semver": "1.0.346",
+      "type": "critical",
+      "message": "Super Admin: consola unificada con KPIs, tabs, honeypot, IA, diagnostico",
+      "publishedAt": "2026-11-24T12:43:00.705Z",
+      "installMode": "auto",
+      "changelog": [
+        "Super Admin: consola unificada con KPIs, tabs, honeypot, IA, diagnostico"
       ]
     }
   ]
