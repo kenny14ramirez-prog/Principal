@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T12:34:42.470Z",
+  "updatedAt": "2026-11-24T12:36:03.602Z",
   "entries": [
-    {
-      "id": "1.0.320-critical",
-      "version": "v1.0.320",
-      "semver": "1.0.320",
-      "type": "critical",
-      "message": "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas",
-      "publishedAt": "2026-11-21T21:41:49.232Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fase C: voz whisper, OCR Tesseract, RAG FTS5, auditoria LLM, redaccion PII, onboarding, historial, alertas proactivas"
-      ]
-    },
     {
       "id": "1.0.321-critical",
       "version": "v1.0.321",
@@ -305,6 +293,19 @@
       "installMode": "auto",
       "changelog": [
         "Auto-instalar Ollama desde el asistente IA"
+      ]
+    },
+    {
+      "id": "1.0.345-critical",
+      "version": "v1.0.345",
+      "semver": "1.0.345",
+      "type": "critical",
+      "message": "Conectar asistente IA con cierre de turno: auditoria + verificacion automatica",
+      "publishedAt": "2026-11-24T12:36:03.602Z",
+      "installMode": "auto",
+      "changelog": [
+        "Conectar asistente IA con cierre de turno: auditoria",
+        "verificacion automatica"
       ]
     }
   ]

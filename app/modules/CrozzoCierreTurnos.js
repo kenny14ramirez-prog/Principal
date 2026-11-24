@@ -1885,6 +1885,14 @@
       }
     } catch (_) {}
     try { if (typeof global.crozzoTriggerAutoAudit === 'function') global.crozzoTriggerAutoAudit(); } catch (_) {}
+  // Show audit result as toast after shift close
+  try {
+    if (global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.execute === 'function') {
+      global.CrozzoAiActionRegistry.execute('verificar_cierre').then(function (r) {
+        if (r && r.result && typeof showToast === 'function') showToast(r.result, 'info');
+      }).catch(function () {});
+    }
+  } catch (_) {}
   }
 
   function latestCajeroDeclaracionHint() {
