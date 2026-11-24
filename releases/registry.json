@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-24T18:49:05.628Z",
+  "updatedAt": "2026-11-24T19:10:47.723Z",
   "entries": [
-    {
-      "id": "1.0.328-critical",
-      "version": "v1.0.328",
-      "semver": "1.0.328",
-      "type": "critical",
-      "message": "Fix scrollHeight read-only bug en asistente IA",
-      "publishedAt": "2026-11-21T23:05:16.882Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix scrollHeight read-only bug en asistente IA"
-      ]
-    },
     {
       "id": "1.0.329-critical",
       "version": "v1.0.329",
@@ -305,6 +293,18 @@
         "CSP nav",
         "badges unificados",
         "consola superadmin carbono"
+      ]
+    },
+    {
+      "id": "1.0.353-critical",
+      "version": "v1.0.353",
+      "semver": "1.0.353",
+      "type": "critical",
+      "message": "Fix CSP resolveFn not defined (nav roto)",
+      "publishedAt": "2026-11-24T19:10:47.723Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix CSP resolveFn not defined (nav roto)"
       ]
     }
   ]

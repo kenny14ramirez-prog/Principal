@@ -62,6 +62,17 @@
     return parts;
   }
 
+  function resolveFn(path) {
+    if (!path) return null;
+    var parts = String(path).split('.');
+    var o = global;
+    for (var i = 0; i < parts.length; i++) {
+      if (o == null) return null;
+      o = o[parts[i]];
+    }
+    return typeof o === 'function' ? o : null;
+  }
+
   function resolveObj(path) {
     if (!path) return null;
     var parts = String(path).split('.');
