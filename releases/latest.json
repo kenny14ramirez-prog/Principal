@@ -1,28 +1,16 @@
 {
-  "id": "1.0.350-critical",
-  "version": "v1.0.350",
-  "semver": "1.0.350",
+  "id": "1.0.351-critical",
+  "version": "v1.0.351",
+  "semver": "1.0.351",
   "type": "critical",
-  "message": "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)",
-  "publishedAt": "2026-11-24T12:57:59.976Z",
+  "message": "Fix analizar_factura action key en registro",
+  "publishedAt": "2026-11-24T13:29:27.997Z",
   "installMode": "auto",
   "changelog": [
-    "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)"
+    "Fix analizar_factura action key en registro"
   ],
-  "updatedAt": "2026-11-24T12:57:59.976Z",
+  "updatedAt": "2026-11-24T13:29:27.997Z",
   "entries": [
-    {
-      "id": "1.0.326-critical",
-      "version": "v1.0.326",
-      "semver": "1.0.326",
-      "type": "critical",
-      "message": "Fix model download: usar modelos no-gated (Qwen/Phi/Gemma) para evitar http_401",
-      "publishedAt": "2026-11-21T22:38:47.982Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix model download: usar modelos no-gated (Qwen/Phi/Gemma) para evitar http_401"
-      ]
-    },
     {
       "id": "1.0.327-critical",
       "version": "v1.0.327",
@@ -312,6 +300,18 @@
       "installMode": "auto",
       "changelog": [
         "Asistente IA: contexto dinamico para paginas web-embed (WhatsApp, Spotify, DIAN, etc.)"
+      ]
+    },
+    {
+      "id": "1.0.351-critical",
+      "version": "v1.0.351",
+      "semver": "1.0.351",
+      "type": "critical",
+      "message": "Fix analizar_factura action key en registro",
+      "publishedAt": "2026-11-24T13:29:27.997Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix analizar_factura action key en registro"
       ]
     }
   ]

@@ -416,6 +416,40 @@
         }
       },
     },
+    analizar_factura: {
+      id: 'analizar_factura',
+      label: 'Analizar factura',
+      confirm: true,
+      execute: async function () {
+        try {
+          var text = (typeof global.prompt === 'function') ? global.prompt('Pega el texto de la factura (XML/PDF/texto):') : '';
+          if (!text) return 'Cancelado: sin texto.';
+          var prompt = 'Extrae de la siguiente factura un JSON con: proveedor, fecha, items (nombre, cantidad, unidad, precio_unit, total, categoria: materia_prima|gasto|servicio), total. Texto:\n' + text;
+          var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+          var model = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini';
+          var full = '';
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            var r = await global.__TAURI__.core.invoke('crozzo_ollama_chat', { url: url, model: model, prompt: prompt, timeout_ms: 60000 });
+            if (r) { try { var j = JSON.parse(r); full = (j && j.response) ? j.response : (j && j.message && j.message.content) ? j.message.content : ''; } catch (_) { full = String(r); } }
+          } else {
+            var resp = await fetch(url + '/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model, prompt: prompt, stream: false, options: { temperature: 0.2, num_predict: 1024 } }) });
+            if (resp.ok) { var j2 = await resp.json(); full = j2.response || ''; }
+          }
+          if (!full) return 'Sin respuesta del modelo.';
+          var jsonMatch = full.match(/\{[\s\S]*\}/);
+          var parsed = null;
+          if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch (_) {} }
+          if (parsed) {
+            return 'Factura analizada: ' + (parsed.proveedor || '?') + ' · ' + (parsed.items ? parsed.items.length : 0) + ' ítems · Total: ' + (parsed.total || '?');
+          }
+          return 'Respuesta del modelo (no JSON): ' + full.slice(0, 500);
+        } catch (e) {
+          return 'Error analizando factura: ' + (e && e.message ? e.message : e);
+        }
+      },
+    },
+    analizar_factura: {
+      id: 'analizar_factura',
       label: 'Analizar factura',
       confirm: true,
       execute: async function () {
