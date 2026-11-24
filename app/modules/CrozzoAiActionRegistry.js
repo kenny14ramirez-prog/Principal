@@ -320,8 +320,102 @@
         }
       },
     },
-    analizar_factura: {
-      id: 'analizar_factura',
+    consultar_datos: {
+      id: 'consultar_datos',
+      label: 'Consultar datos en lenguaje natural',
+      confirm: false,
+      execute: async function () {
+        try {
+          var pregunta = (typeof global.prompt === 'function') ? global.prompt('¿Qué quieres saber? (ej: "¿Qué productos tienen stock bajo?", "¿Cuánto vendí hoy?")') : '';
+          if (!pregunta) return 'Cancelado.';
+          // Recopilar datos del sistema
+          var datos = {};
+          try {
+            if (typeof global.config !== 'undefined' && global.config.get) {
+              datos.productos = global.config.get('productos') || [];
+              datos.ventas = global.config.get('ventas') || global.config.get('facturas') || [];
+              datos.clientes = global.config.get('clientes') || [];
+            }
+          } catch (_) {}
+          var prompt = 'Eres un asistente de POS. Responde la siguiente pregunta basándote en los datos proporcionados. Responde en español, conciso y con números concretos.\n\nPregunta: ' + pregunta + '\n\nDatos (JSON): ' + JSON.stringify(datos).slice(0, 6000);
+          var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+          var model = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini';
+          var full = '';
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            var r = await global.__TAURI__.core.invoke('crozzo_ollama_chat', { url: url, model: model, prompt: prompt, timeout_ms: 60000 });
+            if (r) { try { var j = JSON.parse(r); full = (j && j.response) ? j.response : (j && j.message && j.message.content) ? j.message.content : ''; } catch (_) { full = String(r); } }
+          } else {
+            var resp = await fetch(url + '/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model, prompt: prompt, stream: false, options: { temperature: 0.3, num_predict: 512 } }) });
+            if (resp.ok) { var j2 = await resp.json(); full = j2.response || ''; }
+          }
+          return full ? full : 'No se pudo obtener respuesta (modelo no disponible).';
+        } catch (e) {
+          return 'Error consultando datos: ' + (e && e.message ? e.message : e);
+        }
+      },
+    },
+    consultar_inventario: {
+      id: 'consultar_inventario',
+      label: 'Consultar inventario en lenguaje natural',
+      confirm: false,
+      execute: async function () {
+        try {
+          var pregunta = (typeof global.prompt === 'function') ? global.prompt('¿Qué quieres saber del inventario? (ej: "¿Qué productos tienen stock bajo?", "¿Cuánto vale el inventario?")') : '';
+          if (!pregunta) return 'Cancelado.';
+          var prods = [];
+          try {
+            if (typeof global.config !== 'undefined' && global.config.get) {
+              prods = global.config.get('productos') || [];
+            }
+          } catch (_) {}
+          var prompt = 'Eres un asistente de inventario POS. Responde la pregunta basándote en los datos. Responde en español, conciso, con números.\n\nPregunta: ' + pregunta + '\n\nProductos (JSON): ' + JSON.stringify(prods).slice(0, 6000);
+          var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+          var model = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini';
+          var full = '';
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            var r = await global.__TAURI__.core.invoke('crozzo_ollama_chat', { url: url, model: model, prompt: prompt, timeout_ms: 60000 });
+            if (r) { try { var j = JSON.parse(r); full = (j && j.response) ? j.response : (j && j.message && j.message.content) ? j.message.content : ''; } catch (_) { full = String(r); } }
+          } else {
+            var resp = await fetch(url + '/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model, prompt: prompt, stream: false, options: { temperature: 0.3, num_predict: 512 } }) });
+            if (resp.ok) { var j2 = await resp.json(); full = j2.response || ''; }
+          }
+          return full ? full : 'No se pudo obtener respuesta (modelo no disponible).';
+        } catch (e) {
+          return 'Error: ' + (e && e.message ? e.message : e);
+        }
+      },
+    },
+    consultar_ventas: {
+      id: 'consultar_ventas',
+      label: 'Consultar ventas en lenguaje natural',
+      confirm: false,
+      execute: async function () {
+        try {
+          var pregunta = (typeof global.prompt === 'function') ? global.prompt('¿Qué quieres saber de las ventas? (ej: "¿Cuánto vendí hoy?", "¿Cuál es el producto más vendido?")') : '';
+          if (!pregunta) return 'Cancelado.';
+          var ventas = [];
+          try {
+            if (typeof global.config !== 'undefined' && global.config.get) {
+              ventas = global.config.get('ventas') || global.config.get('facturas') || [];
+            }
+          } catch (_) {}
+          var prompt = 'Eres un asistente de ventas POS. Responde la pregunta basándote en los datos. Responde en español, conciso, con números.\n\nPregunta: ' + pregunta + '\n\nVentas (JSON): ' + JSON.stringify(ventas).slice(0, 6000);
+          var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+          var model = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_model')) || 'phi4-mini';
+          var full = '';
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            var r = await global.__TAURI__.core.invoke('crozzo_ollama_chat', { url: url, model: model, prompt: prompt, timeout_ms: 60000 });
+            if (r) { try { var j = JSON.parse(r); full = (j && j.response) ? j.response : (j && j.message && j.message.content) ? j.message.content : ''; } catch (_) { full = String(r); } }
+          } else {
+            var resp = await fetch(url + '/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model, prompt: prompt, stream: false, options: { temperature: 0.3, num_predict: 512 } }) });
+            if (resp.ok) { var j2 = await resp.json(); full = j2.response || ''; }
+          }
+          return full ? full : 'No se pudo obtener respuesta (modelo no disponible).';
+        } catch (e) {
+          return 'Error: ' + (e && e.message ? e.message : e);
+        }
+      },
+    },
       label: 'Analizar factura',
       confirm: true,
       execute: async function () {

@@ -1,29 +1,16 @@
 {
-  "id": "1.0.347-critical",
-  "version": "v1.0.347",
-  "semver": "1.0.347",
+  "id": "1.0.348-critical",
+  "version": "v1.0.348",
+  "semver": "1.0.348",
   "type": "critical",
-  "message": "Integrar IA por todo el sistema: contexto por pagina, auto-analisis, chips inline",
-  "publishedAt": "2026-11-24T12:51:23.959Z",
+  "message": "Agregar consultas en lenguaje natural: datos, inventario, ventas",
+  "publishedAt": "2026-11-24T12:54:11.080Z",
   "installMode": "auto",
   "changelog": [
-    "Integrar IA por todo el sistema: contexto por pagina, auto-analisis, chips inline"
+    "Agregar consultas en lenguaje natural: datos, inventario, ventas"
   ],
-  "updatedAt": "2026-11-24T12:51:23.959Z",
+  "updatedAt": "2026-11-24T12:54:11.080Z",
   "entries": [
-    {
-      "id": "1.0.323-critical",
-      "version": "v1.0.323",
-      "semver": "1.0.323",
-      "type": "critical",
-      "message": "Fix honeypot: guardias nucleares + safety net cada 5s",
-      "publishedAt": "2026-11-21T22:13:49.205Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix honeypot: guardias nucleares",
-        "safety net cada 5s"
-      ]
-    },
     {
       "id": "1.0.324-critical",
       "version": "v1.0.324",
@@ -315,6 +302,18 @@
       "installMode": "auto",
       "changelog": [
         "Integrar IA por todo el sistema: contexto por pagina, auto-analisis, chips inline"
+      ]
+    },
+    {
+      "id": "1.0.348-critical",
+      "version": "v1.0.348",
+      "semver": "1.0.348",
+      "type": "critical",
+      "message": "Agregar consultas en lenguaje natural: datos, inventario, ventas",
+      "publishedAt": "2026-11-24T12:54:11.080Z",
+      "installMode": "auto",
+      "changelog": [
+        "Agregar consultas en lenguaje natural: datos, inventario, ventas"
       ]
     }
   ]

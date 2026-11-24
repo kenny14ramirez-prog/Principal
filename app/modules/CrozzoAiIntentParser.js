@@ -14,6 +14,9 @@
     open_help: { label: 'Abrir centro de ayuda', keywords: ['ayuda', 'centro de ayuda', 'manual'] },
     reindex_rag: { label: 'Reindexar documentos', keywords: ['reindexar', 'reindexar rag', 'reindexar documentos'] },
     report_failures: { label: 'Reportar fallas', keywords: ['reporte las fallas', 'reportar fallas', 'reporte de fallas', 'reporte fallas'] },
+    consultar_datos: { label: 'Consultar datos', keywords: ['consultar datos', 'preguntar datos', 'que hay', 'cuanto hay'] },
+    consultar_inventario: { label: 'Consultar inventario', keywords: ['stock bajo', 'inventario', 'productos bajo', 'que productos'] },
+    consultar_ventas: { label: 'Consultar ventas', keywords: ['cuanto vendi', 'ventas del dia', 'ventas hoy', 'total ventas'] },
   };
 
   function normalize(s) {
