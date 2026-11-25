@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-24T23:52:33.209Z",
+  "updatedAt": "2026-11-25T00:15:30.758Z",
   "entries": [
-    {
-      "id": "1.0.332-critical",
-      "version": "v1.0.332",
-      "semver": "1.0.332",
-      "type": "critical",
-      "message": "Integrar gestor de modelos en panel IA + mensajes claros",
-      "publishedAt": "2026-11-22T00:51:07.730Z",
-      "installMode": "auto",
-      "changelog": [
-        "Integrar gestor de modelos en panel IA",
-        "mensajes claros"
-      ]
-    },
     {
       "id": "1.0.333-critical",
       "version": "v1.0.333",
@@ -307,6 +294,19 @@
       "changelog": [
         "Fix CSP",
         "reporte dispositivo WhatsApp"
+      ]
+    },
+    {
+      "id": "1.0.357-critical",
+      "version": "v1.0.357",
+      "semver": "1.0.357",
+      "type": "critical",
+      "message": "Fix reporte dispositivo: WhatsApp Web + safe is not defined",
+      "publishedAt": "2026-11-25T00:15:30.758Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix reporte dispositivo: WhatsApp Web",
+        "safe is not defined"
       ]
     }
   ]

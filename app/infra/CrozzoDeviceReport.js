@@ -306,10 +306,27 @@
       var doOpen = function (payload) {
         try {
           var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(payload);
-          // WhatsApp Web: abrir en nueva pestaña
-          try { window.open(url, '_blank'); } catch (_) { window.location.href = url; }
-          log('info', 'WhatsApp Web abierto para enviar reporte');
-          showToast('Se abrió WhatsApp Web. Revisa el mensaje y pulsa Enviar.');
+          var tu = global.CrozzoTauriUpdater;
+          if (tu && typeof tu.openExternalUrl === 'function') {
+            tu.openExternalUrl(url).then(function (ok) {
+              if (ok) {
+                log('info', 'WhatsApp Web abierto para enviar reporte');
+                showToast('Se abrió WhatsApp Web. Revisa el mensaje y pulsa Enviar.');
+              } else {
+                // Fallback: copiar al portapapeles
+                copyToClipboard(text);
+                showToast('No se pudo abrir WhatsApp Web. Reporte copiado al portapapeles.');
+              }
+            }).catch(function () {
+              copyToClipboard(text);
+              showToast('No se pudo abrir WhatsApp Web. Reporte copiado al portapapeles.');
+            });
+          } else {
+            // Fallback navegador
+            try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (_) { window.location.href = url; }
+            log('info', 'WhatsApp Web abierto para enviar reporte');
+            showToast('Se abrió WhatsApp Web. Revisa el mensaje y pulsa Enviar.');
+          }
         } catch (e) {
           console.error('Error WhatsApp Web:', e);
           copyToClipboard(text);
