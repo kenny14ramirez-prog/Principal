@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-25T00:15:30.758Z",
+  "updatedAt": "2026-11-25T00:48:59.323Z",
   "entries": [
-    {
-      "id": "1.0.333-critical",
-      "version": "v1.0.333",
-      "semver": "1.0.333",
-      "type": "critical",
-      "message": "Auto-descarga modelo IA: intenta Ollama pull automaticamente",
-      "publishedAt": "2026-11-22T01:01:35.520Z",
-      "installMode": "auto",
-      "changelog": [
-        "Auto-descarga modelo IA: intenta Ollama pull automaticamente"
-      ]
-    },
     {
       "id": "1.0.334-critical",
       "version": "v1.0.334",
@@ -307,6 +295,19 @@
       "changelog": [
         "Fix reporte dispositivo: WhatsApp Web",
         "safe is not defined"
+      ]
+    },
+    {
+      "id": "1.0.358-critical",
+      "version": "v1.0.358",
+      "semver": "1.0.358",
+      "type": "critical",
+      "message": "Fix: botones superadmin + WhatsApp Web (data attributes DOMPurify)",
+      "publishedAt": "2026-11-25T00:48:59.323Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: botones superadmin",
+        "WhatsApp Web (data attributes DOMPurify)"
       ]
     }
   ]

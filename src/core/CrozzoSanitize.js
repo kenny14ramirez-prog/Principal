@@ -20,7 +20,7 @@
     if (str == null) return '';
     // Usar DOMPurify si está disponible (CDN), fallback a escapeHtml
     if (global.DOMPurify && typeof global.DOMPurify.sanitize === 'function') {
-      try { return global.DOMPurify.sanitize(String(str), { ADD_ATTR: ['onclick', 'onchange', 'onsubmit', 'oninput', 'onkeydown', 'onkeyup', 'onfocus', 'onblur', 'onmouseover', 'onmouseout'] }); } catch (_) {}
+      try { return global.DOMPurify.sanitize(String(str), { ADD_ATTR: ['onclick', 'onchange', 'onsubmit', 'oninput', 'onkeydown', 'onkeyup', 'onfocus', 'onblur', 'onmouseover', 'onmouseout'], ADD_DATA_ATTR: true }); } catch (_) {}
     }
     return escapeHtml(str);
   }
