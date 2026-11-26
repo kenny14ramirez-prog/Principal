@@ -39,6 +39,8 @@
   }
   global.fetchWithTimeout = fetchWithTimeout;
   if (typeof window !== 'undefined') window.fetchWithTimeout = fetchWithTimeout;
+  // Helper: parse seguro de JSON desde localStorage
+  function safeJsonParse(key, fallback) {
     try {
       var raw = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null;
       if (raw == null) return (fallback !== undefined ? fallback : null);
@@ -50,6 +52,17 @@
   }
   global.safeJsonParse = safeJsonParse;
   if (typeof window !== 'undefined') window.safeJsonParse = safeJsonParse;
+  // Helper: localStorage seguro (previene crashes en modo privado/bloqueado)
+  function safeLocalStorageGet(key, fallback) {
+    try { var v = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null; return v != null ? v : (fallback !== undefined ? fallback : null); } catch (_) { return (fallback !== undefined ? fallback : null); }
+  }
+  function safeLocalStorageSet(key, value) {
+    try { if (typeof G !== 'undefined' && G.localStorage) { G.localStorage.setItem(key, value); return true; } } catch (_) {}
+    return false;
+  }
+  global.safeLocalStorageGet = safeLocalStorageGet;
+  global.safeLocalStorageSet = safeLocalStorageSet;
+  if (typeof window !== 'undefined') { window.safeLocalStorageGet = safeLocalStorageGet; window.safeLocalStorageSet = safeLocalStorageSet; }
   function installInnerHtmlGuard() {
     try {
       if (!global.CrozzoFeatureFlags || !global.CrozzoFeatureFlags.isEnabled('useSanitizeInnerHtml')) return;

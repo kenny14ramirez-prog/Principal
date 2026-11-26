@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T23:29:31.769Z",
+  "updatedAt": "2026-11-26T23:32:46.544Z",
   "entries": [
-    {
-      "id": "1.0.337-critical",
-      "version": "v1.0.337",
-      "semver": "1.0.337",
-      "type": "critical",
-      "message": "Fix layout: POS se encoge para dar espacio al panel IA (v2)",
-      "publishedAt": "2026-11-22T11:03:30.445Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix layout: POS se encoge para dar espacio al panel IA (v2)"
-      ]
-    },
     {
       "id": "1.0.338-critical",
       "version": "v1.0.338",
@@ -315,6 +303,23 @@
         "fetchWithTimeout",
         "sidebar toggle",
         "global→G"
+      ]
+    },
+    {
+      "id": "1.0.362-critical",
+      "version": "v1.0.362",
+      "semver": "1.0.362",
+      "type": "critical",
+      "message": "Fix: sidebar toggle + safeJsonParse + fetchWithTimeout + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles",
+      "publishedAt": "2026-11-26T23:32:46.544Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: sidebar toggle",
+        "safeJsonParse",
+        "fetchWithTimeout",
+        "crozzoInvRegistrarMovimiento",
+        "crozzoGetFacturaById",
+        "comanda styles"
       ]
     }
   ]
