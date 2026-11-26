@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T23:42:40.429Z",
+  "updatedAt": "2026-11-26T23:51:38.151Z",
   "entries": [
-    {
-      "id": "1.0.342-critical",
-      "version": "v1.0.342",
-      "semver": "1.0.342",
-      "type": "critical",
-      "message": "Simplificar instalacion IA: solo Ollama, un boton, instrucciones claras",
-      "publishedAt": "2026-11-24T12:06:12.296Z",
-      "installMode": "auto",
-      "changelog": [
-        "Simplificar instalacion IA: solo Ollama, un boton, instrucciones claras"
-      ]
-    },
     {
       "id": "1.0.343-critical",
       "version": "v1.0.343",
@@ -344,6 +332,28 @@
         "ADD_DATA_ATTR",
         "CrozzoTauriUpdater unificado",
         "global→G"
+      ]
+    },
+    {
+      "id": "1.0.367-critical",
+      "version": "v1.0.367",
+      "semver": "1.0.367",
+      "type": "critical",
+      "message": "Estabilización: safeJsonParse + fetchWithTimeout + sidebar toggle + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles + safeLocalStorage + ADD_DATA_ATTR + CrozzoTauriUpdater + global→G + safe function",
+      "publishedAt": "2026-11-26T23:51:38.151Z",
+      "installMode": "auto",
+      "changelog": [
+        "Estabilización: safeJsonParse",
+        "fetchWithTimeout",
+        "sidebar toggle",
+        "crozzoInvRegistrarMovimiento",
+        "crozzoGetFacturaById",
+        "comanda styles",
+        "safeLocalStorage",
+        "ADD_DATA_ATTR",
+        "CrozzoTauriUpdater",
+        "global→G",
+        "safe function"
       ]
     }
   ]
