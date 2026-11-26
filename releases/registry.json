@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-25T00:48:59.323Z",
+  "updatedAt": "2026-11-26T22:50:43.230Z",
   "entries": [
-    {
-      "id": "1.0.334-critical",
-      "version": "v1.0.334",
-      "semver": "1.0.334",
-      "type": "critical",
-      "message": "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama",
-      "publishedAt": "2026-11-22T02:07:50.726Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix asistente: panel lateral no bloqueante, descarga automatica Ollama"
-      ]
-    },
     {
       "id": "1.0.335-critical",
       "version": "v1.0.335",
@@ -308,6 +296,20 @@
       "changelog": [
         "Fix: botones superadmin",
         "WhatsApp Web (data attributes DOMPurify)"
+      ]
+    },
+    {
+      "id": "1.0.359-critical",
+      "version": "v1.0.359",
+      "semver": "1.0.359",
+      "type": "critical",
+      "message": "Fix: reporte dispositivo (safe is not defined + WhatsApp Web + data attributes)",
+      "publishedAt": "2026-11-26T22:50:43.230Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: reporte dispositivo (safe is not defined",
+        "WhatsApp Web",
+        "data attributes)"
       ]
     }
   ]

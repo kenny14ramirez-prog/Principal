@@ -190,7 +190,7 @@
       var mods = [];
       var modNames = ['CrozzoPosMain', 'CrozzoCierreTurnos', 'CrozzoCarteraComercial', 'CrozzoSistemaCostos', 'CrozzoCentroCompras', 'CrozzoCentroProcesos', 'CrozzoPlanilla2026', 'CrozzoSuperAdminConsole', 'CrozzoAiAssistant', 'CrozzoDevicePerf', 'CrozzoA11yUser', 'CrozzoCspDomWire'];
       for (var mi = 0; mi < modNames.length; mi++) {
-        var m = global[modNames[mi]];
+        var m = G[modNames[mi]];
         mods.push(modNames[mi] + ': ' + (m ? 'cargado' : 'NO cargado'));
       }
       return mods.join(' | ');
@@ -202,13 +202,13 @@
     lines.push('localStorage keys: ' + safe(function () { try { return localStorage.length; } catch (_) { return '(error)'; } }));
     lines.push('sessionStorage keys: ' + safe(function () { try { return sessionStorage.length; } catch (_) { return '(error)'; } }));
     lines.push('Heap usado (MB): ' + safe(function () { if (performance && performance.memory) return Math.round(performance.memory.usedJSHeapSize / 1048576); return 'N/A'; }));
-    lines.push('Pantalla: ' + safe(function () { return (global.innerWidth || '?') + 'x' + (global.innerHeight || '?') + ' · DPR ' + (global.devicePixelRatio || 1); }));
-    lines.push('URL actual: ' + safe(function () { return global.location ? global.location.href : '(N/A)'; }));
+    lines.push('Pantalla: ' + safe(function () { return (G.innerWidth || '?') + 'x' + (G.innerHeight || '?') + ' · DPR ' + (G.devicePixelRatio || 1); }));
+    lines.push('URL actual: ' + safe(function () { return G.location ? G.location.href : '(N/A)'; }));
     lines.push('');
     // ── Diario operativo (auditoría de acciones) ──
     try {
-      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.exportJson === 'function') {
-        var j = global.CrozzoOperativeJournal.exportJson();
+      if (G.CrozzoOperativeJournal && typeof G.CrozzoOperativeJournal.exportJson === 'function') {
+        var j = G.CrozzoOperativeJournal.exportJson();
         lines.push('');
         lines.push('=== DIARIO OPERATIVO (AUDITORÍA) ===');
         lines.push('Eventos totales: ' + (j && j.events ? j.events.length : 0));
@@ -220,16 +220,16 @@
             lines.push('  [' + (e.ts ? new Date(e.ts).toLocaleString('es-CO') : '?') + '] ' + (e.action || e.type || '?') + ' | ' + (e.detail || '') + ' | user: ' + (e.user || '?'));
           }
         }
-        if (j && typeof global.CrozzoOperativeJournal.topFingerprints === 'function') {
-          lines.push('Top huellas: ' + JSON.stringify(global.CrozzoOperativeJournal.topFingerprints()));
+        if (j && typeof G.CrozzoOperativeJournal.topFingerprints === 'function') {
+          lines.push('Top huellas: ' + JSON.stringify(G.CrozzoOperativeJournal.topFingerprints()));
         }
       }
     } catch (_) {}
 
     // ── Reporte de fallas (si existe) ──
     try {
-      if (global.CrozzoFailureReporter && typeof global.CrozzoFailureReporter.generateReport === 'function') {
-        var fr = global.CrozzoFailureReporter.generateReport();
+      if (G.CrozzoFailureReporter && typeof G.CrozzoFailureReporter.generateReport === 'function') {
+        var fr = G.CrozzoFailureReporter.generateReport();
         if (fr && fr.failures && fr.failures.length > 0) {
           lines.push('');
           lines.push('=== FALLAS DETECTADAS (' + fr.failures.length + ') ===');
@@ -244,11 +244,11 @@
     try {
       lines.push('');
       lines.push('=== ASISTENTE IA ===');
-      lines.push('Disponible: ' + (global.CrozzoAiAssistant ? 'sí' : 'no'));
-      lines.push('Tier dispositivo: ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.getTier() : 'desconocido'));
-      lines.push('Modelo recomendado: ' + (global.CrozzoAiDeviceProfile ? global.CrozzoAiDeviceProfile.recommendedModel(global.CrozzoAiDeviceProfile.getTier()) : 'N/A'));
-      if (global.CrozzoAiActionRegistry && typeof global.CrozzoAiActionRegistry.list === 'function') {
-        lines.push('Acciones disponibles: ' + global.CrozzoAiActionRegistry.list().map(function(a){return a.id;}).join(', '));
+      lines.push('Disponible: ' + (G.CrozzoAiAssistant ? 'sí' : 'no'));
+      lines.push('Tier dispositivo: ' + (G.CrozzoAiDeviceProfile ? G.CrozzoAiDeviceProfile.getTier() : 'desconocido'));
+      lines.push('Modelo recomendado: ' + (G.CrozzoAiDeviceProfile ? G.CrozzoAiDeviceProfile.recommendedModel(G.CrozzoAiDeviceProfile.getTier()) : 'N/A'));
+      if (G.CrozzoAiActionRegistry && typeof G.CrozzoAiActionRegistry.list === 'function') {
+        lines.push('Acciones disponibles: ' + G.CrozzoAiActionRegistry.list().map(function(a){return a.id;}).join(', '));
       }
     } catch (_) {}
 
@@ -306,7 +306,7 @@
       var doOpen = function (payload) {
         try {
           var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(payload);
-          var tu = global.CrozzoTauriUpdater;
+          var tu = G.CrozzoTauriUpdater;
           if (tu && typeof tu.openExternalUrl === 'function') {
             tu.openExternalUrl(url).then(function (ok) {
               if (ok) {
