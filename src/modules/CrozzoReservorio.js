@@ -274,8 +274,8 @@
   function rotateBackup(prevJson) {
     try {
       var b1 = localStorage.getItem(LS_BACKUP);
-      if (b1) localStorage.setItem(LS_BACKUP2, b1);
-      if (prevJson) localStorage.setItem(LS_BACKUP, prevJson);
+      if (b1) safeLocalStorageSet(LS_BACKUP2, b1);
+      if (prevJson) safeLocalStorageSet(LS_BACKUP, prevJson);
     } catch (_) {}
   }
 
@@ -296,7 +296,7 @@
         }
       }
       try {
-        localStorage.setItem(LS, JSON.stringify(normalizeStore(st)));
+        safeLocalStorageSet(LS, JSON.stringify(normalizeStore(st)));
       } catch (_) {}
     }
     return normalizeStore(st);
@@ -310,7 +310,7 @@
     try {
       var prev = localStorage.getItem(LS);
       if (prev && prev !== json) rotateBackup(prev);
-      localStorage.setItem(LS, json);
+      safeLocalStorageSet(LS, json);
       healthMeta.lastSaveOk = true;
       healthMeta.lastSaveError = null;
       return { ok: true };
@@ -320,7 +320,7 @@
         json = JSON.stringify(st);
         try {
           rotateBackup(localStorage.getItem(LS));
-          localStorage.setItem(LS, json);
+          safeLocalStorageSet(LS, json);
           healthMeta.lastSaveOk = true;
           healthMeta.lastSaveError = null;
           return { ok: true, trimmed: true };

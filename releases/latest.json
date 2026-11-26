@@ -1,33 +1,23 @@
 {
-  "id": "1.0.363-critical",
-  "version": "v1.0.363",
-  "semver": "1.0.363",
+  "id": "1.0.364-critical",
+  "version": "v1.0.364",
+  "semver": "1.0.364",
   "type": "critical",
-  "message": "Fix: sidebar toggle + safeJsonParse + fetchWithTimeout + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles",
-  "publishedAt": "2026-11-26T23:34:02.373Z",
+  "message": "Estabilización completa: safeJsonParse + fetchWithTimeout + sidebar toggle + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles + safeLocalStorage + ADD_DATA_ATTR fix",
+  "publishedAt": "2026-11-26T23:35:13.181Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: sidebar toggle",
-    "safeJsonParse",
+    "Estabilización completa: safeJsonParse",
     "fetchWithTimeout",
+    "sidebar toggle",
     "crozzoInvRegistrarMovimiento",
     "crozzoGetFacturaById",
-    "comanda styles"
+    "comanda styles",
+    "safeLocalStorage",
+    "ADD_DATA_ATTR fix"
   ],
-  "updatedAt": "2026-11-26T23:34:02.373Z",
+  "updatedAt": "2026-11-26T23:35:13.181Z",
   "entries": [
-    {
-      "id": "1.0.339-critical",
-      "version": "v1.0.339",
-      "semver": "1.0.339",
-      "type": "critical",
-      "message": "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)",
-      "publishedAt": "2026-11-24T11:19:08.541Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix asistente: POS se encoge para dar espacio al panel IA (layout final)"
-      ]
-    },
     {
       "id": "1.0.340-critical",
       "version": "v1.0.340",
@@ -340,6 +330,25 @@
         "crozzoInvRegistrarMovimiento",
         "crozzoGetFacturaById",
         "comanda styles"
+      ]
+    },
+    {
+      "id": "1.0.364-critical",
+      "version": "v1.0.364",
+      "semver": "1.0.364",
+      "type": "critical",
+      "message": "Estabilización completa: safeJsonParse + fetchWithTimeout + sidebar toggle + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles + safeLocalStorage + ADD_DATA_ATTR fix",
+      "publishedAt": "2026-11-26T23:35:13.181Z",
+      "installMode": "auto",
+      "changelog": [
+        "Estabilización completa: safeJsonParse",
+        "fetchWithTimeout",
+        "sidebar toggle",
+        "crozzoInvRegistrarMovimiento",
+        "crozzoGetFacturaById",
+        "comanda styles",
+        "safeLocalStorage",
+        "ADD_DATA_ATTR fix"
       ]
     }
   ]

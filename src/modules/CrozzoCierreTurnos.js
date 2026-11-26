@@ -60,7 +60,7 @@
 
   function writeDaySession(s) {
     try {
-      localStorage.setItem(LS_DAY, JSON.stringify(s));
+      safeLocalStorageSet(LS_DAY, JSON.stringify(s));
     } catch (e) {
       console.warn('[cierre]', e);
     }
@@ -344,7 +344,7 @@
       var next = q.filter(function (c) {
         return c && cierreQueueKey(c) !== key;
       });
-      localStorage.setItem(LS_PL_CIERRE_Q, JSON.stringify(next));
+      safeLocalStorageSet(LS_PL_CIERRE_Q, JSON.stringify(next));
     } catch (_) {}
   }
 
@@ -363,7 +363,7 @@
         return c;
       });
       if (!found) q.unshift(slim);
-      localStorage.setItem(LS_PL_CIERRE_Q, JSON.stringify(q.slice(0, 48)));
+      safeLocalStorageSet(LS_PL_CIERRE_Q, JSON.stringify(q.slice(0, 48)));
     } catch (e) {
       console.warn('[cierre] planilla queue', e);
     }
@@ -766,7 +766,7 @@
       var limit = getShiftSettings().histLimit;
       var h = JSON.parse(localStorage.getItem(LS_HIST) || '[]');
       h.unshift(rec);
-      localStorage.setItem(LS_HIST, JSON.stringify(h.slice(0, limit)));
+      safeLocalStorageSet(LS_HIST, JSON.stringify(h.slice(0, limit)));
       invalidateCierreCaches();
     } catch (e) {
       console.warn('[cierre] history', e);
@@ -850,7 +850,7 @@
       writeDaySession(day);
       invalidateCierreCaches();
       try {
-        localStorage.setItem(LS_TURN, JSON.stringify(newTurnRecord()));
+        safeLocalStorageSet(LS_TURN, JSON.stringify(newTurnRecord()));
       } catch (_) {}
       audit('dia_operativo_abierto', 'Día operativo ' + today + ' iniciado en cero');
       try {
@@ -904,7 +904,7 @@
 
   function saveTurn(s) {
     try {
-      localStorage.setItem(LS_TURN, JSON.stringify(s));
+      safeLocalStorageSet(LS_TURN, JSON.stringify(s));
     } catch (e) {
       console.warn('[cierre] turn', e);
     }
@@ -1088,7 +1088,7 @@
       var limit = getShiftSettings().histLimit;
       var h = JSON.parse(localStorage.getItem(LS_SUPERV) || '[]');
       h.unshift(rec);
-      localStorage.setItem(LS_SUPERV, JSON.stringify(h.slice(0, limit)));
+      safeLocalStorageSet(LS_SUPERV, JSON.stringify(h.slice(0, limit)));
       __supervCache = null;
     } catch (e) {
       console.warn('[cierre] supervision', e);
