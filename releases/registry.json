@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T23:35:13.181Z",
+  "updatedAt": "2026-11-26T23:40:39.460Z",
   "entries": [
-    {
-      "id": "1.0.340-critical",
-      "version": "v1.0.340",
-      "semver": "1.0.340",
-      "type": "critical",
-      "message": "Adaptacion Android: permisos, UI touch, form factor, capabilities",
-      "publishedAt": "2026-11-24T00:50:23.973Z",
-      "installMode": "auto",
-      "changelog": [
-        "Adaptacion Android: permisos, UI touch, form factor, capabilities"
-      ]
-    },
     {
       "id": "1.0.341-critical",
       "version": "v1.0.341",
@@ -332,6 +320,19 @@
         "comanda styles",
         "safeLocalStorage",
         "ADD_DATA_ATTR fix"
+      ]
+    },
+    {
+      "id": "1.0.365-critical",
+      "version": "v1.0.365",
+      "semver": "1.0.365",
+      "type": "critical",
+      "message": "Estabilización completa: Fase 2 + Fase 3",
+      "publishedAt": "2026-11-26T23:40:39.460Z",
+      "installMode": "auto",
+      "changelog": [
+        "Estabilización completa: Fase 2",
+        "Fase 3"
       ]
     }
   ]

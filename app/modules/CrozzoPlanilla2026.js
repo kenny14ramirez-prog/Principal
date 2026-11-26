@@ -252,7 +252,7 @@
 
   function saveStore() {
     try {
-      localStorage.setItem(LS, JSON.stringify(store));
+      safeLocalStorageSet(LS, JSON.stringify(store));
     } catch (_) {
       toast('No se pudo guardar', 'error');
     }
@@ -2494,7 +2494,7 @@
       guideBtn.onclick = function () {
         state.ui.guideMode = !state.ui.guideMode;
         try {
-          localStorage.setItem('crozzo_pl_guide', state.ui.guideMode ? '1' : '0');
+          safeLocalStorageSet('crozzo_pl_guide', state.ui.guideMode ? '1' : '0');
         } catch (_) {}
         toast(state.ui.guideMode ? 'Modo guía activado' : 'Modo guía desactivado', 'info');
         rerender();
@@ -2506,7 +2506,7 @@
       guidePanel.addEventListener('toggle', function () {
         state.ui.guidePanelOpen = guidePanel.open;
         try {
-          localStorage.setItem('crozzo_pl_guide_open', guidePanel.open ? '1' : '0');
+          safeLocalStorageSet('crozzo_pl_guide_open', guidePanel.open ? '1' : '0');
         } catch (_) {}
       });
     }
@@ -3259,7 +3259,7 @@
         if (r && r.ok) applied += 1;
         else left.push(rec);
       });
-      localStorage.setItem('crozzo_planilla_cierre_pending_v1', JSON.stringify(left.slice(0, 48)));
+      safeLocalStorageSet('crozzo_planilla_cierre_pending_v1', JSON.stringify(left.slice(0, 48)));
       return applied;
     } catch (_) {
       return 0;

@@ -195,7 +195,7 @@
   async function saveIntegracionConfig() {
     var id = 'int_' + businessId();
     var body = { id: id, business_id: businessId(), payload: state.intConfig, updated_at: new Date().toISOString() };
-    try { localStorage.setItem('crozzo_int_config', JSON.stringify(state.intConfig)); } catch (_) {}
+    try { safeLocalStorageSet('crozzo_int_config', JSON.stringify(state.intConfig)); } catch (_) {}
     if (!cloudReady()) return;
     await rest('crozzo_integracion_config', '', { method: 'POST', body: body, prefer: 'resolution=merge-duplicates,return=minimal' });
   }
@@ -303,7 +303,7 @@
       }
     }
     try {
-      localStorage.setItem(LS_RRHH + '_recs', JSON.stringify(all.filter(function (x) { return x && x._pending; })));
+      safeLocalStorageSet(LS_RRHH + '_recs', JSON.stringify(all.filter(function (x) { return x && x._pending; })));
     } catch (_) {}
     if (synced) await loadMarcacionesHoy();
     return synced;
@@ -374,7 +374,7 @@
     try {
       var local = JSON.parse(localStorage.getItem(LS_PEDIDOS) || '[]');
       local.unshift(Object.assign({ id: Date.now(), created_at: new Date().toISOString() }, body));
-      localStorage.setItem(LS_PEDIDOS, JSON.stringify(local.slice(0, 200)));
+      safeLocalStorageSet(LS_PEDIDOS, JSON.stringify(local.slice(0, 200)));
     } catch (_) {}
     var tg = state.intConfig.telegram || {};
     if (tg.botToken && tg.chatId) {
@@ -424,7 +424,7 @@
       try {
         var all = JSON.parse(localStorage.getItem(LS_RRHH + '_recs') || '[]');
         all.push(rec);
-        localStorage.setItem(LS_RRHH + '_recs', JSON.stringify(all));
+        safeLocalStorageSet(LS_RRHH + '_recs', JSON.stringify(all));
       } catch (_) {}
     }
     toast((tipo === 'entrada' ? 'Entrada' : 'Salida') + ' registrada — ' + emp.name, 'success');
@@ -466,7 +466,7 @@
     try {
       var all = JSON.parse(localStorage.getItem(LS_NOMINA) || '{}');
       all[state._nominaClave] = state.nomina;
-      localStorage.setItem(LS_NOMINA, JSON.stringify(all));
+      safeLocalStorageSet(LS_NOMINA, JSON.stringify(all));
     } catch (_) {}
     if (!cloudReady()) return;
     var d = new Date();
@@ -596,7 +596,7 @@
           var r = await rest('crozzo_empleados', '', { method: 'POST', body: body, prefer: 'return=representation' });
           if (r.ok && Array.isArray(r.data) && r.data[0]) state.empleados.push(r.data[0]);
           else state.empleados.push(Object.assign({ id: Date.now() }, body));
-          try { localStorage.setItem(LS_RRHH + '_emps', JSON.stringify(state.empleados)); } catch (_) {}
+          try { safeLocalStorageSet(LS_RRHH + '_emps', JSON.stringify(state.empleados)); } catch (_) {}
           renderAccesoInner();
           toast('Empleado agregado', 'success');
         };
