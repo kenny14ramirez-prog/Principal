@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T23:32:46.544Z",
+  "updatedAt": "2026-11-26T23:34:02.373Z",
   "entries": [
-    {
-      "id": "1.0.338-critical",
-      "version": "v1.0.338",
-      "semver": "1.0.338",
-      "type": "critical",
-      "message": "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico",
-      "publishedAt": "2026-11-22T11:12:46.133Z",
-      "installMode": "auto",
-      "changelog": [
-        "Simplificar descarga modelo IA: un solo boton, Ollama pull automatico"
-      ]
-    },
     {
       "id": "1.0.339-critical",
       "version": "v1.0.339",
@@ -312,6 +300,23 @@
       "type": "critical",
       "message": "Fix: sidebar toggle + safeJsonParse + fetchWithTimeout + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles",
       "publishedAt": "2026-11-26T23:32:46.544Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: sidebar toggle",
+        "safeJsonParse",
+        "fetchWithTimeout",
+        "crozzoInvRegistrarMovimiento",
+        "crozzoGetFacturaById",
+        "comanda styles"
+      ]
+    },
+    {
+      "id": "1.0.363-critical",
+      "version": "v1.0.363",
+      "semver": "1.0.363",
+      "type": "critical",
+      "message": "Fix: sidebar toggle + safeJsonParse + fetchWithTimeout + crozzoInvRegistrarMovimiento + crozzoGetFacturaById + comanda styles",
+      "publishedAt": "2026-11-26T23:34:02.373Z",
       "installMode": "auto",
       "changelog": [
         "Fix: sidebar toggle",
