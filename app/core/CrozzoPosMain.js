@@ -23586,12 +23586,32 @@ function crozzoAbandonSaleInflight(saleAttemptId) {
     );
   } catch (_) {}
 }
+// Auto-auditoría tras cierre de turno (stub robusto)
+if (typeof window.crozzoTriggerAutoAudit !== 'function') {
+  window.crozzoTriggerAutoAudit = function () {
+    try {
+      if (typeof window.CrozzoOperativeJournal !== 'undefined' && typeof window.CrozzoOperativeJournal.record === 'function') {
+        window.CrozzoOperativeJournal.record({ kind: 'audit', code: 'auto_audit_close', detail: 'Cierre de turno' });
+      }
+    } catch (_) {}
+  };
+}
 function crozzoFindFacturaBySaleAttemptId(attemptId) {
   if (!attemptId) return null;
   const id = String(attemptId);
   return (config.getFacturas() || []).find(function (f) {
     return f && String(f.saleAttemptId || '') === id;
   }) || null;
+}
+// Exponer alias global para anulación de facturas
+if (typeof window.crozzoGetFacturaById !== 'function') {
+  window.crozzoGetFacturaById = function (facturaId) {
+    if (!facturaId) return null;
+    const id = String(facturaId);
+    return (config.getFacturas() || []).find(function (f) {
+      return f && (String(f.id || '') === id || String(f.uuid || '') === id || String(f.consecutivo || '') === id);
+    }) || null;
+  };
 }
 function crozzoGuardSaleInflightStart(saleAttemptId) {
   const prev = crozzoReadSaleInflight();
@@ -49906,6 +49926,7 @@ function toggleSidebar() {
       } else {
         sidebar.classList.toggle('expanded', next);
         sidebar.classList.toggle('is-expanded', next);
+        sidebar.classList.toggle('collapsed', !next);
       }
     } catch (_) {}
     try {

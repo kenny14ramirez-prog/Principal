@@ -2355,6 +2355,13 @@
     getFeLinksStats: getFeLinksStats,
   };
 
+  // Exponer alias global para auditoría de reversión
+  if (typeof window.crozzoInvRegistrarMovimiento !== 'function') {
+    window.crozzoInvRegistrarMovimiento = function (mov) {
+      try { return window.CrozzoReservorio.addInventarioMovimiento(mov); } catch (_) { return null; }
+    };
+  }
+
   // P0-4 contención: devolver venta (eliminar movimientos salida_venta por saleId).
   function devolverVenta(input) {
     var st = migrateLegacy();

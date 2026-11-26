@@ -1,30 +1,19 @@
 {
-  "id": "1.0.360-critical",
-  "version": "v1.0.360",
-  "semver": "1.0.360",
+  "id": "1.0.361-critical",
+  "version": "v1.0.361",
+  "semver": "1.0.361",
   "type": "critical",
-  "message": "Fix: botones superadmin + reporte WhatsApp + CrozzoTauriUpdater unificado",
-  "publishedAt": "2026-11-26T23:12:25.458Z",
+  "message": "Fix: safeJsonParse + fetchWithTimeout + sidebar toggle + global→G",
+  "publishedAt": "2026-11-26T23:29:31.769Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: botones superadmin",
-    "reporte WhatsApp",
-    "CrozzoTauriUpdater unificado"
+    "Fix: safeJsonParse",
+    "fetchWithTimeout",
+    "sidebar toggle",
+    "global→G"
   ],
-  "updatedAt": "2026-11-26T23:12:25.458Z",
+  "updatedAt": "2026-11-26T23:29:31.769Z",
   "entries": [
-    {
-      "id": "1.0.336-critical",
-      "version": "v1.0.336",
-      "semver": "1.0.336",
-      "type": "critical",
-      "message": "Fix layout: POS se encoge cuando asistente IA esta abierto",
-      "publishedAt": "2026-11-22T02:38:12.001Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix layout: POS se encoge cuando asistente IA esta abierto"
-      ]
-    },
     {
       "id": "1.0.337-critical",
       "version": "v1.0.337",
@@ -324,6 +313,21 @@
         "Fix: botones superadmin",
         "reporte WhatsApp",
         "CrozzoTauriUpdater unificado"
+      ]
+    },
+    {
+      "id": "1.0.361-critical",
+      "version": "v1.0.361",
+      "semver": "1.0.361",
+      "type": "critical",
+      "message": "Fix: safeJsonParse + fetchWithTimeout + sidebar toggle + global→G",
+      "publishedAt": "2026-11-26T23:29:31.769Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: safeJsonParse",
+        "fetchWithTimeout",
+        "sidebar toggle",
+        "global→G"
       ]
     }
   ]
