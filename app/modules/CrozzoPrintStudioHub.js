@@ -2836,7 +2836,7 @@
       '</select></div>' +
       '<div class="crozzo-print-studio__actions">' +
       '<button type="button" class="btn btn-primary crozzo-ps-btn-gold" id="crozzoPsBtnTestPrint">Probar</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoPsBtnApplyDesign">Aplicar diseño</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoPsBtnApplyDesign" title="Sincroniza el editor con la plantilla. Para guardar, use Guardar cambios.">Sincronizar editor</button>' +
       '<button type="button" class="btn btn-link" onclick="crozzoOpenTicketDesignerTab()">Editor ampliado</button>' +
       '</div></div>' +
       renderAuditPanel(tpl, tplKey) +

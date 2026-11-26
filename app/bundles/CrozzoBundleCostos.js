@@ -8856,7 +8856,7 @@
     opts = opts || {};
     var h = sbHeaders();
     if (!h) return Promise.resolve({ ok: false, reason: 'no-cloud' });
-    var base = String(JSON.parse(localStorage.getItem('crozzo_supabase_config')).url).replace(/\/$/, '');
+    var _cfg = safeJsonParse('crozzo_supabase_config', {}); var base = String((_cfg && _cfg.url) || '').replace(/\/$/, '');
     var url = base + '/rest/v1/' + table + (query ? '?' + query : '');
     return fetch(url, {
       method: opts.method || 'GET',

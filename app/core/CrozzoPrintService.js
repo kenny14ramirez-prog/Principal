@@ -2541,21 +2541,24 @@
     var emp = global.config && global.config.getEmpresa ? global.config.getEmpresa() || {} : {};
     var ref = crozzoComandaSlotRefLabel(comanda) || String(comanda.referencia || '—');
     var items = (comanda.items || []).map(function (it) { return { qty: Number(it.cantidad) || 0, name: (it.nombreVenta || it.nombre || 'Ítem') }; });
+    var estilo = (comanda.estilo && typeof comanda.estilo === 'object') ? comanda.estilo : { fontSize: 12, showPrice: false, showHeader: true };
+    var fs = Number(estilo.fontSize) || 12;
+    var showHeader = estilo.showHeader !== false;
     var D = global.CrozzoDocDesign;
     if (D && typeof D.docHeader === 'function') {
       var rows = items.map(function (it) { return [it.qty + '×', it.name]; });
-      var body = D.docHeader({ title: (comanda.areaNombre || 'COMANDA'), subtitle: emp.nombreComercial || '', meta: '#' + (comanda.id || '—') + ' · ' + ref }) +
-        D.docTable(['Cant.', 'Ítem'], rows, { numCols: [0] }) +
-        D.docFooter({ left: 'Bona Origen · ' + new Date().toLocaleString('es-CO'), right: 'Comanda térmica' });
-      return D.wrapDocument(body, 'thermal', (comanda.areaNombre || 'Comanda'));
+      var body = '';
+      if (showHeader) {
+        body += D.docHeader({ title: (comanda.areaNombre || 'COMANDA'), subtitle: emp.nombreComercial || '', meta: '#' + (comanda.id || '—') + ' · ' + ref });
+      }
+      body += D.docTable(['Cant.', 'Ítem'], rows, { numCols: [0] });
+      body += D.docFooter({ left: 'Bona Origen · ' + new Date().toLocaleString('es-CO'), right: 'Comanda térmica' });
+      return D.wrapDocument('<div style="font-size:' + fs + 'px;">' + body + '</div>', 'thermal', (comanda.areaNombre || 'Comanda'));
     }
     var lines = items.map(function (it) { return it.qty + '× ' + it.name; }).join('\n');
     return (
-      '<pre style="font-family:Consolas,monospace;font-size:11px;margin:0;padding:2mm;width:72mm;">' +
-      (comanda.areaNombre || 'COMANDA') +
-      '\n' +
-      (emp.nombreComercial || '') +
-      '\n---\n#' +
+      '<pre style="font-family:Consolas,monospace;font-size:' + fs + 'px;margin:0;padding:2mm;width:72mm;">' +
+      (showHeader ? (comanda.areaNombre || 'COMANDA') + '\n' + (emp.nombreComercial || '') + '\n---\n#' : '') +
       comanda.id +
       ' · ' +
       ref +

@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T22:50:43.230Z",
+  "updatedAt": "2026-11-26T23:12:25.458Z",
   "entries": [
-    {
-      "id": "1.0.335-critical",
-      "version": "v1.0.335",
-      "semver": "1.0.335",
-      "type": "critical",
-      "message": "Fix asistente: POS se encoge para dar espacio al panel IA",
-      "publishedAt": "2026-11-22T02:34:49.926Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix asistente: POS se encoge para dar espacio al panel IA"
-      ]
-    },
     {
       "id": "1.0.336-critical",
       "version": "v1.0.336",
@@ -310,6 +298,20 @@
         "Fix: reporte dispositivo (safe is not defined",
         "WhatsApp Web",
         "data attributes)"
+      ]
+    },
+    {
+      "id": "1.0.360-critical",
+      "version": "v1.0.360",
+      "semver": "1.0.360",
+      "type": "critical",
+      "message": "Fix: botones superadmin + reporte WhatsApp + CrozzoTauriUpdater unificado",
+      "publishedAt": "2026-11-26T23:12:25.458Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: botones superadmin",
+        "reporte WhatsApp",
+        "CrozzoTauriUpdater unificado"
       ]
     }
   ]

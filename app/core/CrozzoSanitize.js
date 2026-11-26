@@ -25,7 +25,31 @@
     return escapeHtml(str);
   }
   function escapeAttr(str) { return escapeHtml(str); }
-  // Monkey-patch opcional: sanitizar innerHTML automáticamente (feature flag)
+  // Helper: fetch con timeout (AbortController) para evitar UI colgada
+  function fetchWithTimeout(url, opts, timeoutMs) {
+    opts = opts || {};
+    timeoutMs = timeoutMs || 10000;
+    if (typeof AbortController !== 'undefined' && !opts.signal) {
+      var ctrl = new AbortController();
+      opts.signal = ctrl.signal;
+      var timer = setTimeout(function() { try { ctrl.abort(); } catch (_) {} }, timeoutMs);
+      return fetch(url, opts).finally(function() { clearTimeout(timer); });
+    }
+    return fetch(url, opts);
+  }
+  global.fetchWithTimeout = fetchWithTimeout;
+  if (typeof window !== 'undefined') window.fetchWithTimeout = fetchWithTimeout;
+    try {
+      var raw = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null;
+      if (raw == null) return (fallback !== undefined ? fallback : null);
+      var parsed = JSON.parse(raw);
+      return (parsed !== null && typeof parsed === 'object') ? parsed : (fallback !== undefined ? fallback : null);
+    } catch (_) {
+      return (fallback !== undefined ? fallback : null);
+    }
+  }
+  global.safeJsonParse = safeJsonParse;
+  if (typeof window !== 'undefined') window.safeJsonParse = safeJsonParse;
   function installInnerHtmlGuard() {
     try {
       if (!global.CrozzoFeatureFlags || !global.CrozzoFeatureFlags.isEnabled('useSanitizeInnerHtml')) return;

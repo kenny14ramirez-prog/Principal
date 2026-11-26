@@ -37011,7 +37011,7 @@ async function crozzoActivateLocalSyncPath(reason) {
         var sbUrl = String((mdLan.supabase && mdLan.supabase.url) || '').trim();
         var sbKey = String((mdLan.supabase && mdLan.supabase.anonKey) || '').trim();
         try {
-          var jLs = JSON.parse(localStorage.getItem('crozzo_supabase_config') || '{}');
+          var jLs = safeJsonParse('crozzo_supabase_config', {});
           if (jLs && jLs.syncEnabled) {
             if (!sbUrl) sbUrl = String(jLs.url || '').trim();
             if (!sbKey && typeof crozzoSupabaseEffectiveAnonKey === 'function') sbKey = crozzoSupabaseEffectiveAnonKey(jLs);
@@ -37285,7 +37285,7 @@ async function detectConnectivityTier() {
   } catch (_) {}
   let jLs = null;
   try {
-    jLs = JSON.parse(localStorage.getItem('crozzo_supabase_config') || '{}');
+    jLs = safeJsonParse('crozzo_supabase_config', {});
   } catch (e) {
     try {
       console.warn(e && e.message ? e.message : e);
@@ -49896,7 +49896,8 @@ function toggleSidebar() {
     }
   } catch (_) {}
   if (!crozzoSidebarUsesDrawer()) {
-    const next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');
+    const isExpanded = sidebar.classList.contains('is-expanded') || sidebar.classList.contains('expanded');
+    const next = !isExpanded;
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(next, true);

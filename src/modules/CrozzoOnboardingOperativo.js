@@ -442,7 +442,7 @@
       }
       if (id === 'nube') {
         try {
-          var cloud = JSON.parse(localStorage.getItem('crozzo_supabase_config') || '{}');
+          var cloud = safeJsonParse('crozzo_supabase_config', {});
           return !!(cloud && cloud.syncEnabled && cloud.url);
         } catch (_) {
           return false;
