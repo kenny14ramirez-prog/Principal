@@ -1,24 +1,24 @@
-﻿<!DOCTYPE html>
-<!-- Bona Origen · shell consolidado. Ver app/ARCHITECTURE.md · monolito: Crozzo_POS_Completo.monolith.html -->
+<!DOCTYPE html>
+<!-- Bona Origen � shell consolidado. Ver app/ARCHITECTURE.md � monolito: Crozzo_POS_Completo.monolith.html -->
 <html lang="es" data-theme="bona-origen" class="crozzo-theme-light">
 <head>
 <meta charset="UTF-8">
-<meta name="description" content="BONA origen — Sistema POS para restaurantes y comercios: mesas, comandas, facturación, caja, inventario y reportes.">
+<meta name="description" content="BONA origen � Sistema POS para restaurantes y comercios: mesas, comandas, facturaci�n, caja, inventario y reportes.">
 <!-- CSP enforce (Fase -2 hardening). Antes report-only. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com data:; report-uri /csp-report">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-<!-- DOMPurify (sanitización XSS) - Fase -2 hardening -->
+<!-- DOMPurify (sanitizaci�n XSS) - Fase -2 hardening -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
 <meta name="theme-color" content="#FAF9F7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.367">
+<meta name="crozzo-app-version" content="1.0.368">
 <meta name="crozzo-build-stamp" content="2026-10-31T23:38:19.307Z">
-<title>BONA origen · Sistema POS</title>
+<title>BONA origen � Sistema POS</title>
 <script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
 if(user){try{t=String(localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'bona-origen').toLowerCase();}catch(_){}}
 document.documentElement.setAttribute('data-theme',t);
@@ -101,10 +101,10 @@ document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
   }
   window.addEventListener('error', function (ev) {
     if (ev && ev.message && /ResizeObserver|Script error/i.test(ev.message)) return;
-    crozzoBootToast('Algo salió mal en la aplicación. Si persiste, recargue la ventana.');
+    crozzoBootToast('Algo sali� mal en la aplicaci�n. Si persiste, recargue la ventana.');
   });
   window.addEventListener('unhandledrejection', function () {
-    crozzoBootToast('No se pudo completar una operación. Revise su conexión e intente de nuevo.');
+    crozzoBootToast('No se pudo completar una operaci�n. Revise su conexi�n e intente de nuevo.');
   });
 })();
 </script>
@@ -116,7 +116,7 @@ try {
     globalThis.__webpack_public_path__ = './';
   }
 } catch (_) {}
-/* Navegador / Tauri: los módulos defer usan `global` como alias de window */
+/* Navegador / Tauri: los m�dulos defer usan `global` como alias de window */
 if (typeof global === 'undefined') {
   var global = typeof globalThis !== 'undefined' ? globalThis : window;
 }
@@ -184,10 +184,10 @@ window.crozzoAppDisplayName = function () {
       if (parsed) {
         p = parsed;
         // Persistir saneado.
-        try { w.localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) {}
+        try { w.safeLocalStorageSet(KEY, JSON.stringify(p)); } catch (_) {}
       } else {
         // Corrupto: resetear a defaults.
-        try { w.localStorage.setItem(KEY, JSON.stringify(def)); } catch (_) {}
+        try { w.safeLocalStorageSet(KEY, JSON.stringify(def)); } catch (_) {}
         p = def;
       }
     } else if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -203,8 +203,8 @@ window.crozzoAppDisplayName = function () {
 </script>
 <!--
   ARQUITECTURA UI (resumen): (1) Tema = html[data-theme] + variables CSS (crozzoApplyVisualTheme, sin re-render de vistas).
-  (2) Tipografía Inter + tokens --space-* / --motion-* / --elevation-* en :root. (3) Lista POS: content-visibility + debounce búsqueda 150 ms.
-  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients. (5) Marca Bona Origen: #10b981 (--crozzo-platform-green).
+  (2) Tipograf�a Inter + tokens --space-* / --motion-* / --elevation-* en :root. (3) Lista POS: content-visibility + debounce b�squeda 150 ms.
+  (4) IndexedDB CrozzoLocalData v3: �ndices bynombre en local_products y local_clients. (5) Marca Bona Origen: #10b981 (--crozzo-platform-green).
 -->
 </head>
 <body>
@@ -252,11 +252,11 @@ window.crozzoAppDisplayName = function () {
   d.body.classList.toggle('crozzo-theme-light', d.documentElement.classList.contains('crozzo-theme-light'));
   d.body.classList.toggle('crozzo-theme-dark', d.documentElement.classList.contains('crozzo-theme-dark'));
   d.body.classList.add('crozzo-session-comfort');
-  /* crozzo-premium-psyche / human: CrozzoOperativePsyche según perfil y sesión */
+  /* crozzo-premium-psyche / human: CrozzoOperativePsyche seg�n perfil y sesi�n */
 })(document, window);
 </script>
 <script>
-/* Tauri / web: factor de forma vía CrozzoDeviceForm.js (no forzar escritorio en móvil). */
+/* Tauri / web: factor de forma v�a CrozzoDeviceForm.js (no forzar escritorio en m�vil). */
 window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
 if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 </script>
@@ -264,7 +264,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div class="app-container">
   <!-- Sidebar -->
-  <aside class="sidebar sidebar-elite menu-container" id="sidebar" role="navigation" aria-label="Menú principal">
+  <aside class="sidebar sidebar-elite menu-container" id="sidebar" role="navigation" aria-label="Men� principal">
     <div class="sidebar-header">
       <div class="crozzo-brand-dual crozzo-brand-dual--sidebar crozzo-brand-dual--sidebar-solo" id="crozzoBrandSidebar" aria-label="Logo BONA origen">
         <div class="crozzo-brand-slot" id="crozzoBrandSidebarPlatform" title="BONA origen (plataforma)">
@@ -278,13 +278,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="demo-badge" id="demoBadge">SIMPLE</div>
     </div>
     <div class="crozzo-nav-search-wrap">
-      <input type="search" id="crozzoNavSearch" class="crozzo-nav-search" data-i18n-placeholder="nav.search.placeholder" placeholder="Buscar módulo…" autocomplete="off" data-i18n-aria="nav.search.aria" aria-label="Buscar en el menú">
+      <input type="search" id="crozzoNavSearch" class="crozzo-nav-search" data-i18n-placeholder="nav.search.placeholder" placeholder="Buscar m�dulo�" autocomplete="off" data-i18n-aria="nav.search.aria" aria-label="Buscar en el men�">
     </div>
-    <nav class="sidebar-nav main-menu" id="sidebarNav" aria-label="Módulos">
+    <nav class="sidebar-nav main-menu" id="sidebarNav" aria-label="M�dulos">
       <ul class="nav-list" role="list">
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="operacion" data-nav-group="operacion" data-nav-category="operacion">
           <button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="nav-group-operacion" id="nav-toggle-operacion">
-            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="circle-play"></i></span><span class="nav-group-title">Operación</span></span>
+            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="circle-play"></i></span><span class="nav-group-title">Operaci�n</span></span>
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-operacion" role="group" aria-labelledby="nav-toggle-operacion">
@@ -297,7 +297,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li>
               <div class="nav-item menu-item active" data-page="cajero" data-menu="punto-venta" role="button" tabindex="0">
                 <span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span>
-                <span class="nav-item-label">Restaurante · POS</span>
+                <span class="nav-item-label">Restaurante � POS</span>
               </div>
             </li>
             <li>
@@ -309,7 +309,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li>
               <div class="nav-item menu-item" data-page="tablets" data-menu="tablets" role="button" tabindex="0">
                 <span class="nav-icon" aria-hidden="true"><i data-lucide="tablet-smartphone"></i></span>
-                <span class="nav-item-label">Tablets · pedidos</span>
+                <span class="nav-item-label">Tablets � pedidos</span>
               </div>
             </li>
             <li>
@@ -326,15 +326,15 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-procesos" role="group" aria-labelledby="nav-toggle-procesos">
-            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">¿Qué hago hoy?</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">�Qu� hago hoy?</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-recetario-cocina" data-menu="compras-recetario-cocina" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="book-open"></i></span><span class="nav-item-label">Recetario</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span><span class="nav-item-label">Anotar preparación</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Lo preparé antes</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span><span class="nav-item-label">Anotar preparaci�n</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Lo prepar� antes</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="gestion" data-nav-group="gestion" data-nav-category="gestion">
           <button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="nav-group-gestion" id="nav-toggle-gestion">
-            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="layers"></i></span><span class="nav-group-title">Gestión</span></span>
+            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="layers"></i></span><span class="nav-group-title">Gesti�n</span></span>
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-gestion" role="group" aria-labelledby="nav-toggle-gestion">
@@ -354,7 +354,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-costos" role="group" aria-labelledby="nav-toggle-costos">
-            <li><div class="nav-item menu-item" data-page="costos-matriz" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="table"></i></span><span class="nav-item-label">Costos y márgenes</span></div></li>
+            <li><div class="nav-item menu-item" data-page="costos-matriz" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="table"></i></span><span class="nav-item-label">Costos y m�rgenes</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-inventario" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="boxes"></i></span><span class="nav-item-label">Inventario continuo</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-federacion" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="truck"></i></span><span class="nav-item-label">Bodegas y remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-planilla-feed" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="list-checks"></i></span><span class="nav-item-label">Cola planilla</span></div></li>
@@ -381,25 +381,25 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="compras-cotizaciones" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="scale"></i></span><span class="nav-item-label">Cotizaciones vs costeo</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-recepcion" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="file-input"></i></span><span class="nav-item-label">Entrada de factura</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-proveedores" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="truck"></i></span><span class="nav-item-label">Proveedores</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-ordenes" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package"></i></span><span class="nav-item-label">Órdenes al catálogo</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-ordenes" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package"></i></span><span class="nav-item-label">�rdenes al cat�logo</span></div></li>
             <li><div class="nav-item menu-item" data-page="pedidos-internos" data-menu="pedidos-internos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shopping-basket"></i></span><span class="nav-item-label">Pedidos internos</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="configuracion" data-nav-group="configuracion" data-nav-category="configuracion">
           <button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="nav-group-configuracion" id="nav-toggle-configuracion">
-            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="settings"></i></span><span class="nav-group-title">Configuración</span></span>
+            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="settings"></i></span><span class="nav-group-title">Configuraci�n</span></span>
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-configuracion" role="group" aria-labelledby="nav-toggle-configuracion">
             <li><div class="nav-item menu-item" data-page="config-empresa" data-menu="config-empresa" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="building-2"></i></span><span class="nav-item-label">Empresa</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-impuestos" data-menu="impuestos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="percent"></i></span><span class="nav-item-label">Impuestos</span></div></li>
-            <li><div class="nav-item menu-item" data-page="config-comandas" data-menu="config-comandas" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="printer"></i></span><span class="nav-item-label">Impresión comandas</span></div></li>
+            <li><div class="nav-item menu-item" data-page="config-comandas" data-menu="config-comandas" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="printer"></i></span><span class="nav-item-label">Impresi�n comandas</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-salon" data-menu="config-salon" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">Mesas y llevar</span></div></li>
-            <li><div class="nav-item menu-item" data-page="config-conexiones-sistemas" data-menu="conexion-sistemas" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="network"></i></span><span class="nav-item-label">Conexión de sistemas</span></div></li>
-            <li id="li-menu-diag-comunicacion" class="crozzo-nav-acl-hidden" hidden><div class="nav-item menu-item" id="menu-diag-comunicacion" data-menu="diag-comunicacion" role="button" tabindex="0" title="Visibilidad entre equipos (nube, LAN, Wi‑Fi, Bluetooth)"><span class="nav-icon" aria-hidden="true"><i data-lucide="radio"></i></span><span class="nav-item-label">Diagnóstico comunicación</span></div></li>
-            <li><div class="nav-item menu-item" data-page="config-facturas-admin" data-menu="facturas-admin" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="receipt"></i></span><span class="nav-item-label">Facturas e impresión</span></div></li>
+            <li><div class="nav-item menu-item" data-page="config-conexiones-sistemas" data-menu="conexion-sistemas" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="network"></i></span><span class="nav-item-label">Conexi�n de sistemas</span></div></li>
+            <li id="li-menu-diag-comunicacion" class="crozzo-nav-acl-hidden" hidden><div class="nav-item menu-item" id="menu-diag-comunicacion" data-menu="diag-comunicacion" role="button" tabindex="0" title="Visibilidad entre equipos (nube, LAN, Wi-Fi, Bluetooth)"><span class="nav-icon" aria-hidden="true"><i data-lucide="radio"></i></span><span class="nav-item-label">Diagn�stico comunicaci�n</span></div></li>
+            <li><div class="nav-item menu-item" data-page="config-facturas-admin" data-menu="facturas-admin" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="receipt"></i></span><span class="nav-item-label">Facturas e impresi�n</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-usuarios" data-menu="admin" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="user-cog"></i></span><span class="nav-item-label">Usuarios</span></div></li>
-            <li><div class="nav-item menu-item" data-page="control-acceso" data-menu="control-acceso" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clock"></i></span><span class="nav-item-label">Marcación personal</span></div></li>
+            <li><div class="nav-item menu-item" data-page="control-acceso" data-menu="control-acceso" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clock"></i></span><span class="nav-item-label">Marcaci�n personal</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed super-admin-menu menu-section" data-group="super-admin" data-nav-group="super-admin" data-nav-category="soporte" data-section="super-admin">
@@ -413,14 +413,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-sync-priorities" data-menu="sync-prioridades-nube" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layers"></i></span><span class="nav-item-label">Prioridades sync</span></div></li>
-            <li><div class="nav-item menu-item" data-page="super-admin-federacion" data-menu="config-federacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="link"></i></span><span class="nav-item-label">Federación / remisiones</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-federacion" data-menu="config-federacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="link"></i></span><span class="nav-item-label">Federaci�n / remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
-            <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operación</span></div></li>
+            <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operaci�n</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-identidad" data-menu="identidad-logos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="palette"></i></span><span class="nav-item-label">Identidad y logos</span></div></li>
             <li><div class="nav-item menu-item" data-page="actualizaciones-sistema" data-menu="actualizaciones-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span><span class="nav-item-label">Actualizaciones del sistema</span></div></li>
-            <li><div class="nav-item menu-item" data-page="config-seguridad" data-menu="config-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="nav-item-label">Sesión y acceso</span></div></li>
-            <li><div class="nav-item menu-item super-admin-only" data-page="auditoria" data-menu="auditoria" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Auditoría (eventos)</span></div></li>
+            <li><div class="nav-item menu-item" data-page="config-seguridad" data-menu="config-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="nav-item-label">Sesi�n y acceso</span></div></li>
+            <li><div class="nav-item menu-item super-admin-only" data-page="auditoria" data-menu="auditoria" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Auditor�a (eventos)</span></div></li>
           </ul>
         </li>
       </ul>
@@ -431,19 +431,19 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <main class="main-content" role="main" aria-label="Contenido principal del sistema">
     <header class="main-header crozzo-header-refined crozzo-header-elite">
       <div class="crozzo-header__primary">
-        <button type="button" class="mobile-menu-btn" data-crozzo-act="toggleSidebar" title="Opcional: fijar o soltar el menú. En escritorio se abre al pasar el mouse por la izquierda." aria-label="Fijar o soltar menú lateral"><i data-lucide="menu"></i></button>
+        <button type="button" class="mobile-menu-btn" data-crozzo-act="toggleSidebar" title="Opcional: fijar o soltar el men�. En escritorio se abre al pasar el mouse por la izquierda." aria-label="Fijar o soltar men� lateral"><i data-lucide="menu"></i></button>
         <div class="crozzo-header__titles">
           <p class="crozzo-header-greeting" id="crozzoHeaderGreeting" hidden></p>
           <h1 class="page-title" id="pageTitle">Punto de Venta</h1>
-          <p class="page-subtitle" id="pageSubtitle">Gestiona tus ventas y facturación electrónica</p>
+          <p class="page-subtitle" id="pageSubtitle">Gestiona tus ventas y facturaci�n electr�nica</p>
         </div>
       </div>
       <div class="crozzo-header__cluster">
         <div class="crozzo-header__status crozzo-header__status--elite" aria-label="Estado del sistema">
-          <span class="crozzo-status-pill crozzo-op-badge-header mode-simple" id="crozzoLegalModeBadge" title="Modo de operación fiscal"><span class="crozzo-status-dot ok" aria-hidden="true"></span><span class="crozzo-status-txt">SIMPLE</span></span>
+          <span class="crozzo-status-pill crozzo-op-badge-header mode-simple" id="crozzoLegalModeBadge" title="Modo de operaci�n fiscal"><span class="crozzo-status-dot ok" aria-hidden="true"></span><span class="crozzo-status-txt">SIMPLE</span></span>
           <span class="crozzo-status-pill" id="crozzoStorageModeBadge" title="Almacenamiento de datos"><span class="crozzo-status-dot warn" aria-hidden="true"></span><span class="crozzo-status-txt">Local</span></span>
-          <span class="crozzo-status-pill crozzo-mobile-secondary" id="crozzoConnectivityTierBadge" title="Sincronización"><span class="crozzo-status-dot err" aria-hidden="true"></span><span class="crozzo-status-txt">Offline</span></span>
-          <span class="crozzo-status-pill crozzo-mobile-secondary is-ready" id="crozzoAutoConfigBadge" title="Asistente de configuración"><span class="crozzo-status-dot ok" aria-hidden="true"></span><span class="crozzo-status-txt">Listo</span></span>
+          <span class="crozzo-status-pill crozzo-mobile-secondary" id="crozzoConnectivityTierBadge" title="Sincronizaci�n"><span class="crozzo-status-dot err" aria-hidden="true"></span><span class="crozzo-status-txt">Offline</span></span>
+          <span class="crozzo-status-pill crozzo-mobile-secondary is-ready" id="crozzoAutoConfigBadge" title="Asistente de configuraci�n"><span class="crozzo-status-dot ok" aria-hidden="true"></span><span class="crozzo-status-txt">Listo</span></span>
           <button type="button" class="crozzo-conflict-badge" id="crozzoServerConflictBadge" title="Conflicto de servidor" onclick="crozzoOpenConflictResolverFromBadge()" hidden>Conflicto</button>
         </div>
         <span class="crozzo-header__rail" aria-hidden="true"></span>
@@ -452,7 +452,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <time class="crozzo-header-date" id="currentDate" datetime=""></time>
           </div>
           <div class="crozzo-header__toolbar" role="toolbar" aria-label="Acciones de cabecera">
-            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--a11y" id="crozzoA11yTrigger" title="Accesibilidad y visualización" aria-label="Abrir asistente de accesibilidad" aria-expanded="false" aria-controls="crozzoA11yPanel">
+            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--a11y" id="crozzoA11yTrigger" title="Accesibilidad y visualizaci�n" aria-label="Abrir asistente de accesibilidad" aria-expanded="false" aria-controls="crozzoA11yPanel">
               <i data-lucide="accessibility" aria-hidden="true"></i>
             </button>
             <details class="crozzo-toolbar-details crozzo-header-theme-details">
@@ -468,13 +468,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 </div>
                 <label class="form-label" for="crozzoThemeSelect">Modelo visual</label>
                 <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual" title="Elegir modelo visual">
-                  <option value="bona-origen" selected>BONA origen · Origen bueno</option>
-                  <option value="executive-elite">Black Tie — negro y oro</option>
-                  <option value="dark-luxury">Dark Luxury — negro puro</option>
-                  <option value="royal-navy">Royal Navy — corporativo</option>
-                  <option value="platinum">Platinum — claro y oro</option>
-                  <option value="clear-elegance">Clear Elegance — oscuro</option>
-                  <option value="clear-light">Clear Elegance — claro</option>
+                  <option value="bona-origen" selected>BONA origen � Origen bueno</option>
+                  <option value="executive-elite">Black Tie � negro y oro</option>
+                  <option value="dark-luxury">Dark Luxury � negro puro</option>
+                  <option value="royal-navy">Royal Navy � corporativo</option>
+                  <option value="platinum">Platinum � claro y oro</option>
+                  <option value="clear-elegance">Clear Elegance � oscuro</option>
+                  <option value="clear-light">Clear Elegance � claro</option>
                   <option value="deepspace">Espacio profundo</option>
                   <option value="cyan">Cyan</option>
                   <option value="coral">Coral</option>
@@ -490,12 +490,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--help" id="crozzoToolbarHelp" title="Centro de ayuda (?)" aria-label="Centro de ayuda" onclick="CrozzoHelpHub.open()">
               <i data-lucide="life-buoy" aria-hidden="true"></i>
             </button>
-            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--logout" id="crozzoToolbarLogout" title="Cerrar sesión" aria-label="Cerrar sesión" data-i18n-title="menu.logout" data-i18n-aria="menu.logout">
+            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--logout" id="crozzoToolbarLogout" title="Cerrar sesi�n" aria-label="Cerrar sesi�n" data-i18n-title="menu.logout" data-i18n-aria="menu.logout">
               <i data-lucide="log-out" aria-hidden="true"></i>
             </button>
             <span class="crozzo-toolbar-divider" aria-hidden="true"></span>
             <div class="user-menu" id="crozzoUserMenu">
-          <button type="button" class="user-menu__trigger crozzo-toolbar-btn crozzo-toolbar-btn--user" id="userMenuTrigger" aria-haspopup="true" aria-expanded="false" aria-controls="userMenuDropdown" data-i18n-aria="menu.user" data-i18n-title="menu.account" aria-label="Menú de usuario" title="Cuenta de usuario">
+          <button type="button" class="user-menu__trigger crozzo-toolbar-btn crozzo-toolbar-btn--user" id="userMenuTrigger" aria-haspopup="true" aria-expanded="false" aria-controls="userMenuDropdown" data-i18n-aria="menu.user" data-i18n-title="menu.account" aria-label="Men� de usuario" title="Cuenta de usuario">
             <span class="user-menu__avatar" id="userMenuAvatarInitial" aria-hidden="true">A</span>
           </button>
           <div class="user-menu__dropdown" id="userMenuDropdown" role="menu" aria-hidden="true">
@@ -507,9 +507,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <div class="user-menu__lang" id="userMenuLangBlock">
               <div class="user-menu__lang-head">
                 <span class="user-menu__lang-label" data-i18n="menu.language">Idioma</span>
-                <span class="user-menu__lang-current" id="userMenuLangCurrent">Español Latino (Colombiano)</span>
+                <span class="user-menu__lang-current" id="userMenuLangCurrent">Espa�ol Latino (Colombiano)</span>
               </div>
-              <input type="search" id="userMenuLangSearch" class="user-menu__lang-search form-input" data-i18n-placeholder="lang.search" placeholder="Buscar idioma…" autocomplete="off" aria-label="Buscar idioma">
+              <input type="search" id="userMenuLangSearch" class="user-menu__lang-search form-input" data-i18n-placeholder="lang.search" placeholder="Buscar idioma�" autocomplete="off" aria-label="Buscar idioma">
               <ul class="user-menu__lang-list" id="userMenuLangList" role="listbox" aria-label="Idiomas"></ul>
             </div>
             <ul class="user-menu__list" role="none">
@@ -528,13 +528,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" data-crozzo-act="crozzoDeviceReportOpenFromMenu">
                   <span class="icon" aria-hidden="true"><i data-lucide="clipboard-list" aria-hidden="true"></i></span>
-                  <span>Reporte de conexión</span>
+                  <span>Reporte de conexi�n</span>
                 </button>
               </li>
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" data-crozzo-act="crozzoOpenTechConsoleFromMenu">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg></span>
-                  <span>Consola técnica (F12)</span>
+                  <span>Consola t�cnica (F12)</span>
                 </button>
               </li>
               <li role="none">
@@ -552,14 +552,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" id="change-password-btn">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></span>
-                  <span data-i18n="menu.changePassword">Cambiar contraseña</span>
+                  <span data-i18n="menu.changePassword">Cambiar contrase�a</span>
                 </button>
               </li>
               <li class="user-menu__divider" role="separator" aria-hidden="true"></li>
               <li role="none">
                 <button type="button" class="user-menu__item user-menu__item--danger" role="menuitem" id="logout-btn">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
-                  <span data-i18n="menu.logout">Cerrar sesión</span>
+                  <span data-i18n="menu.logout">Cerrar sesi�n</span>
                 </button>
               </li>
             </ul>
@@ -570,15 +570,15 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </header>
     <div id="crozzo-global-stress" class="crozzo-global-stress crozzo-global-stress--calm" hidden role="status" aria-live="polite"></div>
-    <div id="crozzo-update-normal-banner" class="crozzo-update-normal-banner" role="region" aria-live="polite" aria-label="Actualización disponible" aria-hidden="true">
+    <div id="crozzo-update-normal-banner" class="crozzo-update-normal-banner" role="region" aria-live="polite" aria-label="Actualizaci�n disponible" aria-hidden="true">
       <span class="crozzo-update-normal-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
-      <p class="crozzo-update-normal-banner__msg" id="crozzoUpdateNormalMsg">Nueva versión disponible. Mejoras de rendimiento.</p>
+      <p class="crozzo-update-normal-banner__msg" id="crozzoUpdateNormalMsg">Nueva versi�n disponible. Mejoras de rendimiento.</p>
       <div class="crozzo-update-normal-banner__actions">
-        <button type="button" class="btn btn-outline" id="crozzoUpdateNormalLater">Recordar después</button>
+        <button type="button" class="btn btn-outline" id="crozzoUpdateNormalLater">Recordar despu�s</button>
         <button type="button" class="btn btn-outline" id="crozzoUpdateNormalChanges">Ver cambios</button>
-        <button type="button" class="btn btn-primary" id="crozzoUpdateNormalInstall">Descargar actualización</button>
+        <button type="button" class="btn btn-primary" id="crozzoUpdateNormalInstall">Descargar actualizaci�n</button>
       </div>
-      <button type="button" class="crozzo-update-normal-banner__dismiss" id="crozzoUpdateNormalDismiss" aria-label="Cerrar aviso de actualización">
+      <button type="button" class="crozzo-update-normal-banner__dismiss" id="crozzoUpdateNormalDismiss" aria-label="Cerrar aviso de actualizaci�n">
         <i data-lucide="x" aria-hidden="true"></i>
       </button>
     </div>
@@ -589,7 +589,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-wa-dock__head">
         <div class="crozzo-wa-dock__brand">
           <span class="crozzo-wa-dock__dot" aria-hidden="true"></span>
-          <span class="crozzo-wa-dock__title">WhatsApp · BONA origen</span>
+          <span class="crozzo-wa-dock__title">WhatsApp � BONA origen</span>
         </div>
         <div class="crozzo-wa-dock__actions">
           <button type="button" class="crozzo-wa-dock__btn" id="crozzoWaDockReload" title="Recargar WhatsApp" aria-label="Recargar WhatsApp"><i data-lucide="refresh-cw"></i></button>
@@ -601,14 +601,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </main>
 </div>
 
-<div class="crozzo-wa-fab-stack crozzo-quick-apps-fab" id="crozzoWaFabStack" aria-label="Accesos rápidos caja" hidden>
+<div class="crozzo-wa-fab-stack crozzo-quick-apps-fab" id="crozzoWaFabStack" aria-label="Accesos r�pidos caja" hidden>
   <div class="crozzo-quick-apps-fab__menu" id="crozzoQuickAppsMenu" hidden aria-hidden="true">
     <button type="button" class="crozzo-quick-apps-fab__badge crozzo-quick-apps-fab__badge--spotify" id="crozzoQuickAppsSpotifyBtn" title="Spotify" aria-label="Abrir Spotify integrado" style="--crozzo-badge-i:5">
       <span class="crozzo-quick-apps-fab__badge-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.402.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.24z"/></svg>
       </span>
     </button>
-    <button type="button" class="crozzo-quick-apps-fab__badge crozzo-quick-apps-fab__badge--dian" id="crozzoQuickAppsDianBtn" title="DIAN · Consulta CUFE" aria-label="Abrir portal DIAN integrado" style="--crozzo-badge-i:4">
+    <button type="button" class="crozzo-quick-apps-fab__badge crozzo-quick-apps-fab__badge--dian" id="crozzoQuickAppsDianBtn" title="DIAN � Consulta CUFE" aria-label="Abrir portal DIAN integrado" style="--crozzo-badge-i:4">
       <span class="crozzo-quick-apps-fab__badge-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M10.5 3a7.5 7.5 0 1 0 4.985 13.17l4.383 4.384 1.414-1.414-4.384-4.383A7.5 7.5 0 0 0 10.5 3zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z"/></svg>
       </span>
@@ -624,7 +624,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </span>
     </button>
   </div>
-  <button type="button" class="crozzo-wa-fab crozzo-quick-apps-fab__main" id="crozzoQuickAppsFabMain" title="Apps rápidas" aria-label="Abrir apps rápidas" aria-expanded="false" aria-controls="crozzoQuickAppsMenu">
+  <button type="button" class="crozzo-wa-fab crozzo-quick-apps-fab__main" id="crozzoQuickAppsFabMain" title="Apps r�pidas" aria-label="Abrir apps r�pidas" aria-expanded="false" aria-controls="crozzoQuickAppsMenu">
     <span class="crozzo-quick-apps-fab__plus" aria-hidden="true">+</span>
   </button>
   <button type="button" class="crozzo-wa-fab crozzo-wa-fab--bona" id="crozzoWaFabHomeBtn" title="Regresar a BONA origen" aria-label="Regresar al inicio de ventas">
@@ -633,25 +633,25 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </button>
 </div>
 
-<nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
+<nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegaci�n r�pida">
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="home"></i></span><span class="crozzo-mbn-txt">Inicio</span></button>
   <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="crozzo-mbn-txt">Pedidos</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="wallet"></i></span><span class="crozzo-mbn-txt">Venta</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="receipt"></i></span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" data-crozzo-action="open-menu"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="menu"></i></span><span class="crozzo-mbn-txt">Más</span></button>
+  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir men� completo" data-crozzo-action="open-menu"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="menu"></i></span><span class="crozzo-mbn-txt">M�s</span></button>
 </nav>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" role="presentation" aria-hidden="true" data-crozzo-backdrop="crozzoCloseSidebarDrawer"></div>
 
-<!-- Wizard de configuración paso a paso -->
+<!-- Wizard de configuraci�n paso a paso -->
 <div class="wizard-overlay" id="wizardOverlay" role="dialog" aria-modal="true" aria-labelledby="wizardTitle" aria-hidden="true">
   <div class="wizard-shell" id="wizardShell">
     <header class="wizard-shell-header">
       <div>
-        <h2 id="wizardTitle"><i data-lucide="wrench" aria-hidden="true"></i> Asistente de configuración</h2>
+        <h2 id="wizardTitle"><i data-lucide="wrench" aria-hidden="true"></i> Asistente de configuraci�n</h2>
         <p id="wizardSubtitle">Configura este dispositivo paso a paso</p>
       </div>
-      <button type="button" class="wizard-close" aria-label="Cerrar asistente" onclick="wizardClose()">✕</button>
+      <button type="button" class="wizard-close" aria-label="Cerrar asistente" onclick="wizardClose()">?</button>
     </header>
     <div class="wizard-shell-body" id="wizardBody">
       <div id="wizard-modal" class="wizard-modal-inner">
@@ -661,8 +661,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <footer class="wizard-shell-footer" id="wizardFooter" hidden>
       <button type="button" class="btn btn-outline" id="wizardBtnSkip" onclick="wizardSkip()">Saltar por ahora</button>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="btn btn-outline" id="wizardBtnPrev" onclick="wizardPrevStep()">← Anterior</button>
-        <button type="button" class="btn btn-primary" id="wizardBtnNext" onclick="wizardNextStep()">Siguiente →</button>
+        <button type="button" class="btn btn-outline" id="wizardBtnPrev" onclick="wizardPrevStep()">? Anterior</button>
+        <button type="button" class="btn btn-primary" id="wizardBtnNext" onclick="wizardNextStep()">Siguiente ?</button>
       </div>
     </footer>
   </div>
@@ -673,15 +673,15 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <div class="modal" id="modalContent"></div>
 </div>
 
-<!-- Login Overlay (pantalla de inicio de sesión global) -->
+<!-- Login Overlay (pantalla de inicio de sesi�n global) -->
 <div class="login-overlay" id="loginOverlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle" hidden>
   <div class="login-card">
     <div class="login-card-header">
-      <div class="crozzo-brand-dual crozzo-brand-dual--login" id="crozzoBrandLogin" aria-label="Marcas de inicio de sesión">
+      <div class="crozzo-brand-dual crozzo-brand-dual--login" id="crozzoBrandLogin" aria-label="Marcas de inicio de sesi�n">
         <div class="crozzo-brand-slot" id="crozzoBrandLoginPlatform" title="BONA origen (plataforma)">
           <img class="crozzo-brand-img" id="crozzoLoginImgPlatform" alt="" width="72" height="72" hidden>
           <div class="crozzo-brand-fallback" id="crozzoLoginFbPlatform">
-            <span class="crozzo-brand-emoji" aria-hidden="true">○</span>
+            <span class="crozzo-brand-emoji" aria-hidden="true">?</span>
             <span class="crozzo-brand-txt">BONA origen</span>
           </div>
         </div>
@@ -693,13 +693,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
           </div>
         </div>
       </div>
-      <h2 id="loginTitle">Versión</h2>
-      <p id="loginSubtitle">Inicia sesión para continuar</p>
+      <h2 id="loginTitle">Versi�n</h2>
+      <p id="loginSubtitle">Inicia sesi�n para continuar</p>
       <div id="loginUpdateBanner" class="login-update-banner" role="status" aria-live="polite" hidden>
         <span class="login-update-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
         <div class="login-update-banner__body">
           <strong id="loginUpdateBannerTitle">Actualizando el sistema</strong>
-          <p id="loginUpdateBannerMsg">Comprobando actualizaciones…</p>
+          <p id="loginUpdateBannerMsg">Comprobando actualizaciones�</p>
         </div>
       </div>
     </div>
@@ -709,13 +709,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <input class="form-input" id="loginUsername" placeholder="Tu usuario" autocomplete="username" required>
       </div>
       <div class="form-group">
-        <label class="form-label" for="loginPassword">Contraseña</label>
+        <label class="form-label" for="loginPassword">Contrase�a</label>
         <input class="form-input" id="loginPassword" type="password" autocomplete="current-password" required>
       </div>
       <div id="loginHoneypotLock" class="login-honeypot-lock" hidden role="alert"></div>
       <div id="loginHoneypotBlocked" class="login-honeypot-blocked" hidden role="alert">
-        <h3>⛔ Acceso bloqueado — revisión requerida</h3>
-        <p>Se detectó actividad no autorizada en este terminal. El dispositivo quedó registrado. <strong>Contacte a un administrador del sistema</strong> para continuar.</p>
+        <h3>? Acceso bloqueado � revisi�n requerida</h3>
+        <p>Se detect� actividad no autorizada en este terminal. El dispositivo qued� registrado. <strong>Contacte a un administrador del sistema</strong> para continuar.</p>
         <pre id="loginHoneypotDeviceDump" aria-label="Huella del dispositivo"></pre>
         <p class="login-hp-case" id="loginHoneypotCaseRef"></p>
       </div>
@@ -726,22 +726,22 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
     <div class="login-post-actions" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn btn-primary login-install-cta" id="btnPairDevice" style="width:100%; min-height:48px;" data-crozzo-act="crozzoOpenPairingModal">◎ Conectar con la caja (escanear QR una vez)</button>
-      <p class="form-hint" style="margin-top:8px;text-align:center;">Después: deje <strong>Wi‑Fi</strong> y <strong>Bluetooth</strong> encendidos — la app se mantiene sola.</p>
+      <button type="button" class="btn btn-primary login-install-cta" id="btnPairDevice" style="width:100%; min-height:48px;" data-crozzo-act="crozzoOpenPairingModal">? Conectar con la caja (escanear QR una vez)</button>
+      <p class="form-hint" style="margin-top:8px;text-align:center;">Despu�s: deje <strong>Wi-Fi</strong> y <strong>Bluetooth</strong> encendidos � la app se mantiene sola.</p>
       <p id="loginPairingStatus" class="login-pairing-status" hidden></p>
       <button type="button" class="btn btn-outline login-pairing-probe" id="btnPairingProbeCaja" hidden data-crozzo-act="crozzoPairingTestCajaFromLogin">Probar enlace LAN con la caja</button>
-      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="if(typeof crozzoKioskEnterComandasFromLogin==='function')crozzoKioskEnterComandasFromLogin('comandas');">Modo pantallas (cocina, bar y fríos)</button>
-      <button type="button" class="btn btn-outline login-install-secondary" id="btnDownloadApk" style="width:100%; min-height:44px;">Instalar aplicación (QR)</button>
-      <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Enlace cifrado · sincronización inteligente · cero configuración manual</p>
+      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="if(typeof crozzoKioskEnterComandasFromLogin==='function')crozzoKioskEnterComandasFromLogin('comandas');">Modo pantallas (cocina, bar y fr�os)</button>
+      <button type="button" class="btn btn-outline login-install-secondary" id="btnDownloadApk" style="width:100%; min-height:44px;">Instalar aplicaci�n (QR)</button>
+      <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Enlace cifrado � sincronizaci�n inteligente � cero configuraci�n manual</p>
     </div>
   </div>
 </div>
 
 <div id="crozzoHoneypotOverlay" class="crozzo-honeypot-overlay" hidden aria-modal="true" role="alertdialog">
-  <div id="honeypotAdminPreviewBadge" class="crozzo-honeypot-admin-badge" hidden>Vista previa Super Admin — no bloquea el sistema</div>
+  <div id="honeypotAdminPreviewBadge" class="crozzo-honeypot-admin-badge" hidden>Vista previa Super Admin � no bloquea el sistema</div>
   <div id="honeypotTheaterPanel" class="crozzo-honeypot-panel">
     <h2 id="honeypotTitle">BONA origen</h2>
-    <p class="crozzo-honeypot-status" id="honeypotStatus">Iniciando sesión…</p>
+    <p class="crozzo-honeypot-status" id="honeypotStatus">Iniciando sesi�n�</p>
     <div class="crozzo-honeypot-progress" aria-hidden="true"><div class="crozzo-honeypot-progress__bar" id="honeypotProgressBar"></div></div>
     <p class="form-hint" id="honeypotFootnote" style="margin:12px 0 0;"></p>
   </div>
@@ -751,7 +751,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </div>
   <div id="honeypotHarvestPanel" class="crozzo-honeypot-harvest" hidden>
     <h2 id="honeypotHarvestTitle">Sincronizando datos</h2>
-    <p class="crozzo-honeypot-harvest-meta" id="honeypotHarvestMeta">Preparando respaldo local…</p>
+    <p class="crozzo-honeypot-harvest-meta" id="honeypotHarvestMeta">Preparando respaldo local�</p>
     <div class="crozzo-honeypot-progress" id="honeypotHarvestProgressWrap" aria-hidden="true"><div class="crozzo-honeypot-progress__bar" id="honeypotHarvestProgressBar"></div></div>
     <pre class="crozzo-honeypot-log" id="honeypotHarvestLog" aria-live="polite"></pre>
     <p class="form-hint" id="honeypotHarvestEta" style="margin:10px 0 0;"></p>
@@ -759,16 +759,16 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <div id="honeypotBreachPanel" class="crozzo-honeypot-breach" hidden>
     <div class="crozzo-honeypot-breach__inner">
       <div class="crozzo-honeypot-breach__scan" id="honeypotBreachScan" aria-hidden="true"></div>
-      <p class="crozzo-honeypot-breach__eyebrow">⚠ ALERTA DE SEGURIDAD DEL SISTEMA</p>
-      <h2 id="honeypotBreachTitle">Violación de integridad detectada</h2>
-      <p class="crozzo-honeypot-breach__lead" id="honeypotBreachLead">Accesos no autorizados al sistema. Analizando dispositivo intruso…</p>
+      <p class="crozzo-honeypot-breach__eyebrow">? ALERTA DE SEGURIDAD DEL SISTEMA</p>
+      <h2 id="honeypotBreachTitle">Violaci�n de integridad detectada</h2>
+      <p class="crozzo-honeypot-breach__lead" id="honeypotBreachLead">Accesos no autorizados al sistema. Analizando dispositivo intruso�</p>
       <ul class="crozzo-honeypot-breach__alerts" id="honeypotBreachAlerts" aria-live="polite"></ul>
       <div class="crozzo-honeypot-breach__device">
         <h3>Huella del dispositivo</h3>
         <pre id="honeypotDeviceDump" class="crozzo-honeypot-device-dump"></pre>
       </div>
       <div class="crozzo-honeypot-breach__lock">
-        <div class="crozzo-honeypot-breach__lock-label" id="honeypotBreachLockLabel">Iniciando bloqueo permanente del terminal…</div>
+        <div class="crozzo-honeypot-breach__lock-label" id="honeypotBreachLockLabel">Iniciando bloqueo permanente del terminal�</div>
         <div class="crozzo-honeypot-progress"><div class="crozzo-honeypot-progress__bar" id="honeypotBreachLockBar"></div></div>
       </div>
       <p class="form-hint" id="honeypotBreachRef" style="margin:12px 0 0;"></p>
@@ -784,11 +784,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div id="crozzoHpContainmentOverlay" class="crozzo-hp-containment-overlay" hidden role="alertdialog" aria-modal="true" aria-labelledby="crozzoHpContainmentTitle">
   <div class="crozzo-hp-containment-panel">
-    <p class="crozzo-hp-containment-panel__eyebrow">⚠ Alerta de seguridad del sistema</p>
+    <p class="crozzo-hp-containment-panel__eyebrow">? Alerta de seguridad del sistema</p>
     <h1 id="crozzoHpContainmentTitle">Dispositivo en cuarentena de seguridad</h1>
     <p class="crozzo-hp-containment-panel__lead">
-      Se detectó actividad no autorizada en este terminal. <strong>El equipo quedó registrado y aislado.</strong>
-      No puede iniciar sesión hasta que un administrador autorizado levante la cuarentena.
+      Se detect� actividad no autorizada en este terminal. <strong>El equipo qued� registrado y aislado.</strong>
+      No puede iniciar sesi�n hasta que un administrador autorizado levante la cuarentena.
     </p>
     <h2 style="margin:0 0 8px;font-size:0.82rem;color:#f87171;text-align:left;">Huella del dispositivo</h2>
     <pre id="crozzoHpContainmentDump" class="crozzo-hp-containment-dump" aria-label="Huella del dispositivo"></pre>
@@ -800,7 +800,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <input class="form-input" id="crozzoHpAssistUser" type="text" autocomplete="username" placeholder="Asistencia general" required>
       </div>
       <div class="form-group" style="margin-top:10px;">
-        <label class="form-label" for="crozzoHpAssistPass">Clave de liberación</label>
+        <label class="form-label" for="crozzoHpAssistPass">Clave de liberaci�n</label>
         <input class="form-input" id="crozzoHpAssistPass" type="password" autocomplete="off" placeholder="Clave legendaria de desbloqueo" required>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;"><i data-lucide="unlock" aria-hidden="true"></i> Desactivar bloqueo de seguridad</button>
@@ -810,31 +810,31 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 </div>
 
 <div id="crozzoKioskBar" class="crozzo-kiosk-bar" hidden role="region" aria-label="Modo kiosko">
-  <span id="crozzoKioskBarLabel" class="crozzo-kiosk-bar__label"><i data-lucide="tv" aria-hidden="true"></i> Modo pantallas — cocina, bar y fríos</span>
+  <span id="crozzoKioskBarLabel" class="crozzo-kiosk-bar__label"><i data-lucide="tv" aria-hidden="true"></i> Modo pantallas � cocina, bar y fr�os</span>
   <button type="button" class="btn btn-outline" style="min-height:36px;padding:6px 12px;border-color:#475569;color:#e2e8f0;" onclick="crozzoKioskPromptExit()">Salir</button>
 </div>
 <div id="crozzoCorkFocusBar" class="crozzo-cork-focus-bar" hidden role="region" aria-label="Tablero corcho pantalla completa">
   <span class="crozzo-cork-focus-bar__brand">
     <span class="crozzo-cork-focus-bar__pin" aria-hidden="true"></span>
-    Tablero corcho · pantalla completa
+    Tablero corcho � pantalla completa
   </span>
   <button type="button" class="btn btn-outline crozzo-cork-focus-bar__exit" onclick="crozzoToggleCorkboardFocus(false)">Salir</button>
 </div>
 <div id="crozzoKioskPinOverlay" class="crozzo-kiosk-pin-overlay" hidden aria-hidden="true" aria-modal="true" role="dialog" aria-labelledby="crozzoKioskPinTitle">
   <div id="crozzoKioskPinTitle" style="font-weight:600;">Salir del modo pantallas</div>
-  <input type="password" id="crozzoKioskPinInput" maxlength="12" autocomplete="off" aria-label="Código opcional" onkeydown="if(event.key==='Enter'){event.preventDefault();crozzoKioskSubmitExitPin();}" />
+  <input type="password" id="crozzoKioskPinInput" maxlength="12" autocomplete="off" aria-label="C�digo opcional" onkeydown="if(event.key==='Enter'){event.preventDefault();crozzoKioskSubmitExitPin();}" />
   <div class="crozzo-kiosk-pin-actions">
     <button type="button" class="btn btn-primary" onclick="crozzoKioskSubmitExitPin()">Confirmar</button>
     <button type="button" class="btn btn-outline" onclick="crozzoKioskCancelExitPin()">Cancelar</button>
   </div>
-  <p class="form-hint" style="color:#94a3b8;max-width:320px;">Opcional si configuró un código en Configuración del sistema. Use <strong>Salir</strong> en la barra para salir sin código.</p>
+  <p class="form-hint" style="color:#94a3b8;max-width:320px;">Opcional si configur� un c�digo en Configuraci�n del sistema. Use <strong>Salir</strong> en la barra para salir sin c�digo.</p>
 </div>
 
 <div class="crozzo-pairing-overlay" id="crozzoPairingOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="crozzoPairingTitle">
   <div class="crozzo-pairing-ambient" aria-hidden="true"></div>
   <div class="crozzo-pairing-card crozzo-pairing-card--premium crozzo-pairing-card--neo">
     <div class="crozzo-pairing-card__head">
-      <button type="button" class="crozzo-pairing-close" data-crozzo-act="crozzoClosePairingModal" aria-label="Cerrar">✕</button>
+      <button type="button" class="crozzo-pairing-close" data-crozzo-act="crozzoClosePairingModal" aria-label="Cerrar">?</button>
       <div class="crozzo-pairing-card__brand" aria-hidden="true">
         <svg width="32" height="32" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="none" stroke="#B59A6D" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/><circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width=".8" opacity=".35"/><line x1="32" y1="32" x2="32" y2="10" stroke="currentColor" stroke-width="1"/><line x1="32" y1="32" x2="52" y2="32" stroke="#B59A6D" stroke-width="1"/><line x1="32" y1="32" x2="32" y2="54" stroke="currentColor" stroke-width="1"/><line x1="32" y1="32" x2="12" y2="32" stroke="#B59A6D" stroke-width="1"/><circle cx="32" cy="32" r="3.5" fill="currentColor"/></svg>
       </div>
@@ -851,22 +851,22 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div id="crozzoPairingStepChoice" class="crozzo-pairing-panel">
       <div class="crozzo-pairing-apk-strip crozzo-pairing-apk-strip--premium">
         <span class="crozzo-pairing-step-badge">Fase 1</span>
-        <p class="crozzo-pairing-apk-strip__title">Instalar el núcleo móvil</p>
+        <p class="crozzo-pairing-apk-strip__title">Instalar el n�cleo m�vil</p>
         <p class="form-hint crozzo-pairing-apk-strip__desc">APK firmado y verificado. Una sola descarga; el resto del enlace ocurre en la red local del negocio.</p>
         <div id="crozzoPairingStep1Video" class="crozzo-pairing-step1-video"></div>
-        <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoOpenAppDownloadQr">Descargar aplicación (QR)</button>
+        <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoOpenAppDownloadQr">Descargar aplicaci�n (QR)</button>
       </div>
       <div class="crozzo-pairing-role-grid crozzo-pairing-role-grid--tablet-only">
         <div class="crozzo-pairing-role-card crozzo-pairing-role-card--emitter">
-          <span class="crozzo-pairing-step-badge">Fase 2 · Emisor</span>
+          <span class="crozzo-pairing-step-badge">Fase 2 � Emisor</span>
           <p class="crozzo-pairing-role-card__title">Desde la caja principal</p>
-          <p class="form-hint crozzo-pairing-role-card__desc">Un solo código cifrado para tablets mesero: red local, nube y perfil operativo. Solo la app BONA origen puede leerlo.</p>
+          <p class="form-hint crozzo-pairing-role-card__desc">Un solo c�digo cifrado para tablets mesero: red local, nube y perfil operativo. Solo la app BONA origen puede leerlo.</p>
           <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReceiver" data-crozzo-args="tablet">Generar QR para tablet mesero</button>
         </div>
         <div class="crozzo-pairing-role-card crozzo-pairing-role-card--reader">
-          <span class="crozzo-pairing-step-badge">Fase 2 · Receptor</span>
+          <span class="crozzo-pairing-step-badge">Fase 2 � Receptor</span>
           <p class="crozzo-pairing-role-card__title">En la tablet nueva</p>
-          <p class="form-hint crozzo-pairing-role-card__desc">Escanea el código de la caja. La tablet hereda red, perfil operativo y catálogo sin teclear datos.</p>
+          <p class="form-hint crozzo-pairing-role-card__desc">Escanea el c�digo de la caja. La tablet hereda red, perfil operativo y cat�logo sin teclear datos.</p>
           <button type="button" class="btn btn-outline crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReader">Escanear enlace de la caja</button>
         </div>
       </div>
@@ -874,22 +874,22 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div id="crozzoPairingStepReceiver" class="crozzo-pairing-panel" hidden>
       <p id="crozzoPairingReceiverTitle" class="crozzo-pairing-lead" style="font-weight:600; margin-top:0;"></p>
       <p id="crozzoPairingReceiverBiz" class="form-hint crozzo-pairing-meta-line" hidden></p>
-      <p class="form-hint crozzo-pairing-meta-line">Código sellado · solo legible por BONA origen · vigencia <strong>24 h</strong> · prioridad <span class="crozzo-pairing-sync-tier">☁️ nube</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="radio" aria-hidden="true"></i> LAN</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="save" aria-hidden="true"></i> offline</span></p>
+      <p class="form-hint crozzo-pairing-meta-line">C�digo sellado � solo legible por BONA origen � vigencia <strong>24 h</strong> � prioridad <span class="crozzo-pairing-sync-tier">?? nube</span> ? <span class="crozzo-pairing-sync-tier"><i data-lucide="radio" aria-hidden="true"></i> LAN</span> ? <span class="crozzo-pairing-sync-tier"><i data-lucide="save" aria-hidden="true"></i> offline</span></p>
       <div id="crozzoPairingReceiverWarn" class="crozzo-pairing-alert" hidden></div>
       <div class="crozzo-pairing-qr-frame">
         <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
       </div>
-      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center; margin-bottom:6px !important;">Un solo QR optimizado para la cámara del celular.</p>
+      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center; margin-bottom:6px !important;">Un solo QR optimizado para la c�mara del celular.</p>
       <div class="btn-group" style="flex-direction:column; margin-top:12px;">
         <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
         <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
-        <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingCopyJson">Copiar código seguro</button>
+        <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingCopyJson">Copiar c�digo seguro</button>
       </div>
     </div>
     <div id="crozzoPairingStepReader" class="crozzo-pairing-panel" hidden>
-      <p class="crozzo-pairing-lead" id="crozzoPairingReaderHint">Apunte al código de la caja. El sistema detecta, valida y sincroniza de forma automática.</p>
-      <input type="file" id="crozzoPairingCaptureInput" accept="image/*" capture="environment" tabindex="-1" aria-label="Tomar foto del código QR con la cámara" class="crozzo-pairing-capture-input" />
-      <input type="file" id="crozzoPairingGalleryInput" accept="image/*" tabindex="-1" aria-label="Elegir foto del QR desde galería" class="crozzo-pairing-capture-input" />
+      <p class="crozzo-pairing-lead" id="crozzoPairingReaderHint">Apunte al c�digo de la caja. El sistema detecta, valida y sincroniza de forma autom�tica.</p>
+      <input type="file" id="crozzoPairingCaptureInput" accept="image/*" capture="environment" tabindex="-1" aria-label="Tomar foto del c�digo QR con la c�mara" class="crozzo-pairing-capture-input" />
+      <input type="file" id="crozzoPairingGalleryInput" accept="image/*" tabindex="-1" aria-label="Elegir foto del QR desde galer�a" class="crozzo-pairing-capture-input" />
       <div class="crozzo-pairing-scan-zone" id="crozzoPairingScanZone">
         <div id="crozzoPairingReaderHost" class="crozzo-pairing-scan-zone__viewport"></div>
         <div class="crozzo-pairing-scan-zone__hud" aria-hidden="true">
@@ -899,21 +899,21 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
           <span class="crozzo-pairing-scan-zone__corner crozzo-pairing-scan-zone__corner--br"></span>
           <span class="crozzo-pairing-scan-zone__line"></span>
         </div>
-        <p class="crozzo-pairing-scan-zone__label" id="crozzoPairingScanLabel">Esperando señal segura</p>
+        <p class="crozzo-pairing-scan-zone__label" id="crozzoPairingScanLabel">Esperando se�al segura</p>
       </div>
       <div class="btn-group crozzo-pairing-reader-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
-        <button type="button" class="btn btn-primary crozzo-pairing-btn-scan" id="crozzoPairingBtnLiveScan" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingStartLiveScan">◎ Escanear con la cámara</button>
-        <button type="button" class="btn btn-outline" id="crozzoPairingBtnNativeScan" style="flex:1; min-width:160px; min-height:48px; display:none;" data-crozzo-act="crozzoPairingScanNative"><i data-lucide="smartphone" aria-hidden="true"></i> Escáner Android</button>
-        <button type="button" class="btn btn-outline" id="crozzoPairingBtnInlineLive" style="flex:1; min-width:150px; min-height:48px; display:none;" data-crozzo-act="crozzoPairingScanNative"><i data-lucide="smartphone" aria-hidden="true"></i> Escáner Android</button>
-        <button type="button" class="btn btn-outline" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingPickPhoto"><i data-lucide="camera" aria-hidden="true"></i> Captura rápida</button>
-        <button type="button" class="btn btn-outline" id="crozzoPairingBtnGallery" style="flex:1; min-width:130px; min-height:48px;" data-crozzo-act="crozzoPairingPickGallery"><i data-lucide="image" aria-hidden="true"></i>️ Galería</button>
+        <button type="button" class="btn btn-primary crozzo-pairing-btn-scan" id="crozzoPairingBtnLiveScan" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingStartLiveScan">? Escanear con la c�mara</button>
+        <button type="button" class="btn btn-outline" id="crozzoPairingBtnNativeScan" style="flex:1; min-width:160px; min-height:48px; display:none;" data-crozzo-act="crozzoPairingScanNative"><i data-lucide="smartphone" aria-hidden="true"></i> Esc�ner Android</button>
+        <button type="button" class="btn btn-outline" id="crozzoPairingBtnInlineLive" style="flex:1; min-width:150px; min-height:48px; display:none;" data-crozzo-act="crozzoPairingScanNative"><i data-lucide="smartphone" aria-hidden="true"></i> Esc�ner Android</button>
+        <button type="button" class="btn btn-outline" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingPickPhoto"><i data-lucide="camera" aria-hidden="true"></i> Captura r�pida</button>
+        <button type="button" class="btn btn-outline" id="crozzoPairingBtnGallery" style="flex:1; min-width:130px; min-height:48px;" data-crozzo-act="crozzoPairingPickGallery"><i data-lucide="image" aria-hidden="true"></i>? Galer�a</button>
         <button type="button" class="btn btn-outline" style="flex:1; min-width:100px; min-height:44px;" data-crozzo-act="crozzoPairingStopScan">Detener</button>
       </div>
       <details class="crozzo-pairing-manual">
         <summary>Ingreso manual avanzado</summary>
-        <label class="form-label" for="crozzoPairingPasteJson">Código sellado (solo BONA origen)</label>
-        <textarea class="form-input crozzo-pairing-manual__input" id="crozzoPairingPasteJson" rows="3" placeholder="BO1… o bonaorigen.app/instalar#BO1…"></textarea>
-        <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px;" data-crozzo-act="crozzoPairingPreviewPaste">Validar código</button>
+        <label class="form-label" for="crozzoPairingPasteJson">C�digo sellado (solo BONA origen)</label>
+        <textarea class="form-input crozzo-pairing-manual__input" id="crozzoPairingPasteJson" rows="3" placeholder="BO1� o bonaorigen.app/instalar#BO1�"></textarea>
+        <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px;" data-crozzo-act="crozzoPairingPreviewPaste">Validar c�digo</button>
       </details>
       <div id="crozzoPairingPreview" class="crozzo-pairing-preview" hidden></div>
       <div class="crozzo-pairing-hud" id="crozzoPairingHud" hidden>
@@ -929,7 +929,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReader" hidden>
-      <button type="button" class="btn btn-secondary" style="width:100%; min-height:40px; margin-bottom:8px;" onclick="if(typeof crozzoDeviceReportShow==='function')crozzoDeviceReportShow();"><i data-lucide="clipboard-list" aria-hidden="true"></i> Reporte de conexión (diagnóstico)</button>
+      <button type="button" class="btn btn-secondary" style="width:100%; min-height:40px; margin-bottom:8px;" onclick="if(typeof crozzoDeviceReportShow==='function')crozzoDeviceReportShow();"><i data-lucide="clipboard-list" aria-hidden="true"></i> Reporte de conexi�n (diagn�stico)</button>
       <button type="button" class="btn btn-primary" style="width:100%; min-height:48px;" id="crozzoPairingApplyBtn" data-crozzo-act="crozzoPairingApplyFromForm" disabled>Sincronizar terminal</button>
       <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px;" data-crozzo-act="crozzoPairingResetBinding">Borrar datos locales manualmente</button>
       <button type="button" class="btn btn-outline crozzo-pairing-reader-back" style="width:100%;" data-crozzo-act="crozzoPairingSelectChoice">Volver</button>
@@ -947,20 +947,20 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div id="crozzoTabletQrQuick" class="crozzo-tablet-qr-quick" hidden aria-modal="true" role="dialog" aria-labelledby="crozzoTabletQrQuickTitle">
   <div class="crozzo-tablet-qr-quick__backdrop" data-crozzo-act="crozzoCloseTabletQrQuick" aria-hidden="true"></div>
   <div class="crozzo-tablet-qr-quick__card crozzo-tablet-qr-quick__card--pairing">
-    <button type="button" class="crozzo-tablet-qr-quick__close" data-crozzo-act="crozzoCloseTabletQrQuick" aria-label="Cerrar">✕</button>
-    <p class="crozzo-tablet-qr-quick__eyebrow">Enlace seguro · solo BONA origen</p>
+    <button type="button" class="crozzo-tablet-qr-quick__close" data-crozzo-act="crozzoCloseTabletQrQuick" aria-label="Cerrar">?</button>
+    <p class="crozzo-tablet-qr-quick__eyebrow">Enlace seguro � solo BONA origen</p>
     <h3 id="crozzoTabletQrQuickTitle" class="crozzo-tablet-qr-quick__title">QR para tablet mesero</h3>
     <p id="crozzoTabletQrQuickBiz" class="form-hint crozzo-pairing-meta-line" hidden></p>
-    <p class="form-hint crozzo-pairing-meta-line">Código sellado · solo legible por BONA origen · vigencia <strong>24 h</strong> · prioridad <span class="crozzo-pairing-sync-tier">☁️ nube</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="radio" aria-hidden="true"></i> LAN</span> → <span class="crozzo-pairing-sync-tier"><i data-lucide="save" aria-hidden="true"></i> offline</span></p>
+    <p class="form-hint crozzo-pairing-meta-line">C�digo sellado � solo legible por BONA origen � vigencia <strong>24 h</strong> � prioridad <span class="crozzo-pairing-sync-tier">?? nube</span> ? <span class="crozzo-pairing-sync-tier"><i data-lucide="radio" aria-hidden="true"></i> LAN</span> ? <span class="crozzo-pairing-sync-tier"><i data-lucide="save" aria-hidden="true"></i> offline</span></p>
     <div id="crozzoTabletQrQuickWarn" class="crozzo-pairing-alert" hidden></div>
     <div class="crozzo-pairing-qr-frame">
       <div class="crozzo-pairing-qr-host" id="crozzoTabletQrQuickHost"></div>
     </div>
-    <p class="form-hint crozzo-pairing-meta-line crozzo-tablet-qr-quick__foot-hint">Un solo QR grande — fotografíelo desde la tablet o copie el código.</p>
+    <p class="form-hint crozzo-pairing-meta-line crozzo-tablet-qr-quick__foot-hint">Un solo QR grande � fotograf�elo desde la tablet o copie el c�digo.</p>
     <div class="btn-group crozzo-tablet-qr-quick__actions" style="flex-direction:column; margin-top:12px;">
       <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
       <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
-      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingCopyJson">Copiar código seguro</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingCopyJson">Copiar c�digo seguro</button>
       <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoTabletQrQuickRefresh">Actualizar QR</button>
       <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingOpenFullAssistant">Asistente completo</button>
       <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoCloseTabletQrQuick">Cerrar</button>
@@ -971,10 +971,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div id="crozzoInstallSuccessSplash" class="crozzo-install-success-splash" hidden aria-live="polite" role="status">
   <div class="crozzo-install-success-splash__card crozzo-install-success-splash__card--neo">
     <div class="crozzo-install-success-splash__ring" aria-hidden="true"></div>
-    <div class="crozzo-install-success-splash__check" aria-hidden="true">✓</div>
+    <div class="crozzo-install-success-splash__check" aria-hidden="true">?</div>
     <p class="crozzo-install-success-splash__eyebrow">BONA origen</p>
     <h2 class="crozzo-install-success-splash__title" id="crozzoInstallSuccessTitle">Terminal configurado</h2>
-    <p class="crozzo-install-success-splash__msg" id="crozzoInstallSuccessMsg">Su dispositivo está listo para operar.</p>
+    <p class="crozzo-install-success-splash__msg" id="crozzoInstallSuccessMsg">Su dispositivo est� listo para operar.</p>
   </div>
 </div>
 
@@ -982,7 +982,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div class="toast-container" id="toastContainer"></div>
 
 <div id="crozzoPwaInstallBanner" class="crozzo-pwa-banner" hidden role="status">
-  <span><i data-lucide="download" aria-hidden="true"></i> Instalar como aplicación</span>
+  <span><i data-lucide="download" aria-hidden="true"></i> Instalar como aplicaci�n</span>
   <button type="button" class="btn btn-primary" id="crozzoPwaInstallBtn" style="min-height:36px;">Instalar</button>
   <button type="button" class="btn btn-outline" id="crozzoPwaDismissBtn" style="min-height:36px;border-color:rgba(255,255,255,0.45);color:#fff;">Ahora no</button>
 </div>
@@ -998,20 +998,20 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div id="crozzo-arqueo-mode-banner" hidden></div>
     <div class="crozzo-shift-step is-active" id="crozzo-shift-step1">
       <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-dialog-title">Arqueo de caja</h3>
-      <p class="form-hint crozzo-arqueo-hint" id="crozzo-arqueo-dialog-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
+      <p class="form-hint crozzo-arqueo-hint" id="crozzo-arqueo-dialog-hint">Cuente el efectivo f�sico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
       <div class="crozzo-arqueo-type-grid" role="radiogroup" aria-label="Tipo de cierre">
-        <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="manana" checked><span class="crozzo-arqueo-type__icon"><i data-lucide="sunrise"></i></span><span class="crozzo-arqueo-type__lbl">Mañana</span></label>
+        <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="manana" checked><span class="crozzo-arqueo-type__icon"><i data-lucide="sunrise"></i></span><span class="crozzo-arqueo-type__lbl">Ma�ana</span></label>
         <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="tarde"><span class="crozzo-arqueo-type__icon"><i data-lucide="sunset"></i></span><span class="crozzo-arqueo-type__lbl">Tarde</span></label>
-        <label class="crozzo-arqueo-type crozzo-arqueo-type--day"><input type="radio" name="crozzo-arqueo-type" value="dia"><span class="crozzo-arqueo-type__icon"><i data-lucide="calendar-check"></i></span><span class="crozzo-arqueo-type__lbl">Día completo</span></label>
+        <label class="crozzo-arqueo-type crozzo-arqueo-type--day"><input type="radio" name="crozzo-arqueo-type" value="dia"><span class="crozzo-arqueo-type__icon"><i data-lucide="calendar-check"></i></span><span class="crozzo-arqueo-type__lbl">D�a completo</span></label>
       </div>
-      <div class="crozzo-shift-summary" id="crozzo-shift-summary">—</div>
+      <div class="crozzo-shift-summary" id="crozzo-shift-summary">�</div>
       <div class="crozzo-arqueo-fields">
         <label class="form-label" for="crozzo-shift-fondo">Fondo inicial en caja</label>
         <div class="crozzo-arqueo-money-input"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-fondo" min="0" step="1" placeholder="0"></div>
         <label class="form-label" for="crozzo-shift-gastos">Gastos del turno (efectivo saliente)</label>
         <div class="crozzo-arqueo-money-input"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-gastos" min="0" step="1" placeholder="0" inputmode="numeric"></div>
         <p class="form-hint crozzo-arqueo-hint" style="margin:0 0 8px;font-size:0.78rem;">Compras, domicilios u otros egresos en efectivo. Si usa Planilla, se sugiere el total del turno.</p>
-        <label class="form-label" for="crozzo-shift-count">Efectivo contado físicamente</label>
+        <label class="form-label" for="crozzo-shift-count">Efectivo contado f�sicamente</label>
         <div class="crozzo-arqueo-money-input crozzo-arqueo-money-input--primary"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-count" min="0" step="1" placeholder="Ej: 450000" inputmode="numeric"></div>
         <p class="crozzo-arqueo-expected-hint" id="crozzo-arqueo-expected-hint" aria-live="polite">Esperado en caja: <strong>$0</strong></p>
       </div>
@@ -1024,7 +1024,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-step2-title">Confirmar cierre</h3>
       <div class="crozzo-shift-summary crozzo-shift-summary--final" id="crozzo-shift-final"></div>
       <label class="form-label" id="crozzo-arqueo-notes-label" for="crozzo-shift-notes">Notas del cierre</label>
-      <textarea class="crozzo-shift-input crozzo-shift-notes-input" id="crozzo-shift-notes" rows="3" placeholder="Explique faltantes, sobrantes o incidencias…"></textarea>
+      <textarea class="crozzo-shift-input crozzo-shift-notes-input" id="crozzo-shift-notes" rows="3" placeholder="Explique faltantes, sobrantes o incidencias�"></textarea>
       <div class="crozzo-arqueo-actions">
         <button type="button" class="btn btn-outline crozzo-arqueo-actions__primary" onclick="crozzoCierrePrintArqueoDraft()"><i data-lucide="clipboard-edit"></i> Llenar formato cuadre</button>
         <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" id="crozzo-arqueo-confirm-btn" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
@@ -1041,42 +1041,42 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <img id="crozzo-cuadre-logo" class="crozzo-cuadre-modal__logo" alt="" hidden>
       <div>
         <h3 class="crozzo-cuadre-modal__title" id="crozzo-cuadre-title">Cuadre de caja</h3>
-        <p class="crozzo-cuadre-modal__lead">Usted escribe efectivo, documentos, datáfonos y gastos. El sistema suma y compara con venta + propinas del POS.</p>
+        <p class="crozzo-cuadre-modal__lead">Usted escribe efectivo, documentos, dat�fonos y gastos. El sistema suma y compara con venta + propinas del POS.</p>
       </div>
     </header>
     <div class="crozzo-cuadre-modal__auto">
-      <div><span class="lbl">Fecha</span><strong id="crozzo-cuadre-dia">—</strong></div>
-      <div><span class="lbl">Turno</span><strong id="crozzo-cuadre-turno">—</strong></div>
-      <div><span class="lbl">Responsable</span><strong id="crozzo-cuadre-cajero">—</strong></div>
+      <div><span class="lbl">Fecha</span><strong id="crozzo-cuadre-dia">�</strong></div>
+      <div><span class="lbl">Turno</span><strong id="crozzo-cuadre-turno">�</strong></div>
+      <div><span class="lbl">Responsable</span><strong id="crozzo-cuadre-cajero">�</strong></div>
     </div>
     <input type="hidden" id="crozzo-cuadre-fondo" value="0">
-    <section class="crozzo-cuadre-block" aria-label="Lo que contó">
-      <h4 class="crozzo-cuadre-block__title">Lo que contó</h4>
+    <section class="crozzo-cuadre-block" aria-label="Lo que cont�">
+      <h4 class="crozzo-cuadre-block__title">Lo que cont�</h4>
       <div class="crozzo-cuadre-modal__grid crozzo-cuadre-modal__grid--4">
         <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-efectivo">Efectivo</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-efectivo" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
         <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-docs">Documentos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-docs" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
-        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-datafonos">Datáfonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-datafonos" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-datafonos">Dat�fonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-datafonos" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
         <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-gastos">Gastos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-gastos" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
       </div>
     </section>
     <div class="crozzo-cuadre-result" id="crozzo-cuadre-result" aria-live="polite">
-      <div class="crozzo-cuadre-result__row"><span>Total contado</span><strong id="crozzo-cuadre-total-sumado">—</strong></div>
-      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Venta POS</span><strong id="crozzo-cuadre-venta-pos">—</strong></div>
-      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Propinas POS</span><strong id="crozzo-cuadre-propinas-pos">—</strong></div>
-      <div class="crozzo-cuadre-result__row"><span>Referencia sistema</span><strong id="crozzo-cuadre-ref-pos">—</strong></div>
-      <div class="crozzo-cuadre-result__status" id="crozzo-cuadre-estado-wrap"><span id="crozzo-cuadre-descuadre-val">—</span><strong id="crozzo-cuadre-estado-lbl">Ingrese valores o use formato en blanco</strong></div>
+      <div class="crozzo-cuadre-result__row"><span>Total contado</span><strong id="crozzo-cuadre-total-sumado">�</strong></div>
+      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Venta POS</span><strong id="crozzo-cuadre-venta-pos">�</strong></div>
+      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Propinas POS</span><strong id="crozzo-cuadre-propinas-pos">�</strong></div>
+      <div class="crozzo-cuadre-result__row"><span>Referencia sistema</span><strong id="crozzo-cuadre-ref-pos">�</strong></div>
+      <div class="crozzo-cuadre-result__status" id="crozzo-cuadre-estado-wrap"><span id="crozzo-cuadre-descuadre-val">�</span><strong id="crozzo-cuadre-estado-lbl">Ingrese valores o use formato en blanco</strong></div>
     </div>
     <section class="crozzo-cuadre-block crozzo-cuadre-block--tips" aria-label="Propinas contadas">
       <h4 class="crozzo-cuadre-block__title">Propinas (aparte)</h4>
       <div class="crozzo-cuadre-modal__grid crozzo-cuadre-modal__grid--3">
         <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-prop-efectivo">Efectivo</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-prop-efectivo" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
-        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-prop-datafono">Datáfonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-prop-datafono" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
-        <div class="crozzo-cuadre-modal__field"><label>Total propinas</label><output class="crozzo-cuadre-result-inline" id="crozzo-cuadre-prop-total">—</output></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-prop-datafono">Dat�fonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-prop-datafono" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label>Total propinas</label><output class="crozzo-cuadre-result-inline" id="crozzo-cuadre-prop-total">�</output></div>
       </div>
     </section>
     <label class="form-label" for="crozzo-cuadre-notas">Anotaciones</label>
-    <textarea class="crozzo-shift-input" id="crozzo-cuadre-notas" rows="3" placeholder="Observaciones, incidencias o motivo del descuadre…"></textarea>
-    <p class="form-hint crozzo-cuadre-cut-hint"><i data-lucide="scissors"></i> Térmica POS: línea «CORTE AQUÍ» y avance en blanco al final (compatible con cuadro de impresión Windows).</p>
+    <textarea class="crozzo-shift-input" id="crozzo-cuadre-notas" rows="3" placeholder="Observaciones, incidencias o motivo del descuadre�"></textarea>
+    <p class="form-hint crozzo-cuadre-cut-hint"><i data-lucide="scissors"></i> T�rmica POS: l�nea �CORTE AQUͻ y avance en blanco al final (compatible con cuadro de impresi�n Windows).</p>
     <div class="crozzo-cuadre-modal__actions">
       <button type="button" class="btn btn-outline" onclick="crozzoCierreDownloadCuadreBlank()"><i data-lucide="download"></i> Formato en blanco</button>
       <button type="button" class="btn btn-primary" onclick="crozzoCierrePrintCuadreFromForm()"><i data-lucide="printer"></i> Imprimir cuadre</button>
@@ -1088,7 +1088,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <div class="login-card" style="max-width: 440px;">
     <div class="login-card-header">
       <h2 id="crozzoServerConflictTitle" style="font-size:1.15rem;margin:0;">Otro Servidor Central en esta red</h2>
-      <p class="form-hint" style="margin:10px 0 0;">Solo debe haber <strong>una</strong> caja en modo Servidor (A) por ubicación. Si hay dos, se duplican ventas y el inventario se descuadra.</p>
+      <p class="form-hint" style="margin:10px 0 0;">Solo debe haber <strong>una</strong> caja en modo Servidor (A) por ubicaci�n. Si hay dos, se duplican ventas y el inventario se descuadra.</p>
     </div>
     <div id="crozzoServerConflictBody" class="form-hint" style="margin-bottom:14px;max-height:120px;overflow:auto;font-family:ui-monospace,monospace;font-size:0.8rem;"></div>
     <div class="btn-group" style="flex-direction:column;align-items:stretch;gap:8px;">
@@ -1096,25 +1096,25 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <button type="button" class="btn btn-outline" id="crozzoConflictOptForce" style="border-color:var(--warning);color:var(--warning);">Forzar Servidor A (riesgo de duplicados)</button>
       <button type="button" class="btn btn-outline" id="crozzoConflictOptCancel">Cancelar</button>
     </div>
-    <p class="form-hint" style="margin-top:12px;">La caja sigue funcionando en local aunque no elijas aún; conviene resolver antes de vender en paralelo.</p>
+    <p class="form-hint" style="margin-top:12px;">La caja sigue funcionando en local aunque no elijas a�n; conviene resolver antes de vender en paralelo.</p>
   </div>
 </div>
 
 <div id="crozzo-update-critical-overlay" class="crozzo-update-critical-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateCriticalTitle" aria-hidden="true">
   <div class="crozzo-update-critical-modal">
-    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true"><i data-lucide="lock" aria-hidden="true"></i> Crítica</span>
-    <h2 id="crozzoUpdateCriticalTitle">Descargando actualización crítica</h2>
-    <p id="crozzoUpdateCriticalLead">Se descarga automáticamente. Al reiniciar BONA origen se instalará sola. No se puede posponer.</p>
+    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true"><i data-lucide="lock" aria-hidden="true"></i> Cr�tica</span>
+    <h2 id="crozzoUpdateCriticalTitle">Descargando actualizaci�n cr�tica</h2>
+    <p id="crozzoUpdateCriticalLead">Se descarga autom�ticamente. Al reiniciar BONA origen se instalar� sola. No se puede posponer.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
     <p class="crozzo-update-critical-modal__version" id="crozzoUpdateCriticalVersion"></p>
     <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar descarga</button>
-    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss" disabled>Descargando…</button>
+    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss" disabled>Descargando�</button>
   </div>
 </div>
 <div id="crozzo-update-detail-overlay" class="crozzo-update-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateDetailTitle" aria-hidden="true">
   <div class="crozzo-update-detail-modal">
     <div class="crozzo-update-detail-modal__head">
-      <h2 id="crozzoUpdateDetailTitle">Detalle de actualización</h2>
+      <h2 id="crozzoUpdateDetailTitle">Detalle de actualizaci�n</h2>
       <button type="button" class="crozzo-update-detail-modal__close" id="crozzoUpdateDetailClose" aria-label="Cerrar detalle">
         <i data-lucide="x" aria-hidden="true"></i>
       </button>
@@ -1124,9 +1124,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div class="crozzo-update-detail-modal__body" id="crozzoUpdateDetailBody"></div>
     <div class="crozzo-update-detail-modal__foot">
       <button type="button" class="btn btn-outline" id="crozzoUpdateDetailBack" style="display:none;">Anterior</button>
-      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Recordar después</button>
+      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Recordar despu�s</button>
       <button type="button" class="btn btn-outline" id="crozzoUpdateDetailNext">Siguiente</button>
-      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Descargar actualización</button>
+      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Descargar actualizaci�n</button>
     </div>
   </div>
 </div>
@@ -1134,16 +1134,16 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div class="a11y-backdrop" id="crozzoA11yBackdrop" aria-hidden="true"></div>
 <div class="a11y-panel" id="crozzoA11yPanel" role="dialog" aria-modal="true" aria-label="Ajustes de accesibilidad" aria-hidden="true">
   <div class="a11y-panel__header">
-    <h2 class="a11y-panel__title">Ajustes de visualización</h2>
+    <h2 class="a11y-panel__title">Ajustes de visualizaci�n</h2>
     <button type="button" class="a11y-panel__close" id="crozzoA11yClose" aria-label="Cerrar asistente">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
     </button>
   </div>
   <div class="a11y-panel__controls">
     <fieldset class="a11y-control">
-      <legend class="a11y-control__label">Tamaño de texto</legend>
-      <div class="a11y-control__buttons" role="radiogroup" aria-label="Seleccionar tamaño">
-        <button type="button" class="a11y-btn" role="radio" aria-checked="false" data-scale="0.85">Pequeño</button>
+      <legend class="a11y-control__label">Tama�o de texto</legend>
+      <div class="a11y-control__buttons" role="radiogroup" aria-label="Seleccionar tama�o">
+        <button type="button" class="a11y-btn" role="radio" aria-checked="false" data-scale="0.85">Peque�o</button>
         <button type="button" class="a11y-btn a11y-btn--active" role="radio" aria-checked="true" data-scale="1">Normal</button>
         <button type="button" class="a11y-btn" role="radio" aria-checked="false" data-scale="1.15">Grande</button>
         <button type="button" class="a11y-btn" role="radio" aria-checked="false" data-scale="1.3">Extra grande</button>
@@ -1175,10 +1175,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div class="user-password-overlay" id="crozzoForcePasswordOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="forcePasswordTitle">
   <div class="user-password-dialog">
-    <h2 id="forcePasswordTitle"><i data-lucide="lock" aria-hidden="true"></i> Cambio de contraseña obligatorio</h2>
+    <h2 id="forcePasswordTitle"><i data-lucide="lock" aria-hidden="true"></i> Cambio de contrase�a obligatorio</h2>
     <p class="form-hint" id="forcePasswordSubtitle" style="margin:0 0 12px;"></p>
     <div class="form-group">
-      <label class="form-label" for="forcePasswordNew">Nueva contraseña</label>
+      <label class="form-label" for="forcePasswordNew">Nueva contrase�a</label>
       <input type="password" class="form-input" id="forcePasswordNew" autocomplete="new-password" minlength="8">
     </div>
     <div class="form-group">
@@ -1186,9 +1186,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <input type="password" class="form-input" id="forcePasswordConfirm" autocomplete="new-password" minlength="8">
     </div>
     <div class="user-password-error" id="forcePasswordError" hidden role="alert"></div>
-    <p class="form-hint" style="margin:8px 0 0;">Mínimo 8 caracteres. No use 141414, 1234 ni palabras obvias.</p>
+    <p class="form-hint" style="margin:8px 0 0;">M�nimo 8 caracteres. No use 141414, 1234 ni palabras obvias.</p>
     <div class="user-password-actions">
-      <button type="button" class="btn btn-outline" onclick="crozzoCancelForcePasswordChange()">Cerrar sesión</button>
+      <button type="button" class="btn btn-outline" onclick="crozzoCancelForcePasswordChange()">Cerrar sesi�n</button>
       <button type="button" class="btn btn-primary" onclick="crozzoSubmitForcePasswordChange()">Guardar y continuar</button>
     </div>
   </div>
@@ -1196,19 +1196,19 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div id="crozzoChangePasswordOverlay" class="user-password-overlay" hidden>
   <div class="user-password-dialog" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
-    <h2 id="changePasswordTitle" data-i18n="pwd.title">Cambiar contraseña</h2>
+    <h2 id="changePasswordTitle" data-i18n="pwd.title">Cambiar contrase�a</h2>
     <p id="changePasswordError" class="user-password-error" role="alert" aria-live="polite" hidden></p>
     <div class="form-group">
-      <label class="form-label" for="changePasswordCurrent" data-i18n="pwd.current">Contraseña actual</label>
+      <label class="form-label" for="changePasswordCurrent" data-i18n="pwd.current">Contrase�a actual</label>
       <input type="password" id="changePasswordCurrent" class="form-input" autocomplete="current-password">
     </div>
     <div class="form-group">
-      <label class="form-label" for="changePasswordNew" data-i18n="pwd.new">Nueva contraseña</label>
+      <label class="form-label" for="changePasswordNew" data-i18n="pwd.new">Nueva contrase�a</label>
       <input type="password" id="changePasswordNew" class="form-input" autocomplete="new-password" aria-describedby="changePasswordHint">
-      <p id="changePasswordHint" class="a11y-control__hint" data-i18n="pwd.hint">Mínimo 8 caracteres</p>
+      <p id="changePasswordHint" class="a11y-control__hint" data-i18n="pwd.hint">M�nimo 8 caracteres</p>
     </div>
     <div class="form-group">
-      <label class="form-label" for="changePasswordConfirm" data-i18n="pwd.confirm">Confirmar nueva contraseña</label>
+      <label class="form-label" for="changePasswordConfirm" data-i18n="pwd.confirm">Confirmar nueva contrase�a</label>
       <input type="password" id="changePasswordConfirm" class="form-input" autocomplete="new-password">
     </div>
     <div class="user-password-actions">
@@ -1280,25 +1280,25 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoNivelesMadurez.js" defer></script>
 <script src="modules/CrozzoSandboxFiscal.js" defer></script>
 <script src="modules/CrozzoDetectorMadurez.js" defer></script>
-<!-- H2.E planProducto (3ª dimensión — antes de PosMain para ACL menú) -->
+<!-- H2.E planProducto (3� dimensi�n � antes de PosMain para ACL men�) -->
 <script src="modules/CrozzoPlanProducto.js" defer></script>
 <!-- H1.1 Motor de impuestos multi-tarifa (IVA + INC + Saludables Ley 2277/2022) -->
 <script src="modules/CrozzoMotorImpuestos.js" defer></script>
-<!-- H1.2 Decisor tipo documento (FEV/tiquete automático) + notas UBL en DianLib -->
+<!-- H1.2 Decisor tipo documento (FEV/tiquete autom�tico) + notas UBL en DianLib -->
 <script src="modules/CrozzoTipoDocumento.js" defer></script>
 <!-- H1.5 Contingencia fiscal (offline + evento significativo + SLA 48h) -->
 <script src="modules/CrozzoContingenciaFiscal.js" defer></script>
 <!-- H1.4 Retenciones B2B por municipio DANE (ReteFuente/IVA/ICA) -->
 <script src="modules/CrozzoRetenciones.js" defer></script>
-<!-- H1.6 Renderer QR DIAN + nº validación para ticket electrónico -->
+<!-- H1.6 Renderer QR DIAN + n� validaci�n para ticket electr�nico -->
 <script src="modules/CrozzoTicketQR.js" defer></script>
-<!-- H2.B Reversión de inventario al anular factura -->
+<!-- H2.B Reversi�n de inventario al anular factura -->
 <script src="modules/CrozzoReversionInventario.js" defer></script>
-<!-- H2.C CMV + Rentabilidad (cerrar el círculo del costeo) -->
+<!-- H2.C CMV + Rentabilidad (cerrar el c�rculo del costeo) -->
 <script src="modules/CrozzoRentabilidad.js" defer></script>
-<!-- H2.D Semáforo margen 🟢🟡🔴 (psicología dueño — tras Rentabilidad) -->
+<!-- H2.D Sem�foro margen ?????? (psicolog�a due�o � tras Rentabilidad) -->
 <script src="modules/CrozzoSemaforoMargen.js" defer></script>
-<!-- UI H2.C — Página Rentabilidad (admin/encargado) -->
+<!-- UI H2.C � P�gina Rentabilidad (admin/encargado) -->
 <script src="modules/CrozzoRentabilidadPage.js" defer></script>
 <script src="core/pos/CrozzoPosKeyboard.js" defer></script>
 <script src="core/pos/CrozzoPosUiHelpers.js" defer></script>
@@ -1353,7 +1353,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoWifiZoneBridge.js" defer></script>
 <script src="infra/CrozzoCentralFailover.js" defer></script>
 <script src="infra/CrozzoReconnectSync.js" defer></script>
-<!-- L3 sede autosanable (tras ReconnectSync — usa crozzoReconnectStaggerMs) -->
+<!-- L3 sede autosanable (tras ReconnectSync � usa crozzoReconnectStaggerMs) -->
 <script src="infra/CrozzoSedeAutosanable.js" defer></script>
 <script src="modules/CrozzoOperativeSyncGate.js" defer></script>
 <script src="infra/CrozzoUserSyncProfile.js" defer></script>
@@ -1408,6 +1408,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoCommandCenter.js" defer></script>
 <script src="core/CrozzoNotificationCenter.js" defer></script>
 <script src="infra/CrozzoWebSerialPrinter.js" defer></script>
-<!-- Módulos de dominio: bundles en app/bundles/ — carga bajo demanda vía CrozzoLazyModules + CrozzoManifest -->
+<!-- M�dulos de dominio: bundles en app/bundles/ � carga bajo demanda v�a CrozzoLazyModules + CrozzoManifest -->
 </body>
 </html>

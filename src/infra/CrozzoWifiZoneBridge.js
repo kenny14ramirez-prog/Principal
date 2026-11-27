@@ -30,7 +30,7 @@
   function markHotspotMode(ip) {
     try {
       if (isHotspotGateway(ip)) {
-        global.localStorage.setItem('crozzo_connectivity_hotspot', '1');
+        global.safeLocalStorageSet('crozzo_connectivity_hotspot', '1');
       }
     } catch (_) {}
   }
@@ -59,7 +59,7 @@
         savedAt: Date.now(),
         discoveredVia: via || 'wifi_zone',
       };
-      global.localStorage.setItem('crozzo_lan_config', JSON.stringify(patch));
+      global.safeLocalStorageSet('crozzo_lan_config', JSON.stringify(patch));
       if (typeof global.persistMultiDeviceConfig === 'function') {
         global.persistMultiDeviceConfig({
           ...cur,
@@ -79,9 +79,9 @@
       }
       markHotspotMode(ipTrim);
       try {
-        global.localStorage.setItem('crozzo_wifi_zone_last_ip', ipTrim);
-        global.localStorage.setItem('crozzo_wifi_zone_last_via', via || '');
-        global.localStorage.setItem('crozzo_wifi_zone_last_at', String(Date.now()));
+        global.safeLocalStorageSet('crozzo_wifi_zone_last_ip', ipTrim);
+        global.safeLocalStorageSet('crozzo_wifi_zone_last_via', via || '');
+        global.safeLocalStorageSet('crozzo_wifi_zone_last_at', String(Date.now()));
       } catch (_) {}
       if (typeof global.crozzoWizardTierLogLine === 'function') {
         global.crozzoWizardTierLogLine('Zona Wi‑Fi: caja central en ' + ipTrim + ' (' + (via || 'auto') + ')');

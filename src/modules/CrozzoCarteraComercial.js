@@ -194,7 +194,7 @@
 
   function saveCotizaciones(arr) {
     try {
-      localStorage.setItem(LS_COT, JSON.stringify(arr || []));
+      safeLocalStorageSet(LS_COT, JSON.stringify(arr || []));
     } catch (_) {}
   }
 

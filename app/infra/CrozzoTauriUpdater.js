@@ -695,7 +695,7 @@
         verified: !!(info && info.verified),
         checkedAt: Date.now(),
       };
-      try { localStorage.setItem(PLAN_B_CACHE_KEY, JSON.stringify(result)); } catch (_) {}
+      try { safeLocalStorageSet(PLAN_B_CACHE_KEY, JSON.stringify(result)); } catch (_) {}
       return result;
     }).catch(function () {
       return { version: ver, downloadUrl: GITHUB_RELEASES_LATEST, releasePageUrl: GITHUB_RELEASES_PAGE, verified: false, checkedAt: Date.now() };
@@ -756,7 +756,7 @@
       if (!Array.isArray(log)) log = [];
       log.unshift({ at: new Date().toISOString(), plan: plan, success: !!success, error: error || '' });
       if (log.length > 50) log.length = 50;
-      localStorage.setItem('crozzo_plan_usage_log', JSON.stringify(log));
+      safeLocalStorageSet('crozzo_plan_usage_log', JSON.stringify(log));
     } catch (_) {}
   }
   function bundleSlugDots(name) {
@@ -1151,8 +1151,8 @@
             if (typeof global.collectPosRuntimeState === 'function') {
               var _st = global.collectPosRuntimeState();
               if (_st) {
-                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
-                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+                try { safeLocalStorageSet('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { safeLocalStorageSet('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
               }
             }
           } catch (_) {}
@@ -1683,8 +1683,8 @@
             if (typeof global.collectPosRuntimeState === 'function') {
               var _st = global.collectPosRuntimeState();
               if (_st) {
-                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
-                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+                try { safeLocalStorageSet('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { safeLocalStorageSet('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
               }
             }
           } catch (_) {}

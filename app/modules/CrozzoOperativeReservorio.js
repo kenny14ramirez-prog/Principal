@@ -30,8 +30,8 @@
   function rotateBackup(prevJson) {
     try {
       var b1 = global.localStorage.getItem(LS_BACKUP);
-      if (b1) global.localStorage.setItem(LS_BACKUP2, b1);
-      if (prevJson) global.localStorage.setItem(LS_BACKUP, prevJson);
+      if (b1) global.safeLocalStorageSet(LS_BACKUP2, b1);
+      if (prevJson) global.safeLocalStorageSet(LS_BACKUP, prevJson);
     } catch (_) {}
   }
 
@@ -42,7 +42,7 @@
     if (validateSnap(bk)) {
       health.recoveredFromBackup = true;
       try {
-        global.localStorage.setItem(LS, JSON.stringify(bk));
+        global.safeLocalStorageSet(LS, JSON.stringify(bk));
       } catch (_) {}
       return bk;
     }
@@ -50,7 +50,7 @@
     if (validateSnap(bk2)) {
       health.recoveredFromBackup = true;
       try {
-        global.localStorage.setItem(LS, JSON.stringify(bk2));
+        global.safeLocalStorageSet(LS, JSON.stringify(bk2));
       } catch (_) {}
       return bk2;
     }
@@ -75,7 +75,7 @@
     try {
       var prev = global.localStorage.getItem(LS);
       if (prev && prev !== json) rotateBackup(prev);
-      global.localStorage.setItem(LS, json);
+      global.safeLocalStorageSet(LS, json);
       health.lastSaveOk = true;
       health.lastSaveError = null;
       return { ok: true };
@@ -88,7 +88,7 @@
       ) {
         try {
           rotateBackup(global.localStorage.getItem(LS));
-          global.localStorage.setItem(LS, json);
+          global.safeLocalStorageSet(LS, json);
           health.lastSaveOk = true;
           health.lastSaveError = null;
           return { ok: true, trimmed: true };

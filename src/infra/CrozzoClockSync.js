@@ -55,7 +55,7 @@
     }
     __offset = off;
     safe(function () {
-      global.localStorage.setItem(LS, String(off));
+      global.safeLocalStorageSet(LS, String(off));
     });
     safe(function () {
       global.__CROZZO_CLOCK_OFFSET = off;

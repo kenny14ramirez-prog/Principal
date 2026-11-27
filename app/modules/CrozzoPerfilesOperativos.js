@@ -600,7 +600,7 @@
       global.crozzoSaveMenuProfilesConfig(cfg);
     }
     try {
-      localStorage.setItem('crozzo_perfil_empresa', getPerfilId(perfilId));
+      safeLocalStorageSet('crozzo_perfil_empresa', getPerfilId(perfilId));
     } catch (_) {}
     if (typeof global.crozzoRebuildMenusFromRoles === 'function') {
       global.crozzoRebuildMenusFromRoles();
@@ -635,8 +635,8 @@
       global.crozzoSaveMenuProfilesConfig(cfg);
     }
     try {
-      localStorage.setItem('crozzo_perfil_empresa', id);
-      localStorage.setItem('crozzo_perfil_operativo_v1', id);
+      safeLocalStorageSet('crozzo_perfil_empresa', id);
+      safeLocalStorageSet('crozzo_perfil_operativo_v1', id);
     } catch (_) {}
     if (global.config && typeof global.config.addAudit === 'function') {
       global.config.addAudit('perfil_operativo_aplicado', 'Perfil «' + (PERFIL_META[id].label || id) + '» → ' + (c.nombre || cid));

@@ -95,7 +95,7 @@
       var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
       var model = sel ? sel.value : rec;
       // Save selected model
-      try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_model', model); } catch (_) {}
+      try { if (typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_ollama_model', model); } catch (_) {}
       setStatus('Descargando ' + model + '…');
       setBar(0);
       try {

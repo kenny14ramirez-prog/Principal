@@ -100,7 +100,7 @@
         if (!e || now - (e.at || 0) > SEEN_TTL_MS) return;
         out.push({ id: k, at: e.at, src: e.src });
       });
-      global.localStorage.setItem(LS_KEY, JSON.stringify(out.slice(-800)));
+      global.safeLocalStorageSet(LS_KEY, JSON.stringify(out.slice(-800)));
     } catch (_) {}
   }
 

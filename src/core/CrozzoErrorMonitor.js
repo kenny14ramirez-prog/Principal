@@ -68,7 +68,7 @@
     // Guardar en localStorage (últimos 20 errores)
     try {
       var recent = errorLog.slice(-20);
-      localStorage.setItem('crozzo_error_log', JSON.stringify(recent));
+      safeLocalStorageSet('crozzo_error_log', JSON.stringify(recent));
     } catch (_) {}
 
     // Enviar alerta si es crítico o alto y no está en cooldown

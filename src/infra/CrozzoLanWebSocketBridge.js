@@ -411,7 +411,7 @@
           try {
             var map = JSON.parse(localStorage.getItem('crozzo_print_device_registry_v1') || '{}');
             map[payCaps.deviceId] = payCaps;
-            localStorage.setItem('crozzo_print_device_registry_v1', JSON.stringify(map));
+            safeLocalStorageSet('crozzo_print_device_registry_v1', JSON.stringify(map));
           } catch (_) {}
         }
       }

@@ -722,7 +722,7 @@
   function saveCortesTemplateLocal(mpId, cortes) {
     if (!mpId || !cortes) return;
     try {
-      localStorage.setItem(
+      safeLocalStorageSet(
         DESPIECE_TPL_KEY + mpId,
         JSON.stringify(
           (cortes || []).map(function (c) {

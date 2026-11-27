@@ -24,7 +24,7 @@
   }
 
   function persist() {
-    try { global.localStorage.setItem(KEY, JSON.stringify(__queue)); } catch (_) {}
+    try { global.safeLocalStorageSet(KEY, JSON.stringify(__queue)); } catch (_) {}
   }
 
   function enqueue(job) {

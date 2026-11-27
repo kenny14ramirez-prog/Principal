@@ -226,7 +226,7 @@
 
   function writeOwn(obj) {
     safe(function () {
-      global.localStorage.setItem(LS_OWN, JSON.stringify(obj));
+      global.safeLocalStorageSet(LS_OWN, JSON.stringify(obj));
     });
   }
 
@@ -242,7 +242,7 @@
   function writePeersDb(db) {
     db.updatedAt = nowMs();
     safe(function () {
-      global.localStorage.setItem(LS_PEERS, JSON.stringify(db));
+      global.safeLocalStorageSet(LS_PEERS, JSON.stringify(db));
     });
   }
 

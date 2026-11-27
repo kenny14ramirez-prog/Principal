@@ -111,7 +111,7 @@
       savedAt: Date.now(),
     };
     try {
-      localStorage.setItem(LS_PENDING_RESTART, JSON.stringify(payload));
+      safeLocalStorageSet(LS_PENDING_RESTART, JSON.stringify(payload));
     } catch (_) {}
     return payload;
   }
@@ -682,7 +682,7 @@
       var sanitized = sanitizeStore(parsed);
       if (!sanitized) {
         // corrupt → backup + reset
-        try { localStorage.setItem(STORE_KEY + '_corrupt_' + Date.now(), raw); } catch (_) {}
+        try { safeLocalStorageSet(STORE_KEY + '_corrupt_' + Date.now(), raw); } catch (_) {}
         return empty;
       }
       // phantom correction: if stored > binary, correct
@@ -694,7 +694,7 @@
     } catch (e) {
       try {
         var raw2 = localStorage.getItem(STORE_KEY);
-        if (raw2) localStorage.setItem(STORE_KEY + '_corrupt_' + Date.now(), raw2);
+        if (raw2) safeLocalStorageSet(STORE_KEY + '_corrupt_' + Date.now(), raw2);
       } catch (_) {}
       return empty;
     }
@@ -702,7 +702,7 @@
 
   function saveStore(store) {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+      safeLocalStorageSet(STORE_KEY, JSON.stringify(store));
     } catch (e) {
       console.warn('[updates] saveStore failed (quota?)', e);
     }
@@ -743,7 +743,7 @@
         }
       }
       // Mark migration done
-      try { localStorage.setItem('crozzo_update_migrated_v2', '1'); } catch (_) {}
+      try { safeLocalStorageSet('crozzo_update_migrated_v2', '1'); } catch (_) {}
       saveStore(store);
       return store;
     } catch (e) {
@@ -905,7 +905,7 @@
       // update global VERSION
       VERSION = ver;
       global.CROZZO_APP_VERSION = ver;
-      try { localStorage.setItem(LS_INSTALLED, ver); } catch (_) {}
+      try { safeLocalStorageSet(LS_INSTALLED, ver); } catch (_) {}
       syncVersionLabels();
       // 4. Procesar pendingRestart
       store = loadStore();
@@ -1240,7 +1240,7 @@
     toVer = normEntryVersion({ version: toVer || '' });
     if (!fromVer || !toVer || compareSemver(fromVer, toVer) >= 0) return;
     try {
-      localStorage.setItem(
+      safeLocalStorageSet(
         LS_CLOUD_SYNC_AFTER_UPDATE,
         JSON.stringify({ from: fromVer, to: toVer, at: Date.now() })
       );
@@ -1320,7 +1320,7 @@
       var store = loadStore();
       store.installed = { version: ver, source: source, confidence: confidence, verifiedAt: Date.now(), buildStamp: readMetaBuildStamp() };
       saveStore(store);
-      try { localStorage.setItem(LS_INSTALLED, VERSION); } catch (_) {}
+      try { safeLocalStorageSet(LS_INSTALLED, VERSION); } catch (_) {}
       syncVersionLabels();
       if (prevStored && compareSemver(prevStored, VERSION) < 0) {
         scheduleCloudSyncAfterAppUpdate(prevStored, VERSION);
@@ -1502,7 +1502,7 @@
 
   function saveSnoozeMap(map) {
     try {
-      localStorage.setItem(LS_SNOOZE_UNTIL, JSON.stringify(map || {}));
+      safeLocalStorageSet(LS_SNOOZE_UNTIL, JSON.stringify(map || {}));
     } catch (_) {}
   }
 
@@ -1572,7 +1572,7 @@
     var ver = String(v || '').trim();
     if (!ver) return;
     try {
-      localStorage.setItem(LS_INSTALLED, ver);
+      safeLocalStorageSet(LS_INSTALLED, ver);
     } catch (_) {}
   }
 
@@ -2470,7 +2470,7 @@
         ? 'Listo — la app quedó actualizada. Siga con su turno con normalidad.'
         : 'Actualización ' + ver + ' aplicada correctamente.';
     try {
-      localStorage.setItem(
+      safeLocalStorageSet(
         LS_POST_UPDATE_WELCOME,
         JSON.stringify({
           at: Date.now(),
@@ -2744,7 +2744,7 @@
 
   function saveUpdateState(state) {
     try {
-      localStorage.setItem(LS_STATE, JSON.stringify(state));
+      safeLocalStorageSet(LS_STATE, JSON.stringify(state));
     } catch (_) {}
   }
 
@@ -2778,7 +2778,7 @@
     });
     if (log.length > 80) log.length = 80;
     try {
-      localStorage.setItem(LS_LOCAL_LOG, JSON.stringify(log));
+      safeLocalStorageSet(LS_LOCAL_LOG, JSON.stringify(log));
     } catch (_) {}
     renderLocalLogPanel();
   }
@@ -2869,7 +2869,7 @@
       return false;
     }
     try {
-      if (u) localStorage.setItem(LS_MANIFEST, u);
+      if (u) safeLocalStorageSet(LS_MANIFEST, u);
       else localStorage.removeItem(LS_MANIFEST);
     } catch (_) {}
     return true;
@@ -4397,8 +4397,8 @@
       if (typeof global.collectPosRuntimeState === 'function') {
         var _st = global.collectPosRuntimeState();
         if (_st) {
-          try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
-          try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+          try { safeLocalStorageSet('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+          try { safeLocalStorageSet('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
         }
       }
     } catch (_) {}
@@ -4445,7 +4445,7 @@
           try {
             var pendingVer = normEntryVersion({ version: targetVersion || VERSION_AVAIL });
             if (pendingVer) {
-              try { localStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
+              try { safeLocalStorageSet(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
               try { sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
             }
           } catch (_) {}
@@ -6803,7 +6803,7 @@
       wireOnce(desktopAuto, function () {
         try {
           if (desktopAuto.checked) localStorage.removeItem('crozzo_ota_auto');
-          else localStorage.setItem('crozzo_ota_auto', '0');
+          else safeLocalStorageSet('crozzo_ota_auto', '0');
         } catch (_) {}
         if (typeof global.showToast === 'function') {
           global.showToast(

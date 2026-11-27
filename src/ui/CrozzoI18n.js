@@ -336,7 +336,7 @@
 
   function writeStoredLocale(id) {
     try {
-      localStorage.setItem(LS_KEY, id);
+      safeLocalStorageSet(LS_KEY, id);
     } catch (_) {}
   }
 

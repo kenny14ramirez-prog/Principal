@@ -22,7 +22,7 @@
   }
 
   function writeStatus(st) {
-    try { global.localStorage.setItem(STORAGE_KEY, JSON.stringify(st)); } catch (_) {}
+    try { global.safeLocalStorageSet(STORAGE_KEY, JSON.stringify(st)); } catch (_) {}
   }
 
   async function run() {

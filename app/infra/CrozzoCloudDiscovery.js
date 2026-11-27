@@ -293,7 +293,7 @@
       } catch (_) {}
 
       safe(function () {
-        global.localStorage.setItem('crozzo_cloud_discovery_last_register_at', String(Date.now()));
+        global.safeLocalStorageSet('crozzo_cloud_discovery_last_register_at', String(Date.now()));
       });
       return ok;
     })();

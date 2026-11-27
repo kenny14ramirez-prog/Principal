@@ -38,7 +38,7 @@
 
   function save(flags) {
     try {
-      global.localStorage.setItem('crozzo_feature_flags_v1', JSON.stringify(flags || {}));
+      global.safeLocalStorageSet('crozzo_feature_flags_v1', JSON.stringify(flags || {}));
     } catch (_) {}
   }
 

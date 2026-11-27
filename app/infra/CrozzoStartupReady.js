@@ -62,7 +62,7 @@
     safe(function () {
       var cur = global.localStorage.getItem('crozzo_auto_hotspot_v1');
       if (cur === null || cur === undefined) {
-        global.localStorage.setItem('crozzo_auto_hotspot_v1', '1');
+        global.safeLocalStorageSet('crozzo_auto_hotspot_v1', '1');
       }
     });
   }
@@ -102,7 +102,7 @@
       if (asked) return;
       if (roleNow() !== 'B') return;
       safe(function () {
-        global.localStorage.setItem(LS_CAM_ASKED, '1');
+        global.safeLocalStorageSet(LS_CAM_ASKED, '1');
       });
       safe(function () {
         if (
@@ -183,7 +183,7 @@
           snapshot.cloudIo = (res && res.level) || 'unknown';
           snapshot.cloudIoSummary = (res && res.summary) || '';
           safe(function () {
-            global.localStorage.setItem(LS_CLOUDIO_AT, String(Date.now()));
+            global.safeLocalStorageSet(LS_CLOUDIO_AT, String(Date.now()));
           });
         } catch (e) {
           snapshot.cloudIo = 'error';
@@ -210,7 +210,7 @@
       var d = new Date();
       sig = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '|' + msg.slice(0, 24);
       if (global.localStorage.getItem('crozzo_startup_notice_v1') === sig) return;
-      global.localStorage.setItem('crozzo_startup_notice_v1', sig);
+      global.safeLocalStorageSet('crozzo_startup_notice_v1', sig);
     } catch (_) {}
     safe(function () {
       if (typeof global.showToast === 'function') global.showToast(msg, 'warning');
@@ -222,7 +222,7 @@
       global.__CROZZO_STARTUP_READY = snapshot;
     });
     safe(function () {
-      global.localStorage.setItem(LS_SNAPSHOT, JSON.stringify(snapshot));
+      global.safeLocalStorageSet(LS_SNAPSHOT, JSON.stringify(snapshot));
     });
   }
 

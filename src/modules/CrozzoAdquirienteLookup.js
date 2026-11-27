@@ -719,7 +719,7 @@
 
       }
 
-      localStorage.setItem(LS_CACHE, JSON.stringify(c));
+      safeLocalStorageSet(LS_CACHE, JSON.stringify(c));
 
     } catch (_) {}
 

@@ -130,7 +130,7 @@
   }
   function saveWorkspace(ws) {
     try {
-      localStorage.setItem(LS_WORKSPACE, JSON.stringify(ws));
+      safeLocalStorageSet(LS_WORKSPACE, JSON.stringify(ws));
     } catch (_) {}
   }
   function getWs() {

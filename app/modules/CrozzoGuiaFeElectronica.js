@@ -56,7 +56,7 @@
     var next = Object.assign({}, cur, patch || {});
     if (patch && patch.manual) next.manual = Object.assign({}, cur.manual, patch.manual);
     try {
-      localStorage.setItem(LS, JSON.stringify(next));
+      safeLocalStorageSet(LS, JSON.stringify(next));
     } catch (_) {}
     return next;
   }

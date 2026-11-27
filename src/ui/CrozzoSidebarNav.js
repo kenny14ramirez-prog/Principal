@@ -305,7 +305,7 @@
 
   function writeState(state) {
     try {
-      localStorage.setItem(menuStateStorageKey(), JSON.stringify(state));
+      safeLocalStorageSet(menuStateStorageKey(), JSON.stringify(state));
     } catch (_) {}
   }
 
@@ -837,7 +837,7 @@
         if (id) st.groups[id] = false;
       });
       writeState(st);
-      localStorage.setItem(LS_GROUPS_RESET, '1');
+      safeLocalStorageSet(LS_GROUPS_RESET, '1');
     } catch (_) {}
   }
 
@@ -864,7 +864,7 @@
       st.pinned = !!expanded;
       writeState(st);
       try {
-        localStorage.setItem(LS_LEGACY_PINNED, expanded ? '1' : '0');
+        safeLocalStorageSet(LS_LEGACY_PINNED, expanded ? '1' : '0');
       } catch (_) {}
       if (expanded) restoreGroupsState(false);
     }
@@ -1360,7 +1360,7 @@
         var hoverSt = readState();
         hoverSt.pinned = false;
         writeState(hoverSt);
-        localStorage.setItem('bona_sidebar_hover_rail_v3', '1');
+        safeLocalStorageSet('bona_sidebar_hover_rail_v3', '1');
       }
     } catch (_) {}
 
@@ -1369,7 +1369,7 @@
         var fixSt = readState();
         fixSt.pinned = false;
         writeState(fixSt);
-        localStorage.setItem('bona_sidebar_rail_default_v1', '1');
+        safeLocalStorageSet('bona_sidebar_rail_default_v1', '1');
       }
     } catch (_) {}
 

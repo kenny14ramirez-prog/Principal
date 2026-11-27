@@ -513,7 +513,7 @@
     tpl.studio = true;
     if (tpl.printOutput) {
       try {
-        localStorage.setItem('crozzo_print_output_estudio', normalizePrintOutput(tpl.printOutput));
+        safeLocalStorageSet('crozzo_print_output_estudio', normalizePrintOutput(tpl.printOutput));
       } catch (_) {}
     }
     var ta = document.getElementById('adminTermicaPlantillaJson');
@@ -986,8 +986,8 @@
   function persistPrintOutputScope(scope, outputId) {
     outputId = normalizePrintOutput(outputId);
     try {
-      localStorage.setItem('crozzo_print_output_' + scope, outputId);
-      localStorage.setItem(
+      safeLocalStorageSet('crozzo_print_output_' + scope, outputId);
+      safeLocalStorageSet(
         'crozzo_print_channel_' + scope,
         printOutputMeta(outputId).kind === 'sheet' ? 'normal' : 'thermal'
       );
@@ -1092,7 +1092,7 @@
       if (on && on.getAttribute('data-output')) {
         var id = normalizePrintOutput(on.getAttribute('data-output'));
         try {
-          localStorage.setItem('crozzo_print_output_' + scope, id);
+          safeLocalStorageSet('crozzo_print_output_' + scope, id);
         } catch (_) {}
         return id;
       }
@@ -1583,7 +1583,7 @@
     var n = 1;
     try {
       n = parseInt(localStorage.getItem(key) || '0', 10) + 1;
-      localStorage.setItem(key, String(n));
+      safeLocalStorageSet(key, String(n));
     } catch (_) {
       n = Math.floor(Math.random() * 9999);
     }

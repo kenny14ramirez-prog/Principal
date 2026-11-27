@@ -799,7 +799,7 @@
   function pickPrintFormat(id) {
     id = normalizePrintOutput(id);
     try {
-      localStorage.setItem(LS_PRINT_OUT, id);
+      safeLocalStorageSet(LS_PRINT_OUT, id);
     } catch (_) {}
     document.querySelectorAll('[data-print-output-scope="cierre"] .crozzo-print-output__btn').forEach(function (btn) {
       btn.classList.toggle('is-on', btn.getAttribute('data-output') === id);

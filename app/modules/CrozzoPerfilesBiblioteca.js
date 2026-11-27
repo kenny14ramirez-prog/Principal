@@ -133,7 +133,7 @@
     applySnapshotToClient(client, tpl.snapshot);
     saveCfg(cfg);
     try {
-      localStorage.setItem('crozzo_perfil_empresa', client.perfil || 'basico_restaurante');
+      safeLocalStorageSet('crozzo_perfil_empresa', client.perfil || 'basico_restaurante');
     } catch (_) {}
     if (typeof global.crozzoRebuildMenusFromRoles === 'function') global.crozzoRebuildMenusFromRoles();
     if (typeof global.crozzoGestionPerfilesRefreshUI === 'function') global.crozzoGestionPerfilesRefreshUI();
@@ -186,7 +186,7 @@
       }
     } catch (_) {}
     try {
-      localStorage.setItem(LS_STAFF_TPL, JSON.stringify(list));
+      safeLocalStorageSet(LS_STAFF_TPL, JSON.stringify(list));
     } catch (_) {}
   }
 

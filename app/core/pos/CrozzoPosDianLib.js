@@ -478,14 +478,14 @@ function crozzoFiscalOutboxSave(arr) {
   var data = JSON.stringify(arr || []);
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, data);
+      safeLocalStorageSet(CROZZO_FISCAL_OUTBOX_KEY, data);
     }
   } catch (e) {
     // Cuota excedida: conservar los más recientes y avisar (no perder en silencio).
     try {
       if (typeof localStorage !== 'undefined') {
         var trimmed = (arr || []).slice(-500);
-        localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, JSON.stringify(trimmed));
+        safeLocalStorageSet(CROZZO_FISCAL_OUTBOX_KEY, JSON.stringify(trimmed));
         if (typeof console !== 'undefined' && console.warn) {
           console.warn('[fiscal-outbox] cuota excedida; conservados ' + trimmed.length + ' de ' + (arr || []).length);
         }

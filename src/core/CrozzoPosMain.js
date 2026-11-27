@@ -43586,7 +43586,7 @@ async function handleCertUpload(event) {
     upload.classList.add('has-file');
     upload.innerHTML = CrozzoSanitize.sanitizeHtml(`
       <div style="font-size: 2rem; margin-bottom: 8px;">✅</div>
-      <div style="font-weight: 500; color: var(--success);">${file.name}</div>
+      <div style="font-weight: 500; color: var(--success);">${CrozzoSanitize.escapeHtml(file.name)}</div>
       <div style="font-size: 0.8rem; color: var(--text-muted);">${(file.size / 1024).toFixed(1)} KB</div>
       <div style="font-size: 0.8rem; color: var(--text-muted);">Haz clic para cambiar</div>
       <input type="file" id="certFileInput" accept=".p12,.pfx" style="display: none;" onchange="handleCertUpload(event)">
@@ -49241,7 +49241,7 @@ function showModal(title, content, options) {
   else overlay.classList.remove('modal-overlay--above-pairing');
   if (options.noBackdropClose) overlay.dataset.noBackdropClose = '1';
   else delete overlay.dataset.noBackdropClose;
-  const titleHtml = options.titleHtml != null ? options.titleHtml : `<h3 class="modal-title">${title}</h3>`;
+  const titleHtml = options.titleHtml != null ? options.titleHtml : `<h3 class="modal-title">${CrozzoSanitize.escapeHtml(title)}</h3>`;
   const showClose = options.showClose === true;
   const closeHtml = showClose
     ? '<button type="button" class="crozzo-modal-close" id="crozzoModalCloseBtn" aria-label="Cerrar">&times;</button>'

@@ -21,7 +21,7 @@
     var json = JSON.stringify(facturas || []);
     var ok = false;
     // 1. localStorage (cache, siempre)
-    try { global.localStorage.setItem('crozzo_fiscal_facturas_cache', json); ok = true; } catch (_) {}
+    try { global.safeLocalStorageSet('crozzo_fiscal_facturas_cache', json); ok = true; } catch (_) {}
     // 2. SQLite (autoritativo, si flag activo y disponible)
     if (flagOn() && global.CrozzoFiscalSqlite) {
       try { await global.CrozzoFiscalSqlite.save(KEY, json); } catch (e) { console.warn('dualwrite sqlite save failed', e); }
@@ -35,7 +35,7 @@
       try {
         var v = await global.CrozzoFiscalSqlite.load(KEY);
         if (v) {
-          try { global.localStorage.setItem('crozzo_fiscal_facturas_cache', v); } catch (_) {}
+          try { global.safeLocalStorageSet('crozzo_fiscal_facturas_cache', v); } catch (_) {}
           return JSON.parse(v);
         }
       } catch (e) { console.warn('dualwrite sqlite load failed', e); }

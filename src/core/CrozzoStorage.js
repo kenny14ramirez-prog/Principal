@@ -27,7 +27,7 @@
   function set(table, key, value) {
     return new Promise(function (resolve) {
       try {
-        global.localStorage.setItem(_lsKey(table, key), JSON.stringify(value));
+        global.safeLocalStorageSet(_lsKey(table, key), JSON.stringify(value));
         resolve(true);
       } catch (_) { resolve(false); }
     });

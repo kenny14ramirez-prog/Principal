@@ -155,7 +155,7 @@
     }) || '';
     if (prev === ver) return;
     safe(function () {
-      global.localStorage.setItem(lsKey, ver);
+      global.safeLocalStorageSet(lsKey, ver);
     });
     global.setTimeout(function () {
       run('version_bump').catch(function () {});

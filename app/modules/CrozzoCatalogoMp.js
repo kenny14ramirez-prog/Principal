@@ -838,7 +838,7 @@
       toleranciaPct: patch.toleranciaPct != null ? num(patch.toleranciaPct) : cur.toleranciaPct,
     };
     try {
-      localStorage.setItem(PERDIDAS_PROCESO_KEY, JSON.stringify(next));
+      safeLocalStorageSet(PERDIDAS_PROCESO_KEY, JSON.stringify(next));
     } catch (_) {}
     emitChanged({ tipo: 'mermas-proceso', ref: next });
     try {
@@ -2679,7 +2679,7 @@
     st.meta.catalogoLabel = j.label || 'Demo';
     saveStore(st);
     try {
-      localStorage.setItem(LS_SEED_FLAG, String(CATALOG_VERSION));
+      safeLocalStorageSet(LS_SEED_FLAG, String(CATALOG_VERSION));
     } catch (_) {}
   }
 

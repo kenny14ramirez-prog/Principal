@@ -96,7 +96,7 @@
 
   function saveStore(st) {
     try {
-      localStorage.setItem(LS, JSON.stringify(st));
+      safeLocalStorageSet(LS, JSON.stringify(st));
     } catch (_) {}
   }
 
@@ -118,7 +118,7 @@
 
   function saveFedConfig(cfg) {
     try {
-      localStorage.setItem(LS_FED_CFG, JSON.stringify(cfg || {}));
+      safeLocalStorageSet(LS_FED_CFG, JSON.stringify(cfg || {}));
     } catch (_) {}
   }
 
@@ -853,7 +853,7 @@
       return;
     }
     try {
-      localStorage.setItem('crozzo_print_output_remision', id);
+      safeLocalStorageSet('crozzo_print_output_remision', id);
     } catch (_) {}
   }
 

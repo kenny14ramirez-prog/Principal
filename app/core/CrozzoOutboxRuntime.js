@@ -26,7 +26,7 @@
   }
 
   function save(queue) {
-    try { global.localStorage.setItem(STORAGE_KEY, JSON.stringify(queue)); } catch (_) {}
+    try { global.safeLocalStorageSet(STORAGE_KEY, JSON.stringify(queue)); } catch (_) {}
   }
 
   function enqueue(op) {

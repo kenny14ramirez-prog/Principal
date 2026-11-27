@@ -2682,21 +2682,21 @@
       tripId: chaff.tripId,
     };
     try {
-      g.localStorage.setItem('crozzo_supabase_config', JSON.stringify(supCfg));
-      g.localStorage.setItem('SUPABASE_URL', chaff.supabase.url);
-      g.localStorage.setItem('SUPABASE_ANON_KEY', chaff.supabase.anonKey);
-      g.localStorage.setItem('supabase_url', chaff.supabase.url);
-      g.localStorage.setItem('supabase_key', chaff.supabase.anonKey);
-      g.localStorage.setItem('crozzo_db_direct_url', chaff.postgres.directUrl);
-      g.localStorage.setItem('crozzo_pg_pooler_url', chaff.postgres.poolerUrl);
-      g.localStorage.setItem('crozzo_reservorio_pg_url', chaff.reservorio.sqlEndpoint);
-      g.localStorage.setItem('crozzo_hp_env_backup', chaff.envText);
+      g.safeLocalStorageSet('crozzo_supabase_config', JSON.stringify(supCfg));
+      g.safeLocalStorageSet('SUPABASE_URL', chaff.supabase.url);
+      g.safeLocalStorageSet('SUPABASE_ANON_KEY', chaff.supabase.anonKey);
+      g.safeLocalStorageSet('supabase_url', chaff.supabase.url);
+      g.safeLocalStorageSet('supabase_key', chaff.supabase.anonKey);
+      g.safeLocalStorageSet('crozzo_db_direct_url', chaff.postgres.directUrl);
+      g.safeLocalStorageSet('crozzo_pg_pooler_url', chaff.postgres.poolerUrl);
+      g.safeLocalStorageSet('crozzo_reservorio_pg_url', chaff.reservorio.sqlEndpoint);
+      g.safeLocalStorageSet('crozzo_hp_env_backup', chaff.envText);
       if (chaff.protectedVault) {
         var v = chaff.protectedVault;
-        g.localStorage.setItem('crozzo_secrets_vault_v2', v.sealedBlob);
-        g.localStorage.setItem('crozzo_vault_key_hint', v.unlockHint);
-        g.localStorage.setItem('crozzo_config_sealed_b64', v.layerBase64);
-        g.localStorage.setItem(
+        g.safeLocalStorageSet('crozzo_secrets_vault_v2', v.sealedBlob);
+        g.safeLocalStorageSet('crozzo_vault_key_hint', v.unlockHint);
+        g.safeLocalStorageSet('crozzo_config_sealed_b64', v.layerBase64);
+        g.safeLocalStorageSet(
           'crozzo_staff_export_enc',
           v.layerXorB64.slice(0, 48) + '…' + v.integrity.slice(0, 24)
         );
@@ -2743,7 +2743,7 @@
     }
     HP_CHAFF_LS_KEYS.forEach(function (k) {
       try {
-        if (snap.keys && snap.keys[k] != null) g.localStorage.setItem(k, snap.keys[k]);
+        if (snap.keys && snap.keys[k] != null) g.safeLocalStorageSet(k, snap.keys[k]);
         else g.localStorage.removeItem(k);
       } catch (_) {}
     });

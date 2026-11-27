@@ -24,7 +24,7 @@
 
   function lsSet(k, v) {
     try {
-      global.localStorage.setItem(k, v);
+      global.safeLocalStorageSet(k, v);
       return true;
     } catch (_) {
       return false;

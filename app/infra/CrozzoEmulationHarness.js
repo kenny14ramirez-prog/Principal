@@ -113,7 +113,7 @@
     global.__CROZZO_EMULATION_ACTIVE = true;
     global.__CROZZO_EMULATION = true;
     try {
-      global.localStorage.setItem(LS_FLAG, '1');
+      global.safeLocalStorageSet(LS_FLAG, '1');
     } catch (_) {}
     installIdbIsolation();
     installLocalStorageIsolation();

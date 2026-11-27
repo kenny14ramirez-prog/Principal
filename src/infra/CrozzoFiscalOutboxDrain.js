@@ -162,7 +162,7 @@
         }
       }
       var tabId = global.__crozzoTabId || (global.__crozzoTabId = Math.random().toString(36).slice(2));
-      localStorage.setItem(LOCK_KEY, JSON.stringify({ tabId: tabId, until: Date.now() + LOCK_TTL_MS }));
+      safeLocalStorageSet(LOCK_KEY, JSON.stringify({ tabId: tabId, until: Date.now() + LOCK_TTL_MS }));
       return true;
     } catch (_) {
       return true;

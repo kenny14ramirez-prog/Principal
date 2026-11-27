@@ -53,7 +53,7 @@
   }
 
   function setEnabled(enabled) {
-    try { localStorage.setItem(HELP_LS_KEY, enabled ? 'true' : 'false'); } catch (_) {}
+    try { safeLocalStorageSet(HELP_LS_KEY, enabled ? 'true' : 'false'); } catch (_) {}
     _active = !!enabled;
     // Sincronizar toggle si existe
     var toggle = document.getElementById('contextualHelpToggle');

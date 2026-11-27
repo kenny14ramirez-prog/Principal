@@ -84,7 +84,7 @@
     };
     jaula.actionLog.push(entry);
     // Guardar en cada acción para no perder datos
-    try { localStorage.setItem(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
+    try { safeLocalStorageSet(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
   }
 
   function isJaulaActive() {
@@ -465,11 +465,11 @@
         }).then(function (res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           // Guardar en localStorage que se registró
-          try { localStorage.setItem('crozzo_blocked_registered', '1'); } catch (_) {}
+          try { safeLocalStorageSet('crozzo_blocked_registered', '1'); } catch (_) {}
           try { localStorage.removeItem('crozzo_blocked_pending_fp'); } catch (_) {}
         }).catch(function () {
           // Guardar fingerprint pendiente para reintentar después
-          try { localStorage.setItem('crozzo_blocked_pending_fp', fingerprint); } catch (_) {}
+          try { safeLocalStorageSet('crozzo_blocked_pending_fp', fingerprint); } catch (_) {}
           // Reintentar en 5 segundos
           setTimeout(intentar, 5000);
         });
@@ -488,8 +488,8 @@
       if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) { desactivar(); return; }
     } catch (_) {}
     jaula.blocked = true;
-    try { localStorage.setItem(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
-    try { localStorage.setItem(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
+    try { safeLocalStorageSet(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
+    try { safeLocalStorageSet(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
 
     // Enviar alerta de bloqueo por email
     try {
@@ -724,7 +724,7 @@
         }).then(function (data) {
           if (data === true) {
             // Dispositivo bloqueado en la nube → bloquear localmente
-            try { localStorage.setItem(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
+            try { safeLocalStorageSet(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
             jaula.blocked = true;
             _mostrarBloqueo();
             _protegerBloqueo();

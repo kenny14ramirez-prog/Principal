@@ -406,7 +406,7 @@
 
   function saveGlobalMargenPct(pctDisplay) {
     try {
-      localStorage.setItem(LS_MARGEN_GLOBAL, String(pctDisplay));
+      safeLocalStorageSet(LS_MARGEN_GLOBAL, String(pctDisplay));
     } catch (_) {}
   }
 
@@ -423,8 +423,8 @@
 
   function saveGlobalMargenMinimoPct(pctDisplay) {
     try {
-      localStorage.setItem(LS_MARGEN_MINIMO, String(pctDisplay));
-      localStorage.setItem(LS_MP_ALERTA_SUBIDA, String(pctDisplay));
+      safeLocalStorageSet(LS_MARGEN_MINIMO, String(pctDisplay));
+      safeLocalStorageSet(LS_MP_ALERTA_SUBIDA, String(pctDisplay));
     } catch (_) {}
   }
 
@@ -442,9 +442,9 @@
 
   function saveGlobalCostoObjetivoPct(pctDisplay) {
     try {
-      localStorage.setItem(LS_COSTO_GLOBAL, String(pctDisplay));
+      safeLocalStorageSet(LS_COSTO_GLOBAL, String(pctDisplay));
       var util = Math.round((100 - Number(pctDisplay)) * 10) / 10;
-      if (util >= 0 && util < 100) localStorage.setItem(LS_MARGEN_GLOBAL, String(util));
+      if (util >= 0 && util < 100) safeLocalStorageSet(LS_MARGEN_GLOBAL, String(util));
     } catch (_) {}
   }
 
@@ -548,7 +548,7 @@
 
   function saveAutoPosDesdeMargen(on) {
     try {
-      localStorage.setItem(LS_AUTO_POS_MARGEN, on ? '1' : '0');
+      safeLocalStorageSet(LS_AUTO_POS_MARGEN, on ? '1' : '0');
     } catch (_) {}
   }
 
@@ -565,7 +565,7 @@
 
   function saveRevisionStore(st) {
     try {
-      localStorage.setItem(LS_REVISION, JSON.stringify(st || { activa: null, historial: [] }));
+      safeLocalStorageSet(LS_REVISION, JSON.stringify(st || { activa: null, historial: [] }));
     } catch (_) {}
   }
 
@@ -3563,7 +3563,7 @@
       } catch (_) {}
     }
     try {
-      localStorage.setItem(LS_FEED, JSON.stringify(list.slice(0, 500)));
+      safeLocalStorageSet(LS_FEED, JSON.stringify(list.slice(0, 500)));
     } catch (_) {}
   }
 
@@ -3581,7 +3581,7 @@
       var log = loadEventLog();
       if (!Array.isArray(log)) log = [];
       log.unshift(Object.assign({ ts: new Date().toISOString() }, entry));
-      localStorage.setItem(LS_EVENT_LOG, JSON.stringify(log.slice(0, 200)));
+      safeLocalStorageSet(LS_EVENT_LOG, JSON.stringify(log.slice(0, 200)));
     } catch (_) {}
   }
 
@@ -5271,7 +5271,7 @@
   function pickInventarioPrintOutput(outputId) {
     outputId = inventarioNormalizeOutput(outputId);
     try {
-      localStorage.setItem('crozzo_print_output_inventario', outputId);
+      safeLocalStorageSet('crozzo_print_output_inventario', outputId);
     } catch (_) {}
     var host = document.querySelector('[data-inv-print-format]');
     if (host) {

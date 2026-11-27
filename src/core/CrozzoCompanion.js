@@ -68,7 +68,7 @@
   }
 
   function save(prefs) {
-    try { global.localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) { /* almacenamiento no disponible */ }
+    try { global.safeLocalStorageSet(KEY, JSON.stringify(prefs)); } catch (e) { /* almacenamiento no disponible */ }
   }
 
   function momento(h) {
@@ -377,7 +377,7 @@
     var previo = 0;
     try { previo = Number(global.localStorage.getItem(clave)) || 0; } catch (e) { previo = 0; }
     if (alcanzado <= previo) return;
-    try { global.localStorage.setItem(clave, String(alcanzado)); } catch (e) { /* sin almacenamiento */ }
+    try { global.safeLocalStorageSet(clave, String(alcanzado)); } catch (e) { /* sin almacenamiento */ }
     var usted = load().tratamiento === 'usted';
     avisar((usted ? 'Lleva ' : 'Llevas ') + alcanzado + ' cierres seguidos sin diferencias. Excelente trabajo.', 'success');
     celebrar();
@@ -651,7 +651,7 @@
     new global.MutationObserver(function () {
       try {
         var pg = paginaActual();
-        if (pg) global.localStorage.setItem(CLAVE_ULT_MODULO, pg);
+        if (pg) global.safeLocalStorageSet(CLAVE_ULT_MODULO, pg);
         registrarVisita();
       } catch (e) { /* sin almacenamiento */ }
       renderMayordomo();
@@ -659,7 +659,7 @@
     }).observe(host, { childList: true });
     try {
       var pg0 = paginaActual();
-      if (pg0) global.localStorage.setItem(CLAVE_ULT_MODULO, pg0);
+      if (pg0) global.safeLocalStorageSet(CLAVE_ULT_MODULO, pg0);
     } catch (e) { /* sin almacenamiento */ }
     renderMayordomo();
     renderBienvenida();
@@ -698,7 +698,7 @@
     btn.className = 'btn btn-primary';
     btn.textContent = 'Empezar';
     btn.addEventListener('click', function () {
-      try { global.localStorage.setItem('crozzo_tour_visto', '1'); } catch (e) { /* sin almacenamiento */ }
+      try { global.safeLocalStorageSet('crozzo_tour_visto', '1'); } catch (e) { /* sin almacenamiento */ }
       overlay.remove();
     });
     card.appendChild(btn);

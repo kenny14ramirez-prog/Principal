@@ -3401,13 +3401,13 @@ function qcaCrozzoReadSavedTheme(){
       if(ok(u)) return u;
       var leg=localStorage.getItem(CROZZO_THEME_LEGACY);
       if(ok(leg)){
-        localStorage.setItem(uk,leg);
+        safeLocalStorageSet(uk,leg);
         try{ localStorage.removeItem(CROZZO_THEME_LEGACY); }catch(e2){}
         return leg;
       }
       var pend=localStorage.getItem(CROZZO_THEME_PENDING);
       if(ok(pend)){
-        localStorage.setItem(uk,pend);
+        safeLocalStorageSet(uk,pend);
         try{ localStorage.removeItem(CROZZO_THEME_PENDING); }catch(e4){}
         return pend;
       }
@@ -3434,10 +3434,10 @@ function qcaApplyCrozzoTheme(name,opt){
     var uk=qcaCrozzoUserStorageKey();
     if(uk){
       if(name==='deepspace') localStorage.removeItem(uk);
-      else localStorage.setItem(uk,name);
+      else safeLocalStorageSet(uk,name);
     }else{
       if(name==='deepspace') localStorage.removeItem(CROZZO_THEME_PENDING);
-      else localStorage.setItem(CROZZO_THEME_PENDING,name);
+      else safeLocalStorageSet(CROZZO_THEME_PENDING,name);
       try{ localStorage.removeItem(CROZZO_THEME_LEGACY); }catch(e3){}
     }
   }catch(e){}
@@ -4597,7 +4597,7 @@ function proDesgloseTplSave(matId, items){
   if(!matId) return;
   const o=proDesgloseTplReadAll();
   o[matId]=(Array.isArray(items)?items:[]).filter(it=>String(it?.nombre||'').trim());
-  try{ localStorage.setItem(proDesgloseLsKey(), JSON.stringify(o)); }catch(e){}
+  try{ safeLocalStorageSet(proDesgloseLsKey(), JSON.stringify(o)); }catch(e){}
 }
 function proToggleDesglose(bid){
   const el=document.getElementById('pb-desglose-'+bid);
@@ -9220,7 +9220,7 @@ function ofReporteMemoRead(){
 }
 function ofReporteMemoWrite(m){
   try{
-    localStorage.setItem(OF_MEMO_LS_KEY,JSON.stringify({
+    safeLocalStorageSet(OF_MEMO_LS_KEY,JSON.stringify({
       pendiente_oficina:String(m.pendiente_oficina||'').slice(0,8000),
       pendiente_pago:String(m.pendiente_pago||'').slice(0,8000)
     }));
@@ -11235,7 +11235,7 @@ async function recCajaGuardar(){
       try{ if(typeof ofLoadFacturas==='function') void ofLoadFacturas(true); }catch(_e){}
       // Recordar proveedor para el día siguiente
       const _pvid=SS['r-proveedor']?.getValue();
-      if(_pvid) try{localStorage.setItem('qca_last_prov_caja',_pvid);}catch(e){}
+      if(_pvid) try{safeLocalStorageSet('qca_last_prov_caja',_pvid);}catch(e){}
       // Generar cuenta de cobro automáticamente si el proveedor tiene datos completos
       const _fechaRec=document.getElementById('r-fecha').value;
       const _valorRec=parseFloat(document.getElementById('r-valor-factura').value)||0;
@@ -11378,7 +11378,7 @@ function rjConfigOllamaUrl(){
   if(!t) return;
   const n=rjNormalizeOllamaBase(t);
   if(!n){showToast('URL no permitida: usa solo http(s)://127.0.0.1 o localhost','err');return;}
-  try{localStorage.setItem('qca_ollama_url',n);}catch(e){}
+  try{safeLocalStorageSet('qca_ollama_url',n);}catch(e){}
   rjUpdateOllamaHostLabel();
   showToast('URL de Ollama guardada','ok');
 }
@@ -11388,7 +11388,7 @@ function rjConfigOllamaModel(){
   const t=v.trim();
   try{
     if(!t) localStorage.removeItem('qca_ollama_model');
-    else localStorage.setItem('qca_ollama_model',t);
+    else safeLocalStorageSet('qca_ollama_model',t);
   }catch(e){}
   rjUpdateOllamaHostLabel();
   showToast(t?'Modelo Ollama guardado':'Se usa el modelo predeterminado de la app','ok');
@@ -12549,7 +12549,7 @@ function ofCuentaCobroImprimir(rec){
 
 // ── helpers internos cuenta de cobro ──
 function _ccLs(provId){try{const r=localStorage.getItem('qca_cc_'+provId);return r?JSON.parse(r):{};}catch(e){return {};}}
-function _ccLsSave(provId,obj){try{localStorage.setItem('qca_cc_'+provId,JSON.stringify(obj));}catch(e){}}
+function _ccLsSave(provId,obj){try{safeLocalStorageSet('qca_cc_'+provId,JSON.stringify(obj));}catch(e){}}
 function _ccConceptoDefault(tipo){return tipo==='servicios'?'apoyo en servicio prestado':'suministro de materia prima';}
 function _ccTipoChange(){
   const tipo=document.querySelector('input[name="cc-tipo"]:checked')?.value||'materia';
@@ -13845,13 +13845,13 @@ window.addEventListener('beforeunload', function(e){
         return;
       }
       overlay.classList.add('open');
-      try{ localStorage.setItem(KEY,'1'); }catch(_e){}
+      try{ safeLocalStorageSet(KEY,'1'); }catch(_e){}
       setTimeout(()=>{ window.qcaPochiSendContext?.(); }, 50);
       input?.focus();
     }
     function closePochi(){
       overlay.classList.remove('open');
-      try{ localStorage.setItem(KEY,'0'); }catch(_e){}
+      try{ safeLocalStorageSet(KEY,'0'); }catch(_e){}
     }
     function togglePochi(){
       if(overlay.classList.contains('open')) closePochi();

@@ -72,7 +72,7 @@
   function persistSnapshot(snap) {
     safe(function () {
       global.__CROZZO_Z0_AUTOGUARD = snap;
-      global.localStorage.setItem(LS_SNAP, JSON.stringify(snap));
+      global.safeLocalStorageSet(LS_SNAP, JSON.stringify(snap));
     });
   }
 
@@ -114,7 +114,7 @@
     }) || 0;
     if (last && Date.now() - last < 86400000) return;
     safe(function () {
-      global.localStorage.setItem(lsKey, String(Date.now()));
+      global.safeLocalStorageSet(lsKey, String(Date.now()));
     });
     safe(function () {
       if (typeof global.showToast === 'function') global.showToast(message, level || 'info');

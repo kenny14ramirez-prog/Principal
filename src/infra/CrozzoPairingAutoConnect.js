@@ -50,20 +50,20 @@
         } catch (_) {}
       }
       if (!certPem) {
-        try { if (global.localStorage) global.localStorage.setItem('crozzo_cert_trusted', '0'); } catch (_) {}
+        try { if (global.localStorage) global.safeLocalStorageSet('crozzo_cert_trusted', '0'); } catch (_) {}
         return { ok: false, reason: 'no_cert' };
       }
       if (typeof global.crozzoCertTrustInstall !== 'function') {
-        try { if (global.localStorage) global.localStorage.setItem('crozzo_cert_trusted', '0'); } catch (_) {}
+        try { if (global.localStorage) global.safeLocalStorageSet('crozzo_cert_trusted', '0'); } catch (_) {}
         return { ok: false, reason: 'no_installer' };
       }
       var res = await global.crozzoCertTrustInstall(certPem);
       var ok = !!(res && res.ok !== false);
-      try { if (global.localStorage) global.localStorage.setItem('crozzo_cert_trusted', ok ? '1' : '0'); } catch (_) {}
+      try { if (global.localStorage) global.safeLocalStorageSet('crozzo_cert_trusted', ok ? '1' : '0'); } catch (_) {}
       try { global.__CROZZO_CERT_TRUSTED = ok; } catch (_) {}
       return res || { ok: ok };
     } catch (e) {
-      try { if (global.localStorage) global.localStorage.setItem('crozzo_cert_trusted', '0'); } catch (_) {}
+      try { if (global.localStorage) global.safeLocalStorageSet('crozzo_cert_trusted', '0'); } catch (_) {}
       return { ok: false, reason: 'error' };
     }
   }
@@ -149,7 +149,7 @@
         try {
           var __fpVal = __certPayload && (__certPayload.tls_fingerprint || (__certPayload.lan && __certPayload.lan.tls_fingerprint) || __certPayload.cert_fingerprint || __certPayload.certFingerprint);
           if (__fpVal && typeof global.crozzoTlsSaveFingerprint === 'function') global.crozzoTlsSaveFingerprint(__fpVal);
-          else if (__fpVal && typeof global.localStorage !== 'undefined') global.localStorage.setItem('crozzo_paired_tls_fingerprint', String(__fpVal).trim().toLowerCase());
+          else if (__fpVal && typeof global.localStorage !== 'undefined') global.safeLocalStorageSet('crozzo_paired_tls_fingerprint', String(__fpVal).trim().toLowerCase());
         } catch (_) {}
       } catch (_) {}
       return { ok: true, source: source };

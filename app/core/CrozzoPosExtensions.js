@@ -195,7 +195,7 @@
   }
   function setIsActiveServer(v) {
     try {
-      if (v) global.localStorage.setItem(LS_ACTIVE, '1');
+      if (v) global.safeLocalStorageSet(LS_ACTIVE, '1');
       else global.localStorage.removeItem(LS_ACTIVE);
     } catch (e) { /* ignore */ }
   }
@@ -208,13 +208,13 @@
   }
   function setForceDualServerA(v) {
     try {
-      if (v) global.localStorage.setItem(LS_FORCE_A, '1');
+      if (v) global.safeLocalStorageSet(LS_FORCE_A, '1');
       else global.localStorage.removeItem(LS_FORCE_A);
     } catch (e) { /* ignore */ }
   }
   function setConflictBanner(text) {
     try {
-      if (text) global.localStorage.setItem(LS_CONFLICT, text);
+      if (text) global.safeLocalStorageSet(LS_CONFLICT, text);
       else global.localStorage.removeItem(LS_CONFLICT);
     } catch (e) { /* ignore */ }
   }
@@ -891,7 +891,7 @@
   function crozzoPersistHotspotCredentials(r) {
     if (!r || !r.ssid) return;
     try {
-      global.localStorage.setItem(
+      global.safeLocalStorageSet(
         HOTSPOT_CREDS_KEY,
         JSON.stringify({
           ssid: String(r.ssid || '').trim(),
@@ -977,7 +977,7 @@
   }
   global.crozzoSetAutoHotspot = function (on) {
     try {
-      global.localStorage.setItem('crozzo_auto_hotspot_v1', on ? '1' : '0');
+      global.safeLocalStorageSet('crozzo_auto_hotspot_v1', on ? '1' : '0');
     } catch (_) {}
     if (typeof global.showToast === 'function') {
       global.showToast(
@@ -1488,7 +1488,7 @@
     setCardState(id, 'run');
     var t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
     try {
-      global.localStorage.setItem(LS_DIAG, String(Date.now()));
+      global.safeLocalStorageSet(LS_DIAG, String(Date.now()));
       var v = global.localStorage.getItem(LS_DIAG);
       global.localStorage.removeItem(LS_DIAG);
       if (!v) throw new Error('readback');

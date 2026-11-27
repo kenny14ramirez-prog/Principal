@@ -54,7 +54,7 @@
 
   function lsSet(key, val) {
     try {
-      global.localStorage.setItem(key, JSON.stringify(val));
+      global.safeLocalStorageSet(key, JSON.stringify(val));
       return true;
     } catch (_) {
       return false;

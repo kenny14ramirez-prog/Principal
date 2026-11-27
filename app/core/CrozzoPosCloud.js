@@ -207,11 +207,11 @@ function crozzoIsQuotaError(e) {
 window.crozzoIsQuotaError = crozzoIsQuotaError;
 function lsSet(k, v) {
   try {
-    localStorage.setItem(k, v);
+    safeLocalStorageSet(k, v);
   } catch (e) {
     if (crozzoIsQuotaError(e) && crozzoPruneExpendableStorage() > 0) {
       try {
-        localStorage.setItem(k, v);
+        safeLocalStorageSet(k, v);
         return;
       } catch (_) {}
     }
@@ -382,7 +382,7 @@ function crozzoHealSupabaseConfigStorage() {
       const key = crozzoSupabaseEffectiveAnonKey(j);
       if (normalized && normalized !== String(j.url || '').trim() && isValidSupabasePair(normalized, key)) {
         j.url = normalized;
-        localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(j));
+        safeLocalStorageSet(CROZZO_SB_FILE, JSON.stringify(j));
         mirrorCredentialsToBothKeys(normalized, key);
         healed = true;
       }
@@ -457,7 +457,7 @@ function crozzoRecoverSupabaseFromMultiDevice() {
     recoveredFrom: 'multidispositivo',
   };
   try {
-    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    safeLocalStorageSet(CROZZO_SB_FILE, JSON.stringify(file));
     mirrorCredentialsToBothKeys(url, key);
     if (file.deviceId) lsSet(LS.DEVICE_ID, file.deviceId);
     return true;
@@ -721,7 +721,7 @@ function crozzoEnsureSupabaseConfigFileFromAnySource() {
     savedAt: Date.now(),
   };
   try {
-    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    safeLocalStorageSet(CROZZO_SB_FILE, JSON.stringify(file));
     mirrorCredentialsToBothKeys(creds.url, creds.key);
   } catch (e) {
     console.warn('[crozzo-sb] ensure config file', e);
@@ -806,7 +806,7 @@ window.__crozzoApplyStandaloneSupabaseToConfig = function crozzoApplyStandaloneS
   const nextDev = String(cfg.multidispositivo.deviceId || '');
   if (nextSb !== prevSb || nextDev !== prevDev) {
     try {
-      localStorage.setItem('pos_dian_config', JSON.stringify(cfg));
+      safeLocalStorageSet('pos_dian_config', JSON.stringify(cfg));
     } catch (e) {
       console.warn('[crozzo-sb] persist pos_dian_config', e);
     }
@@ -841,12 +841,12 @@ window.crozzoPersistSupabaseConfigFromPairing = function crozzoPersistSupabaseCo
       deviceId: String(payload.deviceId || '').trim(),
       savedAt: Date.now(),
     };
-    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    safeLocalStorageSet(CROZZO_SB_FILE, JSON.stringify(file));
     mirrorCredentialsToBothKeys(url, key);
     if (file.deviceId) lsSet(LS.DEVICE_ID, file.deviceId);
     if (file.deviceName) {
       try {
-        localStorage.setItem('device_name', file.deviceName);
+        safeLocalStorageSet('device_name', file.deviceName);
       } catch (_) {}
     }
     try {

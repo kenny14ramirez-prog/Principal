@@ -156,7 +156,7 @@
     var cur = feGetOcrAyudaConfig();
     var next = Object.assign({}, cur, patch || {});
     try {
-      localStorage.setItem(FE_OCR_AYUDA_LS, JSON.stringify(next));
+      safeLocalStorageSet(FE_OCR_AYUDA_LS, JSON.stringify(next));
     } catch (_) {}
     return next;
   }
@@ -449,7 +449,7 @@
   function feSaveQrRuntimeMemory(runtime) {
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(FE_QR_ZONE_LS, JSON.stringify(runtime || {}));
+        safeLocalStorageSet(FE_QR_ZONE_LS, JSON.stringify(runtime || {}));
       }
     } catch (eS) {}
   }
@@ -21990,7 +21990,7 @@
   }
   function saveWorkspace(ws) {
     try {
-      localStorage.setItem(LS_WORKSPACE, JSON.stringify(ws));
+      safeLocalStorageSet(LS_WORKSPACE, JSON.stringify(ws));
     } catch (_) {}
   }
   function getWs() {

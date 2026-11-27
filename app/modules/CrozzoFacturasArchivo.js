@@ -53,7 +53,7 @@
 
   function writeIndex(rows) {
     try {
-      localStorage.setItem(LS_INDEX, JSON.stringify(rows));
+      safeLocalStorageSet(LS_INDEX, JSON.stringify(rows));
     } catch (e) {
       console.warn('[facturas-archivo] index', e);
     }
@@ -69,7 +69,7 @@
 
   function writeMonthBlob(yyyyMm, blob) {
     try {
-      localStorage.setItem(LS_PREFIX + yyyyMm, JSON.stringify(blob));
+      safeLocalStorageSet(LS_PREFIX + yyyyMm, JSON.stringify(blob));
       return true;
     } catch (e) {
       console.warn('[facturas-archivo] write', e);

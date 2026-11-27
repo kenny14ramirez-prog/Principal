@@ -56,7 +56,7 @@
     if (!pem) return false;
     try { global.__CROZZO_TRUSTED_CA_PEM = pem; } catch (_) {}
     try {
-      if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_PEM_KEY, pem);
+      if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_PEM_KEY, pem);
     } catch (_) {}
     return true;
   }
@@ -66,7 +66,7 @@
     if (!fp) return false;
     try { global.__CROZZO_TRUSTED_CA_FP = fp; } catch (_) {}
     try {
-      if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_FP_KEY, fp);
+      if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_FP_KEY, fp);
     } catch (_) {}
     return true;
   }
@@ -156,13 +156,13 @@
 
   function saveTrustState(installed, method, error) {
     installed = !!installed;
-    try { if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_STATE_KEY, installed ? '1' : '0'); } catch (_) {}
-    try { if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_INSTALLED_KEY, installed ? '1' : '0'); } catch (_) {}
-    try { if (typeof global.localStorage !== 'undefined' && method) global.localStorage.setItem(STORAGE_METHOD_KEY, String(method)); } catch (_) {}
-    try { if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_AT_KEY, String(Date.now())); } catch (_) {}
+    try { if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_STATE_KEY, installed ? '1' : '0'); } catch (_) {}
+    try { if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_INSTALLED_KEY, installed ? '1' : '0'); } catch (_) {}
+    try { if (typeof global.localStorage !== 'undefined' && method) global.safeLocalStorageSet(STORAGE_METHOD_KEY, String(method)); } catch (_) {}
+    try { if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_AT_KEY, String(Date.now())); } catch (_) {}
     try {
       if (typeof global.localStorage !== 'undefined') {
-        if (error) global.localStorage.setItem(STORAGE_ERROR_KEY, String(error));
+        if (error) global.safeLocalStorageSet(STORAGE_ERROR_KEY, String(error));
         else global.localStorage.removeItem(STORAGE_ERROR_KEY);
       }
     } catch (_) {}

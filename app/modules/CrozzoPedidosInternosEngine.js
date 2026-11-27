@@ -45,7 +45,7 @@
 
   function saveConfig(cfg) {
     try {
-      localStorage.setItem(LS_CONFIG, JSON.stringify(cfg));
+      safeLocalStorageSet(LS_CONFIG, JSON.stringify(cfg));
     } catch (_) {}
   }
 

@@ -299,7 +299,7 @@
 
   function writePrintedPersist(map) {
     try {
-      global.localStorage.setItem(PRINTED_LS_KEY, JSON.stringify(map || {}));
+      global.safeLocalStorageSet(PRINTED_LS_KEY, JSON.stringify(map || {}));
     } catch (_) {}
   }
 
@@ -478,7 +478,7 @@
           consecutivo: e.consecutivo || 0,
         };
       });
-      if (arr.length) global.localStorage.setItem(OUTBOX_LS_KEY, JSON.stringify(arr));
+      if (arr.length) global.safeLocalStorageSet(OUTBOX_LS_KEY, JSON.stringify(arr));
       else global.localStorage.removeItem(OUTBOX_LS_KEY);
     } catch (_) {}
   }
@@ -504,7 +504,7 @@
     }
     /* Consecutivo idempotente: se conserva si ya existia, si no se asigna uno nuevo. */
     var consecutivo = existing && existing.consecutivo ? existing.consecutivo : (++__outboxSeq);
-    try { global.localStorage.setItem(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {}
+    try { global.safeLocalStorageSet(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {}
     __outbox[k] = {
       id: comanda.id,
       tid: String(comanda.transaction_id || ''),
@@ -866,7 +866,7 @@
     payload._cloudDeviceUuid = ctx.deviceUuid;
     payload._cloudSyncedAt = new Date().toISOString();
     var consecutivo = (comanda && comanda._outboxConsecutivo) ? comanda._outboxConsecutivo : 0;
-    if (!consecutivo) { try { consecutivo = ++__outboxSeq; global.localStorage.setItem(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {} }
+    if (!consecutivo) { try { consecutivo = ++__outboxSeq; global.safeLocalStorageSet(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {} }
     payload.consecutivo = consecutivo;
     var body = {
       id: rowId,

@@ -13,7 +13,7 @@
     if (isTauri()) {
       try { await global.__TAURI__.core.invoke('crozzo_cert_vault_set', { certB64: String(certB64) }); return true; } catch (e) { console.warn('cert_vault set failed', e); }
     }
-    try { global.localStorage.setItem('crozzo_cert_vault_cache', String(certB64)); return true; } catch (_) { return false; }
+    try { global.safeLocalStorageSet('crozzo_cert_vault_cache', String(certB64)); return true; } catch (_) { return false; }
   }
   async function get() {
     if (isTauri()) {

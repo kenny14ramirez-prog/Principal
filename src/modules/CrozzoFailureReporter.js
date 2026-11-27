@@ -86,7 +86,7 @@
     try { return global.localStorage && global.localStorage.getItem('crozzo_failure_report_optin') === '1'; } catch (_) { return false; }
   }
   function setOptIn(v) {
-    try { if (global.localStorage) global.localStorage.setItem('crozzo_failure_report_optin', v ? '1' : '0'); } catch (_) {}
+    try { if (global.localStorage) global.safeLocalStorageSet('crozzo_failure_report_optin', v ? '1' : '0'); } catch (_) {}
   }
   function redactText(s) {
     s = String(s == null ? '' : s);

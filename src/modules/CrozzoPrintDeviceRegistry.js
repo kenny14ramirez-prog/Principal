@@ -200,7 +200,7 @@
 
   function writePersistedRegistry(map) {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(map || {}));
+      safeLocalStorageSet(LS_KEY, JSON.stringify(map || {}));
     } catch (_) {}
   }
 

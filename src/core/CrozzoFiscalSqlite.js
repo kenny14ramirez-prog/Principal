@@ -18,7 +18,7 @@
         return true;
       } catch (e) { console.warn('fiscal_sqlite save failed', e); }
     }
-    try { global.localStorage.setItem('crozzo_fiscal_' + key, String(value)); return true; } catch (_) { return false; }
+    try { global.safeLocalStorageSet('crozzo_fiscal_' + key, String(value)); return true; } catch (_) { return false; }
   }
 
   async function load(key) {

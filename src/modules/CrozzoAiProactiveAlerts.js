@@ -15,7 +15,7 @@
     } catch (_) { return true; }
   }
   function markNotified() {
-    try { if (global.localStorage) global.localStorage.setItem(RATE_KEY, String(Date.now())); } catch (_) {}
+    try { if (global.localStorage) global.safeLocalStorageSet(RATE_KEY, String(Date.now())); } catch (_) {}
   }
   function notify(msg) {
     if (!canNotify()) return;

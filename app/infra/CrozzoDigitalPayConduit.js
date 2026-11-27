@@ -29,7 +29,7 @@
 
   function saveAll(arr) {
     safe(function () {
-      if (global.localStorage) global.localStorage.setItem(STORAGE, JSON.stringify(arr.slice(-200)));
+      if (global.localStorage) global.safeLocalStorageSet(STORAGE, JSON.stringify(arr.slice(-200)));
     });
   }
 

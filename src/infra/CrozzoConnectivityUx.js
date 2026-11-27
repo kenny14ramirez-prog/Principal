@@ -48,7 +48,7 @@
       try { arr = JSON.parse(global.localStorage.getItem(AUDIT_KEY) || '[]') || []; } catch (_) { arr = []; }
       arr.push({ at: Date.now(), event: String(event || ''), detail: String(detail || ''), tier: tierNow() });
       if (arr.length > AUDIT_MAX) arr = arr.slice(arr.length - AUDIT_MAX);
-      global.localStorage.setItem(AUDIT_KEY, JSON.stringify(arr));
+      global.safeLocalStorageSet(AUDIT_KEY, JSON.stringify(arr));
     } catch (_) {}
   }
 

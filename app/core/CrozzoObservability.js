@@ -22,7 +22,7 @@
     }
   }
   function persist() {
-    safe(() => localStorage.setItem(KEY, JSON.stringify(state)));
+    safe(() => safeLocalStorageSet(KEY, JSON.stringify(state)));
   }
   function record(kind, payload) {
     const entry = { ts: new Date().toISOString(), kind, ...payload };

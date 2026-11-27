@@ -367,7 +367,7 @@
         ROLE_ORDER.forEach(function (role) {
           client.rolePerms[role] = computeDefaultPolicy(client, role);
         });
-        localStorage.setItem('crozzo_rbac_basico_roles_v2', '1');
+        safeLocalStorageSet('crozzo_rbac_basico_roles_v2', '1');
       }
     } catch (_) {}
     try {
@@ -375,13 +375,13 @@
         if (Array.isArray(client.rolePerms.caja.comandas) && client.rolePerms.caja.comandas.length) {
           client.rolePerms.caja.comandas = [];
         }
-        localStorage.setItem('crozzo_caja_role_perms_sin_comandas_v1', '1');
+        safeLocalStorageSet('crozzo_caja_role_perms_sin_comandas_v1', '1');
       }
       if (!localStorage.getItem('crozzo_mesero_role_perms_sin_comandas_v1') && client.rolePerms.mesero) {
         if (Array.isArray(client.rolePerms.mesero.comandas) && client.rolePerms.mesero.comandas.length) {
           client.rolePerms.mesero.comandas = [];
         }
-        localStorage.setItem('crozzo_mesero_role_perms_sin_comandas_v1', '1');
+        safeLocalStorageSet('crozzo_mesero_role_perms_sin_comandas_v1', '1');
       }
     } catch (_) {}
     ROLE_ORDER.forEach(function (role) {

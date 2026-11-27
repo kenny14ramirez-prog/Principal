@@ -26,7 +26,7 @@
     if (global.CrozzoCertVault) {
       try { await global.CrozzoCertVault.set(jwt); } catch (_) {}
     }
-    try { global.localStorage.setItem(JWT_KEY, jwt); } catch (_) {}
+    try { global.safeLocalStorageSet(JWT_KEY, jwt); } catch (_) {}
   }
 
   async function clearJwt() {

@@ -153,7 +153,7 @@
       next.wellbeing = merged.slice(-120);
     }
     try {
-      localStorage.setItem(LS, JSON.stringify(next));
+      safeLocalStorageSet(LS, JSON.stringify(next));
     } catch (_) {}
     return next;
   }
@@ -821,7 +821,7 @@
   function snoozeBreakReminder(minutes) {
     var until = Date.now() + (minutes || 15) * 60000;
     try {
-      localStorage.setItem(LS_BREAK_SNOOZE, String(until));
+      safeLocalStorageSet(LS_BREAK_SNOOZE, String(until));
     } catch (_) {}
   }
 

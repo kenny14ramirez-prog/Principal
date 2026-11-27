@@ -118,7 +118,7 @@
     var tier = getDeviceTier();
     var model = recommendedModel(tier);
     if (model) {
-      try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_model', model); } catch (_) {}
+      try { if (typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_ollama_model', model); } catch (_) {}
     }
   }
 

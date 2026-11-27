@@ -32,7 +32,7 @@
 
   function save(arr) {
     try {
-      if (global.localStorage) global.localStorage.setItem(KEY, JSON.stringify(arr.slice(-MAX)));
+      if (global.localStorage) global.safeLocalStorageSet(KEY, JSON.stringify(arr.slice(-MAX)));
     } catch (e) {
       /* cuota llena / storage no disponible: el aprendizaje es best-effort */
     }

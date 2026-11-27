@@ -56,7 +56,7 @@
 
   function writeMeta(meta) {
     try {
-      global.localStorage.setItem('crozzo_sync_queue_purge_meta', JSON.stringify(meta || {}));
+      global.safeLocalStorageSet('crozzo_sync_queue_purge_meta', JSON.stringify(meta || {}));
     } catch (_) {}
   }
 

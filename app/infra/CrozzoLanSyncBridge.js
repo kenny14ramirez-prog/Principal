@@ -123,7 +123,7 @@
       if (!lan.lanToken) {
         lan.lanToken = genLanToken();
         lan.savedAt = Date.now();
-        global.localStorage.setItem('crozzo_lan_config', JSON.stringify(lan));
+        global.safeLocalStorageSet('crozzo_lan_config', JSON.stringify(lan));
         try {
           if (typeof global.getMultiDeviceConfig === 'function' && typeof global.persistMultiDeviceConfig === 'function') {
             var md = global.getMultiDeviceConfig() || {};
@@ -898,7 +898,7 @@
     if (lip) {
       try {
         global.__CROZZO_DETECTED_LAN_IP = lip;
-        global.localStorage.setItem('crozzo_wifi_zone_last_ip', lip);
+        global.safeLocalStorageSet('crozzo_wifi_zone_last_ip', lip);
       } catch (_) {}
     }
     var changed = false;
@@ -920,12 +920,12 @@
           networkSsidNote: (lan && lan.networkSsidNote) || 'Red Wi‑Fi principal',
           savedAt: Date.now(),
         };
-        global.localStorage.setItem('crozzo_lan_config', JSON.stringify(lan));
+        global.safeLocalStorageSet('crozzo_lan_config', JSON.stringify(lan));
         changed = true;
       } else if (lip && !String(lan.serverIp || '').trim()) {
         lan.serverIp = lip;
         lan.savedAt = Date.now();
-        global.localStorage.setItem('crozzo_lan_config', JSON.stringify(lan));
+        global.safeLocalStorageSet('crozzo_lan_config', JSON.stringify(lan));
         changed = true;
       }
     } catch (_) {}

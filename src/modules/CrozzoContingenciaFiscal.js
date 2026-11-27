@@ -80,7 +80,7 @@
         if (typeof global.crozzoSetContingenciaFiscal === 'function') {
           global.crozzoSetContingenciaFiscal(flag);
         } else if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('crozzo_contingencia_fiscal_inicio', flag);
+          safeLocalStorageSet('crozzo_contingencia_fiscal_inicio', flag);
         }
       } catch (_) {}
       // Disparar reporte de evento significativo a DIAN (vía PT cuando recupere)
@@ -208,7 +208,7 @@
         }
         arr.push(evento);
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(key, JSON.stringify(arr));
+          safeLocalStorageSet(key, JSON.stringify(arr));
         }
       } catch (_) {}
     },

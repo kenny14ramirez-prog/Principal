@@ -177,7 +177,7 @@
 
   function saveRecommendations(list) {
     try {
-      localStorage.setItem(LS_RECOMMEND, JSON.stringify((list || []).slice(0, 30)));
+      safeLocalStorageSet(LS_RECOMMEND, JSON.stringify((list || []).slice(0, 30)));
     } catch (e) {
       console.warn('[lab] recommend', e);
     }
@@ -514,7 +514,7 @@
       },
     };
     try {
-      localStorage.setItem(LS_EMU_REPORT, JSON.stringify(report));
+      safeLocalStorageSet(LS_EMU_REPORT, JSON.stringify(report));
     } catch (_) {}
     auditLab('emu_analysis', months + 'm · ' + pct + '% · lvl' + lvl);
     return report;
@@ -787,7 +787,7 @@
 
   function saveConfig(cfg) {
     try {
-      localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+      safeLocalStorageSet(LS_CFG, JSON.stringify(cfg));
     } catch (e) {
       console.warn('[lab]', e);
     }
@@ -810,7 +810,7 @@
 
   function saveMask(m) {
     try {
-      localStorage.setItem(LS_MASK, JSON.stringify(m));
+      safeLocalStorageSet(LS_MASK, JSON.stringify(m));
     } catch (e) {
       console.warn('[lab] mask', e);
     }
@@ -820,7 +820,7 @@
     try {
       var rows = JSON.parse(localStorage.getItem(LS_AUDIT) || '[]');
       rows.unshift({ at: new Date().toISOString(), type: type, detail: detail, user: actorLabel() });
-      localStorage.setItem(LS_AUDIT, JSON.stringify(rows.slice(0, 200)));
+      safeLocalStorageSet(LS_AUDIT, JSON.stringify(rows.slice(0, 200)));
       if (typeof config !== 'undefined' && config.addAudit) config.addAudit('lab_' + type, detail);
     } catch (_) {}
   }
@@ -2007,7 +2007,7 @@
 
   function savePurgeTombstones(list) {
     try {
-      localStorage.setItem(LS_PURGE, JSON.stringify((list || []).slice(0, 200)));
+      safeLocalStorageSet(LS_PURGE, JSON.stringify((list || []).slice(0, 200)));
     } catch (e) {
       console.warn('[lab] purge tomb', e);
     }

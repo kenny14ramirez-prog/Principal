@@ -19,7 +19,7 @@
     try {
       if (!global.localStorage) return false;
       var arr = Array.isArray(history) ? history.slice(-MAX) : [];
-      global.localStorage.setItem(LS_KEY, JSON.stringify(arr));
+      global.safeLocalStorageSet(LS_KEY, JSON.stringify(arr));
       return true;
     } catch (_) { return false; }
   }

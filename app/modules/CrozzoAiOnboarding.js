@@ -18,7 +18,7 @@
     try { return global.localStorage && global.localStorage.getItem(currentUserKey()) === '1'; } catch (_) { return false; }
   }
   function markDone() {
-    try { if (global.localStorage) global.localStorage.setItem(currentUserKey(), '1'); } catch (_) {}
+    try { if (global.localStorage) global.safeLocalStorageSet(currentUserKey(), '1'); } catch (_) {}
   }
 
   var STEPS = [

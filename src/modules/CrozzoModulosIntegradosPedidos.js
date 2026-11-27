@@ -241,7 +241,7 @@
     try {
       var local = JSON.parse(localStorage.getItem('crozzo_int_pedidos_local') || '[]');
       local.unshift(Object.assign({ id: Date.now(), created_at: new Date().toISOString() }, body));
-      localStorage.setItem('crozzo_int_pedidos_local', JSON.stringify(local.slice(0, 200)));
+      safeLocalStorageSet('crozzo_int_pedidos_local', JSON.stringify(local.slice(0, 200)));
     } catch (_) {}
 
     if (api()) {

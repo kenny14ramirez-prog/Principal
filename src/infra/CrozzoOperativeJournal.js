@@ -33,7 +33,7 @@
 
   function save(arr) {
     safe(function () {
-      if (global.localStorage) global.localStorage.setItem(KEY, JSON.stringify(arr.slice(-MAX)));
+      if (global.localStorage) global.safeLocalStorageSet(KEY, JSON.stringify(arr.slice(-MAX)));
     });
   }
 

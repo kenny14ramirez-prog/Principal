@@ -379,7 +379,7 @@
       try {
         var all = JSON.parse(localStorage.getItem(api().LS_RRHH + '_recs') || '[]');
         all.push(rec);
-        localStorage.setItem(api().LS_RRHH + '_recs', JSON.stringify(all));
+        safeLocalStorageSet(api().LS_RRHH + '_recs', JSON.stringify(all));
       } catch (_) {}
       showSync('Guardado local — se subirá con conexión', 'err');
     }

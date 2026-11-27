@@ -20,7 +20,7 @@
     fp = normalize(fp);
     if (!fp) return false;
     try { global.__CROZZO_PAIRED_TLS_FP = fp; } catch (_) {}
-    try { if (typeof global.localStorage !== 'undefined') global.localStorage.setItem(STORAGE_KEY, fp); } catch (_) {}
+    try { if (typeof global.localStorage !== 'undefined') global.safeLocalStorageSet(STORAGE_KEY, fp); } catch (_) {}
     return true;
   }
 

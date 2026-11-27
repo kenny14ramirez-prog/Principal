@@ -1929,7 +1929,7 @@
 
   function pushToParent(showAlert) {
     var tpl = exportTpl();
-    try { localStorage.setItem(LS_KEY, JSON.stringify(tpl)); } catch (_) {}
+    try { safeLocalStorageSet(LS_KEY, JSON.stringify(tpl)); } catch (_) {}
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'crozzo_ticket_tpl', tpl: tpl }, '*');
       setSyncLive(true, 'Enviado al POS');
@@ -2049,7 +2049,7 @@
         selectedIdx = keepSel;
         try { selectBlock(keepSel); } catch (_) {}
       }
-      try { localStorage.setItem(LS_KEY, JSON.stringify(exportTpl())); } catch (_) {}
+      try { safeLocalStorageSet(LS_KEY, JSON.stringify(exportTpl())); } catch (_) {}
       setSyncLive(true, 'Modelo actualizado');
       if (e.data.docLabel) {
         var sub = document.querySelector('.studio-brand__label');

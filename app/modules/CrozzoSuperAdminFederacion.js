@@ -222,7 +222,7 @@
   function setStep(n) {
     n = Math.max(1, Math.min(4, n));
     try {
-      localStorage.setItem(LS_STEP, String(n));
+      safeLocalStorageSet(LS_STEP, String(n));
     } catch (_) {}
     var root = document.getElementById('crozzo-fed-admin');
     if (!root) return;
@@ -339,7 +339,7 @@
 
     document.getElementById('fedSqlDone')?.addEventListener('change', function (ev) {
       try {
-        if (ev.target.checked) localStorage.setItem(LS_SQL_DONE, String(Date.now()));
+        if (ev.target.checked) safeLocalStorageSet(LS_SQL_DONE, String(Date.now()));
         else localStorage.removeItem(LS_SQL_DONE);
       } catch (_) {}
     });

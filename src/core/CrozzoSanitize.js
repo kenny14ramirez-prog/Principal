@@ -57,7 +57,7 @@
     try { var v = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null; return v != null ? v : (fallback !== undefined ? fallback : null); } catch (_) { return (fallback !== undefined ? fallback : null); }
   }
   function safeLocalStorageSet(key, value) {
-    try { if (typeof G !== 'undefined' && G.localStorage) { G.localStorage.setItem(key, value); return true; } } catch (_) {}
+    try { if (typeof G !== 'undefined' && G.localStorage) { G.safeLocalStorageSet(key, value); return true; } } catch (_) {}
     return false;
   }
   global.safeLocalStorageGet = safeLocalStorageGet;

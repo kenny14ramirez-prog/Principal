@@ -76,7 +76,7 @@
   function writeStore(store) {
     safe(function () {
       store.updatedAt = Date.now();
-      global.localStorage.setItem(LS_KEY, JSON.stringify(store));
+      global.safeLocalStorageSet(LS_KEY, JSON.stringify(store));
     });
   }
 
@@ -188,7 +188,7 @@
     ip = String(ip || '').trim();
     if (!ip) return;
     safe(function () {
-      global.localStorage.setItem('crozzo_wifi_zone_last_ip', ip);
+      global.safeLocalStorageSet('crozzo_wifi_zone_last_ip', ip);
     });
     if (statusJson && statusJson.device_id) {
       notePeer({
@@ -329,7 +329,7 @@
         var zone = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
         if (zone && zone !== '127.0.0.1') {
           safe(function () {
-            global.localStorage.setItem('crozzo_own_lan_ip_v1', zone);
+            global.safeLocalStorageSet('crozzo_own_lan_ip_v1', zone);
           });
           return zone;
         }
@@ -339,8 +339,8 @@
           var aip = String((await global.detectLocalIP()) || '').trim();
           if (aip && aip.indexOf('.') > 0 && aip !== '127.0.0.1') {
             safe(function () {
-              global.localStorage.setItem('crozzo_own_lan_ip_v1', aip);
-              global.localStorage.setItem('crozzo_wifi_zone_last_ip', aip);
+              global.safeLocalStorageSet('crozzo_own_lan_ip_v1', aip);
+              global.safeLocalStorageSet('crozzo_wifi_zone_last_ip', aip);
             });
             return aip;
           }
@@ -353,7 +353,7 @@
         var ip = String((await global.detectLocalIP()) || '').trim();
         if (ip && ip.indexOf('.') > 0) {
           safe(function () {
-            global.localStorage.setItem('crozzo_own_lan_ip_v1', ip);
+            global.safeLocalStorageSet('crozzo_own_lan_ip_v1', ip);
           });
           return ip;
         }
@@ -491,7 +491,7 @@
     }) || 0);
     if (last && now - last < SOFT_HEAL_MIN_MS) return { ok: true, skipped: 'throttle' };
     safe(function () {
-      global.localStorage.setItem(LS_SOFT_HEAL_AT, String(now));
+      global.safeLocalStorageSet(LS_SOFT_HEAL_AT, String(now));
     });
     invalidateOwnLanIpCache();
     await announceIdentity({ force: true, pull: true });
@@ -835,7 +835,7 @@
       } catch (_) {}
 
       safe(function () {
-        global.localStorage.setItem(LS_ANNOUNCE_AT, String(Date.now()));
+        global.safeLocalStorageSet(LS_ANNOUNCE_AT, String(Date.now()));
         global.__CROZZO_FLEET_SNAPSHOT = getFleetSnapshot();
         global.dispatchEvent(
           new CustomEvent('crozzo-fleet-identity-announced', {
@@ -997,8 +997,8 @@
       } catch (_) {}
 
       safe(function () {
-        global.localStorage.setItem(LS_CLOUD_PUBLISH_AT, String(Date.now()));
-        if (opts.fleetPulse) global.localStorage.setItem(LS_CLOUD_PUBLISH_AT + '_fleet', String(Date.now()));
+        global.safeLocalStorageSet(LS_CLOUD_PUBLISH_AT, String(Date.now()));
+        if (opts.fleetPulse) global.safeLocalStorageSet(LS_CLOUD_PUBLISH_AT + '_fleet', String(Date.now()));
       });
       return ok;
     })();
@@ -1085,7 +1085,7 @@
       } catch (_) {}
 
       safe(function () {
-        global.localStorage.setItem(LS_CLOUD_PULL_AT, String(Date.now()));
+        global.safeLocalStorageSet(LS_CLOUD_PULL_AT, String(Date.now()));
       });
       return { ok: true, merged: merged };
     })();

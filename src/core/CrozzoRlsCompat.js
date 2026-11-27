@@ -26,7 +26,7 @@
   }
 
   function setMode(mode) {
-    try { global.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode: mode, setAt: new Date().toISOString() })); } catch (_) {}
+    try { global.safeLocalStorageSet(STORAGE_KEY, JSON.stringify({ mode: mode, setAt: new Date().toISOString() })); } catch (_) {}
   }
 
   function getBusinessId() {

@@ -29,7 +29,7 @@
   }
 
   function saveSeen(data) {
-    try { global.localStorage.setItem(TID_KEY, JSON.stringify(data)); } catch (_) {}
+    try { global.safeLocalStorageSet(TID_KEY, JSON.stringify(data)); } catch (_) {}
   }
 
   function markTidSeen(tid) {
@@ -62,7 +62,7 @@
   }
 
   function saveAck(data) {
-    try { global.localStorage.setItem(ACK_KEY, JSON.stringify(data)); } catch (_) {}
+    try { global.safeLocalStorageSet(ACK_KEY, JSON.stringify(data)); } catch (_) {}
   }
 
   function markAcked(entityKey, status) {

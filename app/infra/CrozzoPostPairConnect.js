@@ -338,11 +338,11 @@
   function persistHints(payload) {
     var hints = extractHints(payload);
     try {
-      global.localStorage.setItem(HINTS_KEY, JSON.stringify({ savedAt: Date.now(), hints: hints, raw: payload }));
+      global.safeLocalStorageSet(HINTS_KEY, JSON.stringify({ savedAt: Date.now(), hints: hints, raw: payload }));
     } catch (_) {}
     if (hints.fallbackNote) {
       try {
-        global.localStorage.setItem('crozzo_network_fallback_note', hints.fallbackNote);
+        global.safeLocalStorageSet('crozzo_network_fallback_note', hints.fallbackNote);
       } catch (_) {}
     }
     return hints;
@@ -702,13 +702,13 @@
     if (opts.deferOnly) {
       persistHints(payload);
       try {
-        global.localStorage.setItem(PENDING_KEY, '1');
+        global.safeLocalStorageSet(PENDING_KEY, '1');
       } catch (_) {}
       return Promise.resolve({ deferred: true });
     }
     if (!opts.skipPending) {
       try {
-        global.localStorage.setItem(PENDING_KEY, '1');
+        global.safeLocalStorageSet(PENDING_KEY, '1');
       } catch (_) {}
     }
     return runSequence(payload, {

@@ -79,7 +79,7 @@
   }
 
   function saveState() {
-    try { localStorage.setItem('crozzo_deploy_state', JSON.stringify(_state)); } catch (_) {}
+    try { safeLocalStorageSet('crozzo_deploy_state', JSON.stringify(_state)); } catch (_) {}
   }
 
   // ── Abrir centro ─────────────────────────────────────────────────
@@ -408,7 +408,7 @@
       try {
         var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
         detected.push({ vendor: found ? found.vendor : 'Desconocido', product: device.productName || '', vendorId: device.vendorId, productId: device.productId, detectedAt: new Date().toISOString() });
-        localStorage.setItem('crozzo_detected_printers', JSON.stringify(detected));
+        safeLocalStorageSet('crozzo_detected_printers', JSON.stringify(detected));
       } catch (_) {}
     } catch (e) {
       if (typeof showToast === 'function') showToast('No se detectó impresora: ' + (e.message || e), 'warning');
@@ -694,7 +694,7 @@
       var history = JSON.parse(localStorage.getItem('crozzo_problem_history') || '[]');
       history.push({ ts: Date.now(), type: type, desc: desc });
       if (history.length > 50) history = history.slice(-50);
-      localStorage.setItem('crozzo_problem_history', JSON.stringify(history));
+      safeLocalStorageSet('crozzo_problem_history', JSON.stringify(history));
     } catch (_) {}
   };
 

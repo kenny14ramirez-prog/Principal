@@ -34,7 +34,7 @@
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
-        localStorage.setItem(DEVICE_AUTH_KEY_LS, k);
+        safeLocalStorageSet(DEVICE_AUTH_KEY_LS, k);
       }
       return k;
     } catch (_) {
@@ -292,7 +292,7 @@
       log = log.filter(function (e) { return e.ts > cutoff; });
       // Limitar a 100 entradas
       if (log.length > 100) log = log.slice(-100);
-      localStorage.setItem(KENNY_ATTEMPT_LOG_KEY, JSON.stringify(log));
+      safeLocalStorageSet(KENNY_ATTEMPT_LOG_KEY, JSON.stringify(log));
 
       // Verificar umbral
       var recentFails = log.filter(function (e) { return !e.success && e.ts > cutoff; }).length;

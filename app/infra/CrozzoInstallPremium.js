@@ -31,7 +31,7 @@
 
   function lsSet(key, val) {
     try {
-      global.localStorage.setItem(key, String(val || ''));
+      global.safeLocalStorageSet(key, String(val || ''));
       return true;
     } catch (_) {
       return false;

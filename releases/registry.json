@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-26T23:51:38.151Z",
+  "updatedAt": "2026-11-27T00:04:45.882Z",
   "entries": [
-    {
-      "id": "1.0.343-critical",
-      "version": "v1.0.343",
-      "semver": "1.0.343",
-      "type": "critical",
-      "message": "Fix sintaxis asistente IA",
-      "publishedAt": "2026-11-24T12:21:10.024Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix sintaxis asistente IA"
-      ]
-    },
     {
       "id": "1.0.344-critical",
       "version": "v1.0.344",
@@ -354,6 +342,19 @@
         "CrozzoTauriUpdater",
         "global→G",
         "safe function"
+      ]
+    },
+    {
+      "id": "1.0.368-critical",
+      "version": "v1.0.368",
+      "semver": "1.0.368",
+      "type": "critical",
+      "message": "Estabilización: Fase 2 + Fase 3 parcial",
+      "publishedAt": "2026-11-27T00:04:45.882Z",
+      "installMode": "auto",
+      "changelog": [
+        "Estabilización: Fase 2",
+        "Fase 3 parcial"
       ]
     }
   ]

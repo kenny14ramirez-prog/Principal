@@ -182,7 +182,7 @@
     out.ok = out.cloud || out.gossip || !!opts.localOnly;
 
     safe(function () {
-      global.localStorage.setItem(LS_LAST_PUBLISH, String(now));
+      global.safeLocalStorageSet(LS_LAST_PUBLISH, String(now));
     });
 
     if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.noteSelf === 'function') {

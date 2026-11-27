@@ -27,7 +27,7 @@
     } catch (_) {}
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('crozzo_secret_' + String(name), String(value));
+        safeLocalStorageSet('crozzo_secret_' + String(name), String(value));
         return true;
       }
     } catch (_) {}
@@ -93,7 +93,7 @@
         var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
         var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
         await crozzoSecretSet(PAIR_KEY_LS, privB64n);
-        try { if (typeof localStorage !== 'undefined') localStorage.setItem(PAIR_PUB_LS, pubB64n); } catch (_) {}
+        try { if (typeof localStorage !== 'undefined') safeLocalStorageSet(PAIR_PUB_LS, pubB64n); } catch (_) {}
         // Limpieza: eliminar copia en claro en localStorage si el almacén del SO la tomó.
         try { if (typeof localStorage !== 'undefined') localStorage.removeItem(PAIR_KEY_LS); } catch (_) {}
         return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
@@ -128,7 +128,7 @@
         var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
         var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
         await crozzoSecretSet(PAIR_SIGN_PRIV_LS, privB64n);
-        try { if (typeof localStorage !== 'undefined') localStorage.setItem(PAIR_SIGN_PUB_LS, pubB64n); } catch (_) {}
+        try { if (typeof localStorage !== 'undefined') safeLocalStorageSet(PAIR_SIGN_PUB_LS, pubB64n); } catch (_) {}
         try { if (typeof localStorage !== 'undefined') localStorage.removeItem(PAIR_SIGN_PRIV_LS); } catch (_) {}
         return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
       } catch (_) {
@@ -181,7 +181,7 @@
         if (global.crypto && global.crypto.getRandomValues) global.crypto.getRandomValues(bytes);
         else for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
         v = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-        if (typeof localStorage !== 'undefined') localStorage.setItem(k, v);
+        if (typeof localStorage !== 'undefined') safeLocalStorageSet(k, v);
       }
       return v;
     } catch (_) {
@@ -371,7 +371,7 @@
       var _tfpSide = String(compact.tfp || compact.tls_fingerprint || compact.cert_fingerprint || '').trim();
       try {
         if (_tfpSide && typeof global.crozzoTlsSaveFingerprint === 'function') global.crozzoTlsSaveFingerprint(_tfpSide);
-        else if (_tfpSide && typeof localStorage !== 'undefined') localStorage.setItem('crozzo_paired_tls_fingerprint', _tfpSide.toLowerCase());
+        else if (_tfpSide && typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_paired_tls_fingerprint', _tfpSide.toLowerCase());
       } catch (_) {}
     } catch (_) {}
     var tp = String(compact.tp || 'tablet').toLowerCase();
@@ -492,7 +492,7 @@
         try {
           var _tbo = String((_bo && (_bo.tls_fingerprint || _bo.cert_fingerprint || (_bo.lan && _bo.lan.tls_fingerprint))) || '').trim();
           if (_tbo && typeof global.crozzoTlsSaveFingerprint === 'function') global.crozzoTlsSaveFingerprint(_tbo);
-           else if (_tbo && typeof localStorage !== 'undefined') localStorage.setItem('crozzo_paired_tls_fingerprint', _tbo.toLowerCase());
+           else if (_tbo && typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_paired_tls_fingerprint', _tbo.toLowerCase());
         } catch (_) {}
         return _bo;
       })
@@ -539,7 +539,7 @@
     setMinVersion: function (v) {
       v = Number(v);
       if (v !== 4 && v !== 5) return false;
-      try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_pairing_min_version', String(v)); } catch (_) {}
+      try { if (typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_pairing_min_version', String(v)); } catch (_) {}
       try { if (typeof global !== 'undefined') global.CrozzoPairingMinVersion = v; } catch (_) {}
       return true;
     },

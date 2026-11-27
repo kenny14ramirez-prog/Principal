@@ -20,7 +20,7 @@
   }
 
   function save(data) {
-    try { global.localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+    try { global.safeLocalStorageSet(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
   }
 
   function createTombstone(entityType, entityId, hlc) {

@@ -455,7 +455,7 @@ class ConfigManager {
     };
   }
   save() {
-    localStorage.setItem('pos_dian_config', JSON.stringify(this.config));
+    safeLocalStorageSet('pos_dian_config', JSON.stringify(this.config));
     // Fase -2: dual-write de facturas a SQLite (fire-and-forget)
     try {
       if (global.CrozzoFeatureFlags && global.CrozzoFeatureFlags.isEnabled('useSqliteFiscal')) {
@@ -752,7 +752,7 @@ class ConfigManager {
               var rawc = localStorage.getItem(ck);
               var cachec = rawc ? JSON.parse(rawc) : {};
               cachec[saleAttemptId] = remote;
-              localStorage.setItem(ck, JSON.stringify(cachec));
+              safeLocalStorageSet(ck, JSON.stringify(cachec));
             } catch (_) {}
             return remote;
           }
@@ -773,7 +773,7 @@ class ConfigManager {
         if (keys.length > 500) {
           for (var i = 0; i < keys.length - 500; i++) delete cache2[keys[i]];
         }
-        localStorage.setItem(cacheKey2, JSON.stringify(cache2));
+        safeLocalStorageSet(cacheKey2, JSON.stringify(cache2));
       }
     } catch (_) {}
     return next;
@@ -790,7 +790,7 @@ class ConfigManager {
       if (cache && cache[saleAttemptId]) {
         released = Number(cache[saleAttemptId]);
         delete cache[saleAttemptId];
-        localStorage.setItem(cacheKey, JSON.stringify(cache));
+        safeLocalStorageSet(cacheKey, JSON.stringify(cache));
       }
       // Rollback del contador si fue el último emitido (evita huecos en la numeración)
       if (released && Number.isFinite(released) && this.config && typeof this.config.ultimoConsecutivo === 'number' &&

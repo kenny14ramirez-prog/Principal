@@ -139,7 +139,7 @@
     if (!id) return;
     id.updatedAt = nowMs();
     safe(function () {
-      global.localStorage.setItem(LS_IDENTITY, JSON.stringify(id));
+      global.safeLocalStorageSet(LS_IDENTITY, JSON.stringify(id));
     });
   }
 
@@ -195,7 +195,7 @@
   function writeDb(db) {
     db.updatedAt = nowMs();
     safe(function () {
-      global.localStorage.setItem(LS_PEERS, JSON.stringify(db));
+      global.safeLocalStorageSet(LS_PEERS, JSON.stringify(db));
     });
   }
 
@@ -239,7 +239,7 @@
     };
     saveLocalIdentity(id);
     safe(function () {
-      global.localStorage.setItem(LS_PROFILE, JSON.stringify(profile));
+      global.safeLocalStorageSet(LS_PROFILE, JSON.stringify(profile));
     });
     return profile;
   }
@@ -667,7 +667,7 @@
 
   function markBluetoothBootPrompted() {
     safe(function () {
-      global.localStorage.setItem(LS_BOOT_BT, String(nowMs()));
+      global.safeLocalStorageSet(LS_BOOT_BT, String(nowMs()));
     });
   }
 

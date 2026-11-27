@@ -130,7 +130,7 @@
       next.manual = Object.assign({}, cur.manual, patch.manual);
     }
     try {
-      localStorage.setItem(LS, JSON.stringify(next));
+      safeLocalStorageSet(LS, JSON.stringify(next));
     } catch (e) {
       console.warn('[onboarding]', e);
     }
@@ -148,7 +148,7 @@
 
   function dismissBanner() {
     try {
-      localStorage.setItem(LS_DISMISS, '1');
+      safeLocalStorageSet(LS_DISMISS, '1');
     } catch (_) {}
     refreshInicioIfActive();
   }
@@ -279,7 +279,7 @@
       var cargadorSede = null;
 
       var total = sandbox.cargarDataset(cargadorProd, cargadorCli, cargadorSede);
-      try { localStorage.setItem(LS_SANDBOX_SEEDED, '1'); } catch (_) {}
+      try { safeLocalStorageSet(LS_SANDBOX_SEEDED, '1'); } catch (_) {}
       if (typeof global.showToast === 'function' && total > 0) {
         global.showToast('🌱 Modo capacitación: ' + total + ' datos demo cargados. No tienen validez fiscal.', 'info');
       }
@@ -474,7 +474,7 @@
   function ensureTimelineStart() {
     try {
       if (!localStorage.getItem(LS_TIMELINE)) {
-        localStorage.setItem(
+        safeLocalStorageSet(
           LS_TIMELINE,
           JSON.stringify({ startedAt: new Date().toISOString(), arqueoGuards: 0, peakSessions: 0 })
         );
@@ -496,7 +496,7 @@
     var cur = readTimeline();
     var next = Object.assign({}, cur, patch || {});
     try {
-      localStorage.setItem(LS_TIMELINE, JSON.stringify(next));
+      safeLocalStorageSet(LS_TIMELINE, JSON.stringify(next));
     } catch (_) {}
     return next;
   }
@@ -670,14 +670,14 @@
       if (count < 2) return;
       var baseRaw = localStorage.getItem(LS_STAFF_BASE);
       if (!baseRaw) {
-        localStorage.setItem(LS_STAFF_BASE, String(count));
+        safeLocalStorageSet(LS_STAFF_BASE, String(count));
         writeTimeline({ lastStaffCount: count });
         return;
       }
       var base = parseInt(baseRaw, 10) || count;
       var growth = count - base;
       if (base > 0 && growth >= Math.max(2, Math.ceil(base * 0.25))) {
-        localStorage.setItem(LS_STAFF_BASE, String(count));
+        safeLocalStorageSet(LS_STAFF_BASE, String(count));
         var tl = readTimeline();
         writeTimeline({ staffRotations: (tl.staffRotations || 0) + 1, lastStaffCount: count });
         var r = getCurrentUserRoleNorm();
@@ -690,7 +690,7 @@
           }, 2200);
         }
         if (r === 'admin' && !localStorage.getItem('crozzo_staff_rot_modal_' + count)) {
-          localStorage.setItem('crozzo_staff_rot_modal_' + count, '1');
+          safeLocalStorageSet('crozzo_staff_rot_modal_' + count, '1');
           setTimeout(openStaffRotationMiniChecklist, 3800);
         }
       }
@@ -1318,7 +1318,7 @@
 
   function openMarcacionTour() {
     try {
-      localStorage.setItem(LS_MARCACION_TOUR, '1');
+      safeLocalStorageSet(LS_MARCACION_TOUR, '1');
     } catch (_) {}
     if (typeof global.showModal === 'function') {
       global.showModal(
@@ -1573,7 +1573,7 @@
 
   function day0WizardDone() {
     try {
-      localStorage.setItem(LS_DAY0_WIZARD, '1');
+      safeLocalStorageSet(LS_DAY0_WIZARD, '1');
     } catch (_) {}
     if (typeof global.closeModal === 'function') global.closeModal();
   }
@@ -1608,7 +1608,7 @@
       var isSa = typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser();
       if (r !== 'admin' && !isSa) return;
       if (detectStep('perfil_operativo') && detectStep('modo_practica')) {
-        localStorage.setItem(LS_DAY0_WIZARD, '1');
+        safeLocalStorageSet(LS_DAY0_WIZARD, '1');
         return;
       }
       setTimeout(function () {
@@ -1721,7 +1721,7 @@
           ? global.crozzoNormalizeAppRol(global.getCurrentUser().rol)
           : '';
       if (r !== 'admin' && r !== 'caja') return;
-      localStorage.setItem('crozzo_onboarding_auto_shown_v1', '1');
+      safeLocalStorageSet('crozzo_onboarding_auto_shown_v1', '1');
       setTimeout(function () {
         if (global.currentPage === 'inicio-operacion' && typeof global.showToast === 'function') {
           global.showToast('Complete el checklist de apertura en Inicio ventas', 'info');

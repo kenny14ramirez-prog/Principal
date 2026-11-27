@@ -29,7 +29,7 @@
           var fm = !!parsed.focusMode;
           var clean = { fontScale: fs, highContrast: hc, reduceMotion: rm, focusMode: fm };
           // Persistir saneado para no arrastrar basura.
-          try { localStorage.setItem(A11Y_LS_KEY, JSON.stringify(clean)); } catch (_) {}
+          try { safeLocalStorageSet(A11Y_LS_KEY, JSON.stringify(clean)); } catch (_) {}
           return clean;
         }
       }
@@ -49,11 +49,11 @@
       var hc = !!p.highContrast;
       // Marcar explícito solo si el usuario activó alto contraste.
       try {
-        if (hc) localStorage.setItem('crozzo_a11y_highcontrast_explicit', '1');
+        if (hc) safeLocalStorageSet('crozzo_a11y_highcontrast_explicit', '1');
         else localStorage.removeItem('crozzo_a11y_highcontrast_explicit');
       } catch (_) {}
       var clean = { fontScale: fs, highContrast: hc, reduceMotion: !!p.reduceMotion, focusMode: !!p.focusMode };
-      localStorage.setItem(A11Y_LS_KEY, JSON.stringify(clean));
+      safeLocalStorageSet(A11Y_LS_KEY, JSON.stringify(clean));
     } catch (_) {}
   }
 
@@ -551,7 +551,7 @@
     prefs[key] = value;
     if (key === 'highContrast') {
       try {
-        if (value) localStorage.setItem('crozzo_a11y_highcontrast_explicit', '1');
+        if (value) safeLocalStorageSet('crozzo_a11y_highcontrast_explicit', '1');
         else localStorage.removeItem('crozzo_a11y_highcontrast_explicit');
       } catch (_) {}
     }

@@ -119,7 +119,7 @@
     var cfg = md();
     var primaryIp = primaryIpResolved();
     try {
-      if (primaryIp) global.localStorage.setItem(PRIMARY_IP_KEY, primaryIp);
+      if (primaryIp) global.safeLocalStorageSet(PRIMARY_IP_KEY, primaryIp);
     } catch (_) {}
     ST.snapshot = { role: cfg.role || 'B', centralIp: cfg.centralIp || '' };
     persist({ role: 'A', centralIp: '', allowLan: true, __failoverPromoted: true });

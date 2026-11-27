@@ -282,7 +282,7 @@
 
   function writeSqlMode(mode) {
     try {
-      localStorage.setItem(LS_SQL_MODE, mode === 'step' ? 'step' : 'quick');
+      safeLocalStorageSet(LS_SQL_MODE, mode === 'step' ? 'step' : 'quick');
     } catch (_) {}
   }
 
@@ -501,7 +501,7 @@
     if (done) map[key] = Date.now();
     else delete map[key];
     try {
-      localStorage.setItem(LS_SQL_DONE, JSON.stringify(map));
+      safeLocalStorageSet(LS_SQL_DONE, JSON.stringify(map));
     } catch (_) {}
     renderSqlWizardProgress();
   }
@@ -523,7 +523,7 @@
 
   function writeAltaChecklistMap(map) {
     try {
-      localStorage.setItem(LS_ALTA_CHECKLIST, JSON.stringify(map || {}));
+      safeLocalStorageSet(LS_ALTA_CHECKLIST, JSON.stringify(map || {}));
     } catch (_) {}
   }
 
@@ -1565,7 +1565,7 @@
   function setWizardStep(step) {
     step = Math.max(1, Math.min(4, step));
     try {
-      localStorage.setItem(LS_NUBE_STEP, String(step));
+      safeLocalStorageSet(LS_NUBE_STEP, String(step));
     } catch (_) {}
     var hub = document.getElementById('crozzo-nube-hub');
     if (!hub) return;

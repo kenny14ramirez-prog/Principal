@@ -449,7 +449,7 @@
     var arr = readBehaviorRateArr();
     arr.push(Date.now());
     try {
-      localStorage.setItem(LS_BEHAVIOR_RATE, JSON.stringify(arr));
+      safeLocalStorageSet(LS_BEHAVIOR_RATE, JSON.stringify(arr));
     } catch (_) {}
     return { ok: true, remaining: Math.max(0, BEHAVIOR_MAX_PER_HOUR - arr.length), used: arr.length };
   }
@@ -713,7 +713,7 @@
       flags: pack.flags,
     };
     try {
-      localStorage.setItem(LS_BEHAVIOR, JSON.stringify(rec));
+      safeLocalStorageSet(LS_BEHAVIOR, JSON.stringify(rec));
     } catch (_) {}
     setProbeSession({
       busy: false,
@@ -1120,7 +1120,7 @@
 
   function saveLastInsight(rec) {
     try {
-      localStorage.setItem(LS_INSIGHT, JSON.stringify(rec));
+      safeLocalStorageSet(LS_INSIGHT, JSON.stringify(rec));
     } catch (_) {}
   }
 
@@ -1135,7 +1135,7 @@
 
   function cacheKeyStatus(st) {
     try {
-      localStorage.setItem(LS_KEY_STATUS, JSON.stringify(st || {}));
+      safeLocalStorageSet(LS_KEY_STATUS, JSON.stringify(st || {}));
     } catch (_) {}
   }
 
@@ -1178,7 +1178,7 @@
         }
       } catch (_) {}
       try {
-        if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_secret_' + LS_LOCAL_KEY, legacy);
+        if (typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_secret_' + LS_LOCAL_KEY, legacy);
       } catch (_) {}
     }
     return legacy;
@@ -1197,8 +1197,8 @@
     try {
       if (typeof localStorage !== 'undefined') {
         if (k) {
-          localStorage.setItem(LS_LOCAL_KEY, k);
-          localStorage.setItem('crozzo_secret_' + LS_LOCAL_KEY, k);
+          safeLocalStorageSet(LS_LOCAL_KEY, k);
+          safeLocalStorageSet('crozzo_secret_' + LS_LOCAL_KEY, k);
         } else {
           localStorage.removeItem(LS_LOCAL_KEY);
           localStorage.removeItem('crozzo_secret_' + LS_LOCAL_KEY);
@@ -1217,7 +1217,7 @@
 
   function markEdgeDown() {
     try {
-      localStorage.setItem(LS_EDGE_DOWN, String(Date.now() + EDGE_COOLDOWN_MS));
+      safeLocalStorageSet(LS_EDGE_DOWN, String(Date.now() + EDGE_COOLDOWN_MS));
     } catch (_) {}
   }
 
@@ -2079,7 +2079,7 @@
     var urlInput = document.getElementById('crozzoOllamaUrl');
     if (urlInput) {
       urlInput.addEventListener('change', function () {
-        try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_url', String(urlInput.value || '').trim()); } catch (_) {}
+        try { if (typeof localStorage !== 'undefined') safeLocalStorageSet('crozzo_ollama_url', String(urlInput.value || '').trim()); } catch (_) {}
       });
     }
   }
