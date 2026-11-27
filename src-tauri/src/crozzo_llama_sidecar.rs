@@ -171,6 +171,7 @@ pub fn crozzo_llama_health() -> LlamaHealth {
 }
 
 #[tauri::command]
+#[allow(clippy::question_mark)]
 pub fn crozzo_llama_ensure_sidecar() -> Result<bool, String> {
     if http_get_health() {
         return Ok(true);

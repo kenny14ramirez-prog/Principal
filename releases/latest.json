@@ -1,29 +1,16 @@
 {
-  "id": "1.0.370-critical",
-  "version": "v1.0.370",
-  "semver": "1.0.370",
+  "id": "1.0.371-critical",
+  "version": "v1.0.371",
+  "semver": "1.0.371",
   "type": "critical",
-  "message": "Fix: Android build fallaba por save_text_file sin cfg(desktop); ahora compila en Android y Windows",
-  "publishedAt": "2026-11-27T02:47:07.925Z",
+  "message": "Fix CI: clippy errors (type_complexity, question_mark, is_multiple_of), maps frescos, verificacion multiplataforma sin macOS",
+  "publishedAt": "2026-11-27T20:18:04.370Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: Android build fallaba por save_text_file sin cfg(desktop)",
-    "ahora compila en Android y Windows"
+    "Fix CI: clippy errors (type_complexity, question_mark, is_multiple_of), maps frescos, verificacion multiplataforma sin macOS"
   ],
-  "updatedAt": "2026-11-27T02:47:07.925Z",
+  "updatedAt": "2026-11-27T20:18:04.370Z",
   "entries": [
-    {
-      "id": "1.0.346-critical",
-      "version": "v1.0.346",
-      "semver": "1.0.346",
-      "type": "critical",
-      "message": "Super Admin: consola unificada con KPIs, tabs, honeypot, IA, diagnostico",
-      "publishedAt": "2026-11-24T12:43:00.705Z",
-      "installMode": "auto",
-      "changelog": [
-        "Super Admin: consola unificada con KPIs, tabs, honeypot, IA, diagnostico"
-      ]
-    },
     {
       "id": "1.0.347-critical",
       "version": "v1.0.347",
@@ -366,6 +353,18 @@
       "changelog": [
         "Fix: Android build fallaba por save_text_file sin cfg(desktop)",
         "ahora compila en Android y Windows"
+      ]
+    },
+    {
+      "id": "1.0.371-critical",
+      "version": "v1.0.371",
+      "semver": "1.0.371",
+      "type": "critical",
+      "message": "Fix CI: clippy errors (type_complexity, question_mark, is_multiple_of), maps frescos, verificacion multiplataforma sin macOS",
+      "publishedAt": "2026-11-27T20:18:04.370Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix CI: clippy errors (type_complexity, question_mark, is_multiple_of), maps frescos, verificacion multiplataforma sin macOS"
       ]
     }
   ]

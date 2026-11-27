@@ -373,7 +373,7 @@ pub fn crozzo_llama_model_download(app: tauri::AppHandle, model_id: String) -> R
                     }
                     downloaded += n as u64;
                     counter += 1;
-                    if counter % 8 == 0 {
+                    if counter.is_multiple_of(8) {
                         emit_progress(
                             &app2,
                             ModelProgress {

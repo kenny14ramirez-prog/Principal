@@ -88,6 +88,7 @@ pub fn crozzo_usb_list_devices() -> Result<Vec<UsbDevice>, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::type_complexity)]
 pub fn crozzo_usb_match_printer(devices: Vec<UsbDevice>) -> Vec<PrinterMatch> {
     // PRINTER_DB embedded (vendor IDs from CrozzoDeploymentCenter)
     let printer_db: Vec<(&str, &[u16], &[&str], &str, &str)> = vec![
