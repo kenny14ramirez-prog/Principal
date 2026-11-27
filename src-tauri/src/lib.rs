@@ -78,6 +78,42 @@ mod crozzo_metrics;
 use tauri::Manager;
 
 #[tauri::command]
+fn save_text_file(app: tauri::AppHandle, file_name: String, content: String) -> Result<String, String> {
+    let safe_name: String = file_name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' { c } else { '_' })
+        .collect();
+    if safe_name.is_empty() || safe_name.starts_with('.') {
+        return Err("nombre de archivo inválido".into());
+    }
+    let ext_ok = std::path::Path::new(&safe_name)
+        .extension()
+        .map(|e| matches!(e.to_string_lossy().to_lowercase().as_str(), "txt" | "csv" | "json"))
+        .unwrap_or(false);
+    if !ext_ok {
+        return Err("extensión no permitida".into());
+    }
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let stem = std::path::Path::new(&safe_name)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "reporte".into());
+    let ext = std::path::Path::new(&safe_name)
+        .extension()
+        .map(|s| format!(".{}", s.to_string_lossy()))
+        .unwrap_or_default();
+    let mut path = dir.join(&safe_name);
+    let mut n = 1;
+    while path.exists() {
+        path = dir.join(format!("{}-{}{}", stem, n, ext));
+        n += 1;
+    }
+    std::fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -264,6 +300,7 @@ pub fn run() {
             webview_permissions::cxf_reset_webview_camera_permission,
             webview_permissions::cxf_open_windows_camera_settings,
     crozzo_external::crozzo_open_external_url,
+    save_text_file,
     crozzo_external::crozzo_open_whatsapp_web,
     crozzo_external::crozzo_whatsapp_dock_sync,
     crozzo_external::crozzo_gmail_dock_sync,

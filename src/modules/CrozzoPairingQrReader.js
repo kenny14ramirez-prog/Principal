@@ -620,7 +620,7 @@
               if (liveState) liveState.busy = false;
             });
         }
-        liveState.timer = window.setInterval(tick, 220);
+        liveState.timer = window.CrozzoTimers.every('pairingQrReaderTick', tick, 220);
         tick();
         return { canTorch: !!(liveState && liveState.canTorch) };
       });

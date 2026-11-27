@@ -65,7 +65,7 @@
     if (global.__crozzoAiProactiveStarted) return;
     global.__crozzoAiProactiveStarted = true;
     setTimeout(checkHealth, 10000);
-    setInterval(checkHealth, INTERVAL_MS);
+    window.CrozzoTimers.every('aiProactiveHealthCheck', checkHealth, INTERVAL_MS);
   }
 
   global.CrozzoAiProactiveAlerts = { start: start, checkHealth: checkHealth };

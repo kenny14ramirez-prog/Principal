@@ -1172,7 +1172,7 @@
   global.crozzoUpdateDiagnosticReport = crozzoUpdateDiagnosticReport;
 
   // Re-run queue processor every 5 minutes
-  setInterval(function () {
+  window.CrozzoTimers.every('systemUpdatesQueue', function () {
     processQueue();
   }, 5 * 60 * 1000);
 

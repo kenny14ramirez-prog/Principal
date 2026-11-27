@@ -289,7 +289,7 @@
         global.CrozzoLanWebSocketBridge.connect();
       }
     });
-    __standbyTimer = global.setInterval(function () {
+    __standbyTimer = window.CrozzoTimers.every('lanOpsStandby', function () {
       if (!shouldRunLanStandby()) {
         stopLanStandby();
         if (shouldRunLanOps()) startLanOpsSync('standby_exit');
@@ -780,7 +780,7 @@
     if (rolePollsRuntime()) {
       var rj = runtimePollMs();
       try { rj = Math.max(250, Math.round(rj * (0.9 + Math.random() * 0.2))); } catch (_) {}
-      __runtimePoll = global.setInterval(function () {
+      __runtimePoll = window.CrozzoTimers.every('lanOpsRuntimePoll', function () {
         if (!shouldRunLanOps()) return;
         if (!lanSyncAllowed({ kind: 'realtime' })) return;
         if (cloudRealtimeStandby()) return;
@@ -802,7 +802,7 @@
     }
     var comMs = comandaPollMs();
     try { comMs = Math.max(400, Math.round(comMs * (0.9 + Math.random() * 0.2))); } catch (_) {}
-    __comandaPoll = global.setInterval(function () {
+    __comandaPoll = window.CrozzoTimers.every('lanOpsComandaPoll', function () {
       if (!shouldRunLanOps()) return;
       if (!lanSyncAllowed({ kind: 'realtime' })) return;
       if (cloudRealtimeStandby()) return;
@@ -844,7 +844,7 @@
 
   function startWatchdog() {
     if (__watchdog) return;
-    __watchdog = global.setInterval(function () {
+    __watchdog = window.CrozzoTimers.every('lanOpsWatchdog', function () {
       if (!__started || !shouldRunLanOps()) return;
       if (cloudRealtimeStandby()) return;
       try {

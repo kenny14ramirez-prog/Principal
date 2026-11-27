@@ -4126,8 +4126,9 @@
   }
 
   function initGlobalImportHandlers() {
-    if (_globalHandlersReady) return;
+    if (_globalHandlersReady || window.__crozzoReservorioDocHandlersBound) return;
     _globalHandlersReady = true;
+    window.__crozzoReservorioDocHandlersBound = true;
 
     document.addEventListener(
       'change',
@@ -6534,6 +6535,11 @@
   }
 
   function enqueuePlanilla(st, item) {
+    if (item.referencia_tipo === 'venta' && item.referencia_id && (st.planillaFeed || []).some(function (r) {
+      return r.referencia_tipo === 'venta' && String(r.referencia_id) === String(item.referencia_id) && r.origen === (item.origen || 'manual');
+    })) {
+      return null;
+    }
     var row = {
       id: item.id || uid('feed'),
       business_id: businessId(),
@@ -7962,6 +7968,22 @@
   }
   global.crozzoReservorioDevolverVenta = devolverVenta;
   global.crozzoReservorioRegistrarVenta = registrarVenta;
+  global.crozzoReservorioEncolarPlanillaVenta = function (input) {
+    var total = Number(input.monto || input.total) || 0;
+    if (total <= 0) return false;
+    var st = migrateLegacy();
+    enqueuePlanilla(st, {
+      origen: 'ventas',
+      concepto: input.concepto || 'Ventas del día',
+      monto: total,
+      tipo_movimiento: 'ingreso',
+      referencia_tipo: 'venta',
+      referencia_id: input.saleId || input.uuid,
+      payload: input,
+    });
+    save(st);
+    return true;
+  };
   global.crozzoReservorioUpsertProveedor = upsertProveedor;
   global.crozzoFlushReservorioSyncQueue = flushSyncQueueToCloud;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -8141,7 +8163,7 @@
         if (global.CrozzoReservorio && global.CrozzoReservorio.flushBackup) global.CrozzoReservorio.flushBackup();
       } catch (_) {}
     });
-    setInterval(function () {
+    window.CrozzoTimers.every('reservorioOfflineEnsureReady', function () {
       ensureReservorioReady();
     }, 120000);
   }

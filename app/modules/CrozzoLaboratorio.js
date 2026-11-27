@@ -1236,7 +1236,7 @@
   var __labSessionTimer = null;
   function crozzoLabStartSessionTimer() {
     if (__labSessionTimer) clearInterval(__labSessionTimer);
-    __labSessionTimer = setInterval(function () {
+    __labSessionTimer = window.CrozzoTimers.every('laboratorioSessionBadge', function () {
       var c = Core();
       var badge = document.getElementById('crozzo-lab-session-badge');
       if (!c || !badge) return;

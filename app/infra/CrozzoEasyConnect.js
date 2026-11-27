@@ -236,7 +236,7 @@
     global.addEventListener('online', function () {
       runAutoConnect({ force: true }).catch(function () {});
     });
-    global.setInterval(function () {
+    window.CrozzoTimers.every('easyConnectWatch', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}

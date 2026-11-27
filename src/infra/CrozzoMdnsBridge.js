@@ -169,7 +169,7 @@
     if (!isDesktopTauri()) return;
     if (global.__crozzoMdnsBrowseTimer) return;
     invoke('crozzo_mdns_start_browse').catch(function () {});
-    global.__crozzoMdnsBrowseTimer = global.setInterval(function () {
+    global.__crozzoMdnsBrowseTimer = window.CrozzoTimers.every('mdnsBrowseWatch', function () {
       pickCentralFromMdns().catch(function () {});
     }, BROWSE_MS);
     pickCentralFromMdns().catch(function () {});
@@ -178,7 +178,7 @@
   function startApkRediscoverWatch() {
     if (isDesktopTauri()) return;
     if (global.__crozzoApkRediscoverTimer) return;
-    global.__crozzoApkRediscoverTimer = global.setInterval(function () {
+    global.__crozzoApkRediscoverTimer = window.CrozzoTimers.every('mdnsApkRediscover', function () {
       var cfg = md();
       if (cfg.role !== 'B') return;
       rediscoverCentral({ quiet: true }).catch(function () {});

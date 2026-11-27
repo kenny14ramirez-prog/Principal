@@ -1079,7 +1079,7 @@ function crozzoStartLoginStaffCatalogPull() {
     } catch (_) {}
   };
   tick();
-  __crozzoLoginStaffPullTimer = setInterval(tick, 45000);
+  __crozzoLoginStaffPullTimer = window.CrozzoTimers.every('loginStaffCatalogPull', tick, 45000);
 }
 function crozzoRefreshLoginLocalHint() {
   crozzoRefreshLoginBuildStamp();
@@ -1432,6 +1432,7 @@ function showLoginOverlay() {
 }
 function hideLoginOverlay() {
   crozzoStopLoginStaffCatalogPull();
+  if (getCurrentUser() && typeof crozzoStaffCallsStartPoll === 'function') crozzoStaffCallsStartPoll();
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
   ov.setAttribute('hidden', '');
@@ -2675,7 +2676,7 @@ function crozzoHpMazeContinue(nextPage, waitSec) {
     btn.textContent = 'Esperando servidor… ' + sec + ' s';
   }
   let left = sec;
-  const tick = setInterval(function () {
+  const tick = window.CrozzoTimers.every('honeypotMazeCountdown', function () {
     left--;
     if (btn) btn.textContent = left > 0 ? 'Esperando servidor… ' + left + ' s' : 'Continuar…';
     if (left <= 0) {
@@ -2976,7 +2977,7 @@ function crozzoHpScheduleIntrusionAlerts(liveMs, decoy, trip, opts) {
       'DIAN: validando resolución activa…',
       'Catálogo actualizado desde servidor',
     ];
-    live.syncTimer = setInterval(function () {
+    live.syncTimer = window.CrozzoTimers.every('honeypotSyncToasts', function () {
       if (!window.__crozzoHoneypotLive || !window.__crozzoHoneypotLive.active || window.__crozzoHoneypotLive.alertsEscalated) {
         return;
       }
@@ -3027,7 +3028,7 @@ async function crozzoHpRunBreachPhase(trip, decoy, ctx, Sim, believable, adminPr
       Sim && typeof Sim.buildBreachAlertList === 'function'
         ? Sim.buildBreachAlertList(decoy, ctx, (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.lastTrapSource) || '')
         : ['Intento de acceso no autorizado detectado', 'Huella del dispositivo capturada'];
-    alerts.innerHTML = CrozzoSanitize.sanitizeHtml(breachList.map(t => '<li>' + t + '</li>').join(''));
+    alerts.innerHTML = CrozzoSanitize.sanitizeHtml(breachList.map(t => '<li>' + CrozzoSanitize.escapeHtml(t) + '</li>').join(''));
   }
   if (dump) {
     dump.textContent =
@@ -3912,7 +3913,7 @@ function crozzoInitSessionIdleWatch() {
     });
   }
   __crozzoLastActivityTs = Date.now();
-  __crozzoSessionIdleTimer = setInterval(() => {
+  __crozzoSessionIdleTimer = window.CrozzoTimers.every('sessionIdleWatch', () => {
     try {
       if (document.hidden) return;
       if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) return;
@@ -8105,7 +8106,7 @@ function crozzoStartOrderSessionLockHeartbeat() {
   var scope = typeof crozzoGetSlotPresenceSyncScope === 'function' ? crozzoGetSlotPresenceSyncScope() : null;
   if (!scope || !scope.heartbeat || !crozzoActiveOrderSessionSlot()) return;
   __crozzoOrderSessionHeartbeatN = 0;
-  __crozzoOrderSessionLockTimer = setInterval(function () {
+  __crozzoOrderSessionLockTimer = window.CrozzoTimers.every('orderSessionLockHeartbeat', function () {
     const active = crozzoActiveOrderSessionSlot();
     if (!active || !active.ref) {
       crozzoStopOrderSessionLockHeartbeat();
@@ -9038,13 +9039,13 @@ function crozzoStartStickyComandaTimer(opts) {
     crozzoTickStickyComandaTimers(tickOpts);
   };
   tick();
-  comandasTimerIntervalId = setInterval(tick, crozzoComandaTimerIntervalMs());
+  comandasTimerIntervalId = window.CrozzoTimers.every('comandaStickyTimer', tick, crozzoComandaTimerIntervalMs());
 }
 function crozzoStartKdsComandaTimer() {
   crozzoStopCocinaKdsTimer();
   var tick = crozzoTickKdsComandaTimers;
   tick();
-  cocinaKdsTimerIntervalId = setInterval(tick, crozzoComandaTimerIntervalMs());
+  cocinaKdsTimerIntervalId = window.CrozzoTimers.every('kdsComandaTimer', tick, crozzoComandaTimerIntervalMs());
 }
 function crozzoGetPerformanceSnapshot() {
   var activeComandas = 0;
@@ -12031,11 +12032,21 @@ function crozzoStaffCallsInit() {
     });
   }
   crozzoStaffCallsPollForMe();
-  if (!window.__crozzoStaffCallsPollTimer) {
-    window.__crozzoStaffCallsPollTimer = setInterval(crozzoStaffCallsPollForMe, 5000);
-  }
+  crozzoStaffCallsStartPoll();
+}
+function crozzoStaffCallsStartPoll() {
+  if (window.__crozzoStaffCallsPollTimer) return;
+  window.__crozzoStaffCallsPollTimer = window.CrozzoTimers.every('staffCallsPoll', function () {
+    if (!getCurrentUser()) {
+      window.CrozzoTimers.clear('staffCallsPoll');
+      window.__crozzoStaffCallsPollTimer = null;
+      return;
+    }
+    crozzoStaffCallsPollForMe();
+  }, 5000);
 }
 window.crozzoStaffCallsInit = crozzoStaffCallsInit;
+window.crozzoStaffCallsStartPoll = crozzoStaffCallsStartPoll;
 function llamarResponsableRapido(id) {
   const c = comandas.find((x) => x.id === id);
   if (!c) return;
@@ -12100,12 +12111,12 @@ function llamarResponsable(id) {
       <div class="form-group">
         <label class="form-label">Enviar llamado a</label>
         <select id="callTargetUser" class="form-select">
-          ${staff.map(s => `<option value="${s.id}" ${s.id === suggested?.id ? 'selected' : ''}>${s.nombre} (${s.rol})</option>`).join('')}
+          ${staff.map(s => `<option value="${s.id}" ${s.id === suggested?.id ? 'selected' : ''}>${CrozzoSanitize.escapeHtml(s.nombre)} (${s.rol})</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label class="form-label">Mensaje (opcional)</label>
-        <textarea id="callTargetMsg" class="form-input" style="min-height:90px;" placeholder="Ej: Pedido listo en pasaplatos">${`Comanda #${id} (${c.referencia})`}</textarea>
+        <textarea id="callTargetMsg" class="form-input" style="min-height:90px;" placeholder="Ej: Pedido listo en pasaplatos">${CrozzoSanitize.escapeHtml(`Comanda #${id} (${c.referencia})`)}</textarea>
       </div>
       <div class="btn-group" style="justify-content:flex-end; flex-wrap:wrap; gap:8px;">
         <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
@@ -19297,7 +19308,7 @@ function initInventariosReportes() {
     } catch (_) {}
   }
   if (!root.__crozzoRepAutoTimer) {
-    root.__crozzoRepAutoTimer = setInterval(function () {
+    root.__crozzoRepAutoTimer = window.CrozzoTimers.every('repAutoDashboard', function () {
       if (typeof currentPage !== 'undefined' && currentPage === 'inventarios') {
         crozzoRepRefreshBasicoDashboard();
       }
@@ -21206,7 +21217,7 @@ function renderProductos() {
           <tbody>
             ${products.map(p => `
               <tr>
-                <td>${p.icon} ${p.nombre}</td>
+                <td>${p.icon} ${CrozzoSanitize.escapeHtml(p.nombre)}</td>
                 <td>$${p.precio.toLocaleString('es-CO')}</td>
                 <td style="font-size:0.8rem; max-width:160px;">
                   ${escHtml(crozzoProductComandaAreasLabel(p) || '—')}
@@ -21370,7 +21381,7 @@ function showEditProductModal(productId) {
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Nombre</label>
-          <input class="form-input" id="editProdNombre" value="${product.nombre}">
+          <input class="form-input" id="editProdNombre" value="${CrozzoSanitize.escapeAttr(product.nombre)}">
         </div>
         <div class="form-group">
           <label class="form-label">Precio venta (caja)</label>
@@ -21419,7 +21430,7 @@ function showEditProductModal(productId) {
           ${(product.opcionGrupos || []).map((g, idx) => `
             <div class="edit-option-group-row" style="border:1px solid var(--border); border-radius:var(--radius); padding:8px; background:var(--bg-primary);">
               <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; margin-bottom:8px;">
-                <input class="form-input group-title" placeholder="Nombre del grupo (ej: Término)" value="${g.nombre || ''}">
+                <input class="form-input group-title" placeholder="Nombre del grupo (ej: Término)" value="${CrozzoSanitize.escapeAttr(g.nombre || '')}">
                 <button class="btn btn-danger" type="button" style="padding:6px 10px;" onclick="removeOptionGroupRow(this)">✕</button>
               </div>
               <textarea class="form-input group-options" style="min-height:80px;" placeholder="Opciones del grupo (una por línea o separadas por coma)">${(g.opciones || []).join('\n')}</textarea>
@@ -21435,7 +21446,7 @@ function showEditProductModal(productId) {
           ${products.filter(p => p.id !== product.id).map(p => `
             <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
               <input type="checkbox" class="editProdLinked" value="${p.id}" ${(product.arrastraProductos || []).includes(p.id) ? 'checked' : ''}>
-              <span>${p.icon} ${p.nombre}</span>
+              <span>${p.icon} ${CrozzoSanitize.escapeHtml(p.nombre)}</span>
             </label>
           `).join('')}
         </div>
@@ -25838,7 +25849,7 @@ function showTabletConfirmComanda() {
     <div>
       <p style="margin-bottom:8px;">Se enviarán <strong>solo los ítems nuevos</strong> de <strong>${target}</strong>.</p>
       <div style="max-height:240px; overflow:auto; border:1px solid var(--border); border-radius: var(--radius); padding:10px;">
-        ${pendingItems.map(item => `<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>${item.icon} ${item.nombre} x ${item.cantidad}</span><strong>$${(item.precio * item.cantidad).toLocaleString('es-CO')}</strong></div>`).join('')}
+        ${pendingItems.map(item => `<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>${item.icon} ${CrozzoSanitize.escapeHtml(item.nombre)} x ${item.cantidad}</span><strong>$${(item.precio * item.cantidad).toLocaleString('es-CO')}</strong></div>`).join('')}
       </div>
       <div style="display:flex; justify-content:space-between; margin-top:10px;"><span>Total</span><strong>$${totals.total.toLocaleString('es-CO')}</strong></div>
       <div style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">Lo ya comandado se mantiene visible en tablet pero no se vuelve a enviar.</div>
@@ -30494,14 +30505,14 @@ function renderCocinaKdsColumnsHtml(areas) {
                 <strong>#${c.id}</strong>
                 <span class="crozzo-kds-timer ${tone}" data-kds-timer-for="${c.id}">${formatElapsed(elapsed)}</span>
               </div>
-              <div class="crozzo-kds-card-ref">${c.referencia} · ${String(c.tipoServicio || '').toUpperCase()} · ${String(c.origen || '').toUpperCase()}</div>
+              <div class="crozzo-kds-card-ref">${CrozzoSanitize.escapeHtml(c.referencia)} · ${String(c.tipoServicio || '').toUpperCase()} · ${String(c.origen || '').toUpperCase()}</div>
               <div class="crozzo-kds-card-items">
                 ${(c.items || [])
                   .map(
                     (i) =>
-                      `• ${i.icon || ''} ${i.nombreVenta || i.nombre} x${i.cantidad}${
+                      `• ${i.icon || ''} ${CrozzoSanitize.escapeHtml(i.nombreVenta || i.nombre)} x${i.cantidad}${
                         i.detalleConfig
-                          ? `<div style="font-size:0.74rem;opacity:0.85;margin-left:8px;">${i.detalleConfig}</div>`
+                          ? `<div style="font-size:0.74rem;opacity:0.85;margin-left:8px;">${CrozzoSanitize.escapeHtml(i.detalleConfig)}</div>`
                           : ''
                       }`
                   )
@@ -30522,7 +30533,7 @@ function renderCocinaKdsColumnsHtml(areas) {
         <div class="crozzo-kds-col-head" role="button" tabindex="0" title="Abrir vista detallada de esta área"
           onclick='selectComandasArea(${JSON.stringify(area.id)})'
           onkeydown='if(event.key==="Enter"||event.key===" "){event.preventDefault();selectComandasArea(${JSON.stringify(area.id)});}'>
-          <span>${area.nombre}</span>
+          <span>${CrozzoSanitize.escapeHtml(area.nombre)}</span>
           <span class="badge badge-info">${list.length}</span>
         </div>
         ${cards}
@@ -30627,7 +30638,7 @@ function renderCocina() {
                     const sl = typeof crozzoComandaSenderLabel === 'function' ? crozzoComandaSenderLabel(c) : '';
                     return sl ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${typeof escHtml === 'function' ? escHtml(sl) : sl}</div>` : '';
                   })()}
-                  <span style="color:var(--text-muted); margin-left:8px;">${c.areaNombre} · ${c.origen.toUpperCase()} · ${c.tipoServicio.toUpperCase()} ${c.referencia}</span>
+                  <span style="color:var(--text-muted); margin-left:8px;">${CrozzoSanitize.escapeHtml(c.areaNombre)} · ${c.origen.toUpperCase()} · ${c.tipoServicio.toUpperCase()} ${CrozzoSanitize.escapeHtml(c.referencia)}</span>
                 </div>
                 <span class="badge ${getEstadoBadgeClass(c.estado)}">${getEstadoLabel(c.estado)}</span>
               </div>
@@ -30635,7 +30646,7 @@ function renderCocina() {
               <div style="display:grid; gap:4px; margin-bottom:8px;">
                 ${c.items.map(i => `
                   <div style="display:flex; justify-content:space-between;">
-                    <span>${i.icon} ${i.nombreVenta || i.nombre} x ${i.cantidad}${i.detalleConfig ? `<br><small style="color:var(--text-muted);">${i.detalleConfig}</small>` : ''}</span>
+                    <span>${i.icon} ${CrozzoSanitize.escapeHtml(i.nombreVenta || i.nombre)} x ${i.cantidad}${i.detalleConfig ? `<br><small style="color:var(--text-muted);">${CrozzoSanitize.escapeHtml(i.detalleConfig)}</small>` : ''}</span>
                     <strong>$${(i.precio * i.cantidad).toLocaleString('es-CO')}</strong>
                   </div>
                 `).join('')}
@@ -33378,6 +33389,15 @@ async function facturar(options = {}) {
           })
         );
         if (facturaSaved.inventarioMeta) config.save();
+        if (typeof crozzoReservorioEncolarPlanillaVenta === 'function') {
+          crozzoReservorioEncolarPlanillaVenta({
+            saleId: facturaSaved.uuid,
+            uuid: facturaSaved.uuid,
+            monto: facturaSaved.total,
+            total: facturaSaved.total,
+            concepto: 'Venta POS #' + facturaSaved.consecutivo,
+          });
+        }
       } else {
         if (typeof crozzoInvDeductFromFactura === 'function') crozzoInvDeductFromFactura(facturaSaved);
         if (typeof crozzoReservorioRegistrarVenta === 'function') {
@@ -33561,6 +33581,15 @@ async function facturar(options = {}) {
           })
         );
         if (facturaSavedEnriched.inventarioMeta) config.save();
+        if (typeof crozzoReservorioEncolarPlanillaVenta === 'function') {
+          crozzoReservorioEncolarPlanillaVenta({
+            saleId: facturaSavedEnriched.uuid,
+            uuid: facturaSavedEnriched.uuid,
+            monto: facturaSavedEnriched.total,
+            total: facturaSavedEnriched.total,
+            concepto: 'Venta #' + facturaSavedEnriched.consecutivo,
+          });
+        }
       } else {
         if (typeof crozzoInvDeductFromFactura === 'function') crozzoInvDeductFromFactura(facturaSavedEnriched);
         if (typeof crozzoReservorioRegistrarVenta === 'function') {
@@ -35567,7 +35596,7 @@ function crozzoFacturaBuildThermalHtmlBuiltin(factura) {
       var nom = soloConsumo ? crozzoCuentaItemNombreConsumo(i) : i.nombreVenta || i.nombre || 'Ítem';
       var qty = Number(i.cantidad) || 0;
       var pr = Number(i.precio) || 0;
-      return nom + ' x' + qty + '  $' + (pr * qty).toLocaleString('es-CO');
+      return CrozzoSanitize.escapeHtml(nom) + ' x' + qty + '  $' + (pr * qty).toLocaleString('es-CO');
     })
     .join('\n');
   var razonExtra =
@@ -36266,7 +36295,7 @@ function openAsistentePasoAPasoBloqueado() {
       <div class="wizard-guide-num">★</div>
       <div style="flex:1;">
         <strong>${p.titulo}</strong>
-        <div style="color:var(--text-secondary); font-size:0.82rem; margin-top:4px;">${p.detalle}</div>
+        <div style="color:var(--text-secondary); font-size:0.82rem; margin-top:4px;">${CrozzoSanitize.escapeHtml(p.detalle)}</div>
         <div class="md-pending-overlay">
           <strong>⚠️ Funcionalidad en desarrollo</strong>
           <span style="color:var(--text-secondary); font-size:0.82rem;">Se habilitará automáticamente cuando la app esté completa.</span>
@@ -40445,8 +40474,8 @@ function openMultiDeviceWizard() {
     <div class="wizard-guide-item" style="align-items:flex-start;">
       <div class="wizard-guide-num">${s.n}</div>
       <div>
-        <strong>${s.title}</strong>
-        <div style="color:var(--text-secondary); font-size:0.82rem; margin-top:4px;">${s.desc}</div>
+        <strong>${CrozzoSanitize.escapeHtml(s.title)}</strong>
+        <div style="color:var(--text-secondary); font-size:0.82rem; margin-top:4px;">${CrozzoSanitize.escapeHtml(s.desc)}</div>
         <div class="md-pending-overlay">
           <strong>⚠️ Pendiente — Se habilitará en próxima actualización</strong>
           <span style="color:var(--text-secondary); font-size:0.82rem;">Funcionalidad en desarrollo. Se habilitará cuando la app esté completa.</span>
@@ -42367,7 +42396,7 @@ function renderConfigEmpresa() {
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">NIT (con dígito verificador)</label>
-          <input type="text" class="form-input" id="cfgNit" value="${emp.nit || ''}" placeholder="900123456-1">
+          <input type="text" class="form-input" id="cfgNit" value="${CrozzoSanitize.escapeAttr(emp.nit || '')}" placeholder="900123456-1">
           <span id="cfgNitStatus"></span>
         </div>
         <div class="form-group">
@@ -42377,7 +42406,7 @@ function renderConfigEmpresa() {
         </div>
         <div class="form-group full">
           <label class="form-label">Razón Social</label>
-          <input type="text" class="form-input" id="cfgRazonSocial" value="${emp.razonSocial || ''}" placeholder="RESTAURANTE EL RINCÓN COLOMBIANO S.A.S.">
+          <input type="text" class="form-input" id="cfgRazonSocial" value="${CrozzoSanitize.escapeAttr(emp.razonSocial || '')}" placeholder="RESTAURANTE EL RINCÓN COLOMBIANO S.A.S.">
         </div>
         <div class="form-group">
           <label class="form-label">Nombre Comercial</label>
@@ -42385,11 +42414,11 @@ function renderConfigEmpresa() {
         </div>
         <div class="form-group">
           <label class="form-label">Código Postal</label>
-          <input type="text" class="form-input" id="cfgCodigoPostal" value="${emp.codigoPostal || ''}" placeholder="110111">
+          <input type="text" class="form-input" id="cfgCodigoPostal" value="${CrozzoSanitize.escapeAttr(emp.codigoPostal || '')}" placeholder="110111">
         </div>
         <div class="form-group">
           <label class="form-label">Dirección</label>
-          <input type="text" class="form-input" id="cfgDireccion" value="${emp.direccion || ''}" placeholder="Cra 15 #93-47, Bogotá">
+          <input type="text" class="form-input" id="cfgDireccion" value="${CrozzoSanitize.escapeAttr(emp.direccion || '')}" placeholder="Cra 15 #93-47, Bogotá">
         </div>
         <div class="form-group">
           <label class="form-label">Departamento (sede)</label>
@@ -42397,16 +42426,16 @@ function renderConfigEmpresa() {
         </div>
         <div class="form-group">
           <label class="form-label">Ciudad / municipio (sede) *</label>
-          <input type="text" class="form-input" id="cfgCiudad" value="${emp.ciudad || ''}" placeholder="Ej. Pereira, Bogotá D.C.">
+          <input type="text" class="form-input" id="cfgCiudad" value="${CrozzoSanitize.escapeAttr(emp.ciudad || '')}" placeholder="Ej. Pereira, Bogotá D.C.">
           <span class="form-hint">Usada para <strong>RETE ICA</strong>: solo se retiene ICA a proveedores ubicados en la misma ciudad que su establecimiento.</span>
         </div>
         <div class="form-group">
           <label class="form-label">Teléfono</label>
-          <input type="text" class="form-input" id="cfgTelefono" value="${emp.telefono || ''}" placeholder="+57 1 234 5678">
+          <input type="text" class="form-input" id="cfgTelefono" value="${CrozzoSanitize.escapeAttr(emp.telefono || '')}" placeholder="+57 1 234 5678">
         </div>
         <div class="form-group">
           <label class="form-label">Email</label>
-          <input type="email" class="form-input" id="cfgEmail" value="${emp.email || ''}" placeholder="facturacion@rinconcolombiano.com">
+          <input type="email" class="form-input" id="cfgEmail" value="${CrozzoSanitize.escapeAttr(emp.email || '')}" placeholder="facturacion@rinconcolombiano.com">
         </div>
         <div class="form-group">
           <label class="form-label">Régimen Fiscal</label>
@@ -43684,8 +43713,8 @@ function renderConfigProveedor() {
         ${providers.map(p => `
           <div class="provider-card ${prov.type === p.type ? 'selected' : ''}" onclick="selectProvider('${p.type}')">
             <div class="provider-icon">${p.icon}</div>
-            <div class="provider-name">${p.name}</div>
-            <div class="provider-desc">${p.desc}</div>
+            <div class="provider-name">${CrozzoSanitize.escapeHtml(p.name)}</div>
+            <div class="provider-desc">${CrozzoSanitize.escapeHtml(p.desc)}</div>
           </div>
         `).join('')}
       </div>
@@ -43900,13 +43929,13 @@ function renderConfigComandas() {
           <details style="border:1px solid var(--border); border-radius: var(--radius); background: var(--bg-secondary);" open>
             <summary style="list-style:none; cursor:pointer; padding:10px 12px; border-bottom:1px solid rgba(148,163,184,0.15);">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <strong>📺 ${a.nombre}</strong>
+                <strong>📺 ${CrozzoSanitize.escapeHtml(a.nombre)}</strong>
                 <span class="badge badge-info">${crozzoGetDevicePantallaId() === a.id ? 'Activa aquí' : 'Pantalla'}</span>
               </div>
             </summary>
             <div style="padding:12px;">
               <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
-                <input class="form-input" value="${a.nombre}" onchange="renameComandaArea('${a.id}', this.value)">
+                <input class="form-input" value="${CrozzoSanitize.escapeAttr(a.nombre)}" onchange="renameComandaArea('${a.id}', this.value)">
                 <button type="button" class="btn btn-outline" onclick="crozzoSetDevicePantallaId('${a.id}')">Usar en este equipo</button>
                 ${conf.areas.length > 1 ? `<button class="btn btn-danger" style="padding:6px 10px;" onclick="removeComandaArea('${a.id}')">Eliminar</button>` : ''}
               </div>
@@ -44403,7 +44432,7 @@ function renderConfigFacturasAdmin() {
           </div>
           <details class="crozzo-print-notes">
             <summary>Notas internas (opcional)</summary>
-            <textarea class="form-input" id="adminPrintDetail" rows="3" placeholder="Ej: papel 80 mm">${conf.detalleImpresion || ''}</textarea>
+            <textarea class="form-input" id="adminPrintDetail" rows="3" placeholder="Ej: papel 80 mm">${CrozzoSanitize.escapeHtml(conf.detalleImpresion || '')}</textarea>
           </details>
           <p class="crozzo-print-panel__help">¿Windows no ve la impresora? <button type="button" class="btn btn-link" onclick="openPrinterRescue('admin')">Impresora no reconocida</button></p>
           <p class="crozzo-print-panel__help crozzo-print-panel__help--soft">Térmicas antiguas: el diseño puede omitir logo/QR automáticamente; el texto sigue imprimiendo.</p>
@@ -46345,7 +46374,7 @@ function requestOperacionModeChange(target) {
   if (target === 'electronic') {
     const v = config.canGoLive();
     const falta = v.missing.length
-      ? `<ul style="margin:10px 0;padding-left:18px;font-size:0.88rem;">${v.missing.map((m) => `<li>${m}</li>`).join('')}</ul>`
+      ? `<ul style="margin:10px 0;padding-left:18px;font-size:0.88rem;">${v.missing.map((m) => `<li>${CrozzoSanitize.escapeHtml(m)}</li>`).join('')}</ul>`
       : '<p style="font-size:0.88rem;color:var(--success);">Checklist DIAN completo.</p>';
     showModal('🧾 Activar facturación ELECTRÓNICA', `
       <div class="fade-in">
@@ -46526,7 +46555,7 @@ function renderModoDemo() {
       <div class="card" style="margin-top:18px; background:var(--bg-primary);">
         <div class="card-title" style="margin-bottom:10px;">📋 Checklist para timbrado electrónico válido</div>
         <ul class="checklist" style="margin:0;">
-          ${canGo.missing.map((m) => `<li><span class="check-icon fail">✗</span><span>${m}</span></li>`).join('')}
+          ${canGo.missing.map((m) => `<li><span class="check-icon fail">✗</span><span>${CrozzoSanitize.escapeHtml(m)}</span></li>`).join('')}
           ${canGo.missing.length === 0 ? '<li><span class="check-icon pass">✓</span><span>Listo para emitir FE (según proveedor)</span></li>' : ''}
         </ul>
       </div>
@@ -49120,9 +49149,9 @@ function renderAuditoria() {
               ${logs.map(log => `
                 <tr>
                   <td style="white-space: nowrap;">${new Date(log.timestamp).toLocaleString('es-CO')}</td>
-                  <td>${log.user}</td>
-                  <td><span class="badge badge-info">${log.action}</span></td>
-                  <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${log.details}</td>
+                  <td>${CrozzoSanitize.escapeHtml(log.user)}</td>
+                  <td><span class="badge badge-info">${CrozzoSanitize.escapeHtml(log.action)}</span></td>
+                  <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${CrozzoSanitize.escapeHtml(log.details)}</td>
                   <td><span class="badge ${log.modo === 'demo' ? 'badge-warning' : 'badge-success'}">${log.modo === 'demo' ? '🧪 Demo' : '🚀 Prod'}</span></td>
                   <td style="font-family:monospace;font-size:0.72rem;color:var(--text-muted);" title="${log.prevHash ? 'prev: ' + log.prevHash : ''}">${log.chainHash ? String(log.chainHash).slice(0, 12) + '…' : '—'}</td>
                 </tr>

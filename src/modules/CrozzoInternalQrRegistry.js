@@ -963,7 +963,7 @@
     if (__emergencyTimer) return;
     __emergencyActive = true;
     runEmergencyTransport().catch(function () {});
-    __emergencyTimer = global.setInterval(function () {
+    __emergencyTimer = window.CrozzoTimers.every('internalQrEmergencyLoop', function () {
       runEmergencyTransport().catch(function () {});
     }, EMERGENCY_MS);
   }
@@ -995,7 +995,7 @@
     ensureOwnSlot({ force: false }).catch(function () {});
     tick().catch(function () {});
     if (__timer) global.clearInterval(__timer);
-    __timer = global.setInterval(tick, REFRESH_MS);
+    __timer = window.CrozzoTimers.every('internalQrRefreshTick', tick, REFRESH_MS);
     safe(function () {
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', function () {

@@ -188,7 +188,7 @@
     }
     // Inyectar toggle en panel A11y cuando esté disponible
     var attempts = 0;
-    var interval = setInterval(function () {
+    var interval = window.CrozzoTimers.every('ctxHelpToggleInject', function () {
       inyectarToggleEnPanel();
       attempts++;
       if (attempts > 20) clearInterval(interval);

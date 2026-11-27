@@ -790,8 +790,8 @@
         });
     }
 
-    _pollTimer = setInterval(drainTransports, POLL_MS);
-    _helloTimer = setInterval(sendHello, HELLO_MS);
+    _pollTimer = window.CrozzoTimers.every('gossipDrainPoll', drainTransports, POLL_MS);
+    _helloTimer = window.CrozzoTimers.every('gossipHello', sendHello, HELLO_MS);
     sendHello();
     log('activo tier=' + tierNow());
   }
@@ -848,7 +848,7 @@
   function afterMainInit() {
     reconcileTier();
     if (!_tierTimer) {
-      _tierTimer = setInterval(reconcileTier, 5000);
+      _tierTimer = window.CrozzoTimers.every('gossipTierReconcile', reconcileTier, 5000);
     }
   }
 

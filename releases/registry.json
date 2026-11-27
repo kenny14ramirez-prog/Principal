@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-11-27T00:04:45.882Z",
+  "updatedAt": "2026-11-27T00:59:28.692Z",
   "entries": [
-    {
-      "id": "1.0.344-critical",
-      "version": "v1.0.344",
-      "semver": "1.0.344",
-      "type": "critical",
-      "message": "Auto-instalar Ollama desde el asistente IA",
-      "publishedAt": "2026-11-24T12:34:42.470Z",
-      "installMode": "auto",
-      "changelog": [
-        "Auto-instalar Ollama desde el asistente IA"
-      ]
-    },
     {
       "id": "1.0.345-critical",
       "version": "v1.0.345",
@@ -355,6 +343,18 @@
       "changelog": [
         "Estabilización: Fase 2",
         "Fase 3 parcial"
+      ]
+    },
+    {
+      "id": "1.0.369-critical",
+      "version": "v1.0.369",
+      "semver": "1.0.369",
+      "type": "critical",
+      "message": "Fase 3 completa: timers centralizados, escapeHtml en templates, descarga robusta Tauri, planilla en toda venta, DOMPurify local, guardas de listeners duplicados, doble carga Costos resuelta",
+      "publishedAt": "2026-11-27T00:59:28.692Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fase 3 completa: timers centralizados, escapeHtml en templates, descarga robusta Tauri, planilla en toda venta, DOMPurify local, guardas de listeners duplicados, doble carga Costos resuelta"
       ]
     }
   ]

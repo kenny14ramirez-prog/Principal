@@ -79,7 +79,7 @@
   }
 
   if (typeof global.setInterval === 'function') {
-    try { global.setInterval(cleanup, 60000); } catch (_) {}
+    try { window.CrozzoTimers.every('opAckCleanup', cleanup, 60000); } catch (_) {}
   }
 
   function persistSeen() {

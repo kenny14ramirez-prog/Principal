@@ -5412,8 +5412,9 @@
   }
 
   function bindSupabaseListeners() {
-    if (hub._sbBound) return;
+    if (hub._sbBound || window.__crozzoComprasMsgBound) return;
     hub._sbBound = true;
+    window.__crozzoComprasMsgBound = true;
     document.addEventListener('crozzo-supabase-config-saved', function () {
       reloadQycFrame();
       toast('Nube actualizada — compras recargadas', 'success');

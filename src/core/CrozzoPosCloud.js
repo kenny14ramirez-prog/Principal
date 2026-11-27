@@ -2819,7 +2819,7 @@ function startCrozzoRemoteTenantSync(opts) {
     crozzoScheduleTenantRealtimeReconnect('subscribe_throw');
   }
   if (!__crozzoTenantWatchdogT) {
-    __crozzoTenantWatchdogT = setInterval(function () {
+    __crozzoTenantWatchdogT = window.CrozzoTimers.every('posCloudTenantWatchdog', function () {
       if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       if (!crozzoTenantRealtimeIsLive()) crozzoScheduleTenantRealtimeReconnect('watchdog');

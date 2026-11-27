@@ -391,16 +391,23 @@
     }
     list.innerHTML = CrozzoSanitize.sanitizeHtml(html);
 
-    Array.prototype.forEach.call(list.querySelectorAll('.cz-palette__item'), function (row) {
-      row.addEventListener('mouseenter', function () {
-        paletteState.index = parseInt(row.getAttribute('data-idx'), 10) || 0;
+    if (!list.__czPaletteDelegated) {
+      list.__czPaletteDelegated = true;
+      list.addEventListener('mouseover', function (ev) {
+        var row = ev.target && ev.target.closest ? ev.target.closest('.cz-palette__item') : null;
+        if (!row || !list.contains(row)) return;
+        var idx = parseInt(row.getAttribute('data-idx'), 10) || 0;
+        if (idx === paletteState.index) return;
+        paletteState.index = idx;
         paintPaletteActive();
       });
-      row.addEventListener('click', function () {
+      list.addEventListener('click', function (ev) {
+        var row = ev.target && ev.target.closest ? ev.target.closest('.cz-palette__item') : null;
+        if (!row || !list.contains(row)) return;
         paletteState.index = parseInt(row.getAttribute('data-idx'), 10) || 0;
         runPalette();
       });
-    });
+    }
 
     paintPaletteActive();
   }
@@ -1046,7 +1053,7 @@
         .observe(doc.body, { attributes: true, attributeFilter: ['class'] });
     } catch (_) {}
     // Refresco periódico de la insignia (ligero, sin red)
-    healthTimer = global.setInterval(function () { refreshHealth(); syncFab(); }, 20000);
+    healthTimer = window.CrozzoTimers.every('cmdCenterHealthBadge', function () { refreshHealth(); syncFab(); }, 20000);
     // Reintentar montaje de la insignia si el header se re-renderiza.
     try {
       var mo = new global.MutationObserver(function () {

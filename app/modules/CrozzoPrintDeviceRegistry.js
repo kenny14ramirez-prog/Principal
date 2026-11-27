@@ -429,7 +429,7 @@
   function afterMainInit() {
     publishLocalPrintCaps({ silent: true });
     if (__timer) return;
-    __timer = global.setInterval(function () {
+    __timer = window.CrozzoTimers.every('printDeviceHeartbeat', function () {
       publishLocalPrintCaps({ silent: true });
     }, HEARTBEAT_MS);
     if (!global.__crozzoPrintCapsPrintersBound) {

@@ -3678,8 +3678,9 @@
   }
 
   function initGlobalImportHandlers() {
-    if (_globalHandlersReady) return;
+    if (_globalHandlersReady || window.__crozzoReservorioDocHandlersBound) return;
     _globalHandlersReady = true;
+    window.__crozzoReservorioDocHandlersBound = true;
 
     document.addEventListener(
       'change',

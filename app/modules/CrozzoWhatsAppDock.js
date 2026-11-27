@@ -407,7 +407,7 @@
   var _waPageWatchTimer = null;
   function startWaPageWatch() {
     if (_waPageWatchTimer) return;
-    _waPageWatchTimer = global.setInterval(function () {
+    _waPageWatchTimer = window.CrozzoTimers.every('whatsAppDockPageWatch', function () {
       if (!isWaPageActive()) { stopWaPageWatch(); return; }
       // Si la pagina actual ya no es whatsapp-web, cerrar WhatsApp.
       var cp = (typeof global.currentPage !== 'undefined') ? global.currentPage : null;
@@ -435,7 +435,7 @@
     }
     _sidebarAnimLastRect = null;
     // Mueve el panel nativo cada 50 ms durante la transición sin ocultarlo.
-    _sidebarAnimInterval = global.setInterval(updateHostPositionDuringAnim, 50);
+    _sidebarAnimInterval = window.CrozzoTimers.every('whatsAppDockSidebarAnim', updateHostPositionDuringAnim, 50);
     updateHostPositionDuringAnim();
     // Fallback de seguridad: si el navegador no emite transitionend, forzar la
     // finalizacion al tiempo maximo de la transicion del sidebar.
@@ -668,7 +668,7 @@
 
   function startUiOverlayPolling() {
     if (_uiOverlayPoll) return;
-    _uiOverlayPoll = global.setInterval(function () {
+    _uiOverlayPoll = window.CrozzoTimers.every('whatsAppDockUiOverlayPoll', function () {
       if (!isWaPageActive()) return;
       syncDockVisibility();
     }, 120);

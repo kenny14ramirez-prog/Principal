@@ -268,7 +268,7 @@
     global.addEventListener('crozzo-lazy-ready', tick, { once: true });
     document.addEventListener('DOMContentLoaded', function () {
       var n = 0;
-      var poll = setInterval(function () {
+      var poll = window.CrozzoTimers.every('loadingShellBootPoll', function () {
         tick();
         n += 1;
         if (bootHidden || n > 140) clearInterval(poll);

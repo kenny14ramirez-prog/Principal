@@ -248,7 +248,7 @@
 
   function startPolling() {
     if (_pollTimer) return;
-    _pollTimer = global.setInterval(refreshAssistChrome, POLL_MS);
+    _pollTimer = window.CrozzoTimers.every('cajaAssistChromePoll', refreshAssistChrome, POLL_MS);
   }
 
   function init() {

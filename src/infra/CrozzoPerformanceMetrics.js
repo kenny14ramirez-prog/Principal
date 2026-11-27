@@ -229,7 +229,7 @@
   // ── Hook: medir ping periódicamente ──
   var __lastPingOk = null;
   function startPingLoop() {
-    setInterval(async function() {
+    window.CrozzoTimers.every('perfMetricsPing', async function() {
       var r = await measurePing();
       if (r && global.CrozzoDeviceReport) {
         if (__lastPingOk !== null && __lastPingOk === !!r.ok) return;

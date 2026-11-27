@@ -205,7 +205,7 @@
       evaluate({ quiet: true });
       if (meshStandbyEnabled()) ensureMeshStandby();
     });
-    global.setInterval(function () {
+    window.CrozzoTimers.every('deviceMindWatch', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}

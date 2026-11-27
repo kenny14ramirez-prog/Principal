@@ -170,7 +170,7 @@
         if (global.CrozzoReservorio && global.CrozzoReservorio.flushBackup) global.CrozzoReservorio.flushBackup();
       } catch (_) {}
     });
-    setInterval(function () {
+    window.CrozzoTimers.every('reservorioOfflineEnsureReady', function () {
       ensureReservorioReady();
     }, 120000);
   }

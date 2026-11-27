@@ -1834,7 +1834,7 @@
       ms = Math.min(90000, ms * 3);
     }
     try { ms = Math.max(500, Math.round(ms * (0.9 + Math.random() * 0.2))); } catch (_) {}
-    __pullTimer = global.setInterval(function () {
+    __pullTimer = window.CrozzoTimers.every('posRuntimePullLoop', function () {
       // Watchdog: si el canal dice estar vivo pero lleva mucho tiempo
       // sin entregar eventos, forzar pull de reconciliación.
       try { if (typeof document !== 'undefined' && document.hidden) return; } catch (_) {}
@@ -1996,7 +1996,7 @@
     schedulePullLoop();
     subscribeRealtime();
     if (__stabilityTimer) clearInterval(__stabilityTimer);
-    __stabilityTimer = global.setInterval(cloudStabilityTick, STABILITY_MS);
+    __stabilityTimer = window.CrozzoTimers.every('posRuntimeStabilityTick', cloudStabilityTick, STABILITY_MS);
     cloudStabilityTick();
   }
 

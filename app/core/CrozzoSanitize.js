@@ -42,7 +42,7 @@
   // Helper: parse seguro de JSON desde localStorage
   function safeJsonParse(key, fallback) {
     try {
-      var raw = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null;
+      var raw = (global.localStorage) ? global.localStorage.getItem(key) : null;
       if (raw == null) return (fallback !== undefined ? fallback : null);
       var parsed = JSON.parse(raw);
       return (parsed !== null && typeof parsed === 'object') ? parsed : (fallback !== undefined ? fallback : null);
@@ -54,10 +54,10 @@
   if (typeof window !== 'undefined') window.safeJsonParse = safeJsonParse;
   // Helper: localStorage seguro (previene crashes en modo privado/bloqueado)
   function safeLocalStorageGet(key, fallback) {
-    try { var v = (typeof G !== 'undefined' && G.localStorage) ? G.localStorage.getItem(key) : null; return v != null ? v : (fallback !== undefined ? fallback : null); } catch (_) { return (fallback !== undefined ? fallback : null); }
+    try { var v = (global.localStorage) ? global.localStorage.getItem(key) : null; return v != null ? v : (fallback !== undefined ? fallback : null); } catch (_) { return (fallback !== undefined ? fallback : null); }
   }
   function safeLocalStorageSet(key, value) {
-    try { if (typeof G !== 'undefined' && G.localStorage) { G.safeLocalStorageSet(key, value); return true; } } catch (_) {}
+    try { if (global.localStorage) { global.localStorage.setItem(key, value); return true; } } catch (_) {}
     return false;
   }
   global.safeLocalStorageGet = safeLocalStorageGet;
@@ -92,6 +92,24 @@
       window.addEventListener('load', function () { try { installInnerHtmlGuard(); } catch (_) {} }, { once: true });
     }
   } catch (_) {}
+
+  var namedIntervals = {};
+  var CrozzoTimers = {
+    every: function (name, fn, ms) {
+      if (namedIntervals[name]) global.clearInterval(namedIntervals[name]);
+      namedIntervals[name] = global.setInterval(fn, ms);
+      return namedIntervals[name];
+    },
+    clear: function (name) {
+      if (!namedIntervals[name]) return;
+      global.clearInterval(namedIntervals[name]);
+      delete namedIntervals[name];
+    },
+    clearAll: function () {
+      Object.keys(namedIntervals).forEach(function (k) { CrozzoTimers.clear(k); });
+    }
+  };
+  global.CrozzoTimers = CrozzoTimers;
 
   global.CrozzoSanitize = { escapeHtml: escapeHtml, sanitizeHtml: sanitizeHtml, escapeAttr: escapeAttr, installInnerHtmlGuard: installInnerHtmlGuard };
 })(typeof window !== 'undefined' ? window : globalThis);

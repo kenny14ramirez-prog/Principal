@@ -245,7 +245,7 @@
     global.setTimeout(function () {
       tick().catch(function () {});
     }, 14000);
-    __timer = global.setInterval(function () {
+    __timer = window.CrozzoTimers.every('z0GuardTick', function () {
       tick().catch(function () {});
     }, TICK_MS);
   }

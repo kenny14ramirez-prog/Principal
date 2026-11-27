@@ -429,7 +429,7 @@
               cd.style.display = 'block';
               var n = 3;
               cd.textContent = String(n);
-              acc.cdTimer = setInterval(function () {
+              acc.cdTimer = window.CrozzoTimers.every('accesoCountdownCapture', function () {
                 n--;
                 if (n > 0) cd.textContent = String(n);
                 else {
@@ -820,13 +820,13 @@
       setScreen('home');
       tickClock();
       if (acc.refreshIv) clearInterval(acc.refreshIv);
-      acc.refreshIv = setInterval(async function () {
+      acc.refreshIv = window.CrozzoTimers.every('accesoRefreshHome', async function () {
         if (acc.screen !== 'home' && acc.screen !== 'confirm') return;
         await api().loadMarcacionesHoy();
         if (acc.screen === 'home') renderEmpGrid();
         tickClock();
       }, 30000);
-      setInterval(tickClock, 1000);
+      window.CrozzoTimers.every('accesoClockTick', tickClock, 1000);
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

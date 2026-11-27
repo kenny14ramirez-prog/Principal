@@ -269,6 +269,26 @@
   function downloadReport() {
     try {
       var text = buildTextReport();
+      var tauriCore = window.__TAURI__ && window.__TAURI__.core;
+      if (tauriCore && tauriCore.invoke) {
+        var fname = 'crozzo-report-' + Date.now() + '.txt';
+        tauriCore.invoke('save_text_file', { fileName: fname, content: text }).then(function (path) {
+          log('info', 'Reporte guardado en ' + path);
+        }).catch(function (err) {
+          console.warn('save_text_file falló, uso descarga web:', err);
+          fallbackDownload(text);
+        });
+        return;
+      }
+      fallbackDownload(text);
+    } catch (e) {
+      console.error('Error download:', e);
+      copyToClipboard(buildTextReport());
+    }
+  }
+
+  function fallbackDownload(text) {
+    try {
       var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -377,6 +397,8 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function() {
           showToast('Reporte copiado al portapapeles');
+        }).catch(function() {
+          showToast('No se pudo copiar el reporte', 'error');
         });
       } else {
         var ta = document.createElement('textarea');

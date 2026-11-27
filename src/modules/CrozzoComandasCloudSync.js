@@ -1587,7 +1587,7 @@
   function scheduleComandaCloudPurge() {
     if (__comandaPurgeTimer) return;
     if (!purgeDeviceMayRun()) return;
-    __comandaPurgeTimer = global.setInterval(function () {
+    __comandaPurgeTimer = window.CrozzoTimers.every('comandasCloudPurgeDelivered', function () {
       if (!__started || !tierAllowsCloudPush()) return;
       purgeDeliveredComandasFromCloud().catch(function () {});
     }, COMANDA_PURGE_INTERVAL_MS);
@@ -1637,7 +1637,7 @@
       ms = Math.min(60000, ms * 3);
     }
     try { ms = Math.max(400, Math.round(ms * (0.9 + Math.random() * 0.2))); } catch (_) {}
-    __pullTimer = global.setInterval(function () {
+    __pullTimer = window.CrozzoTimers.every('comandasCloudPullFallback', function () {
       try { if (typeof document !== 'undefined' && document.hidden) return; } catch (_) {}
       if (!tierAllowsCloudRead()) return;
       if (cloudUnderPressure()) return;

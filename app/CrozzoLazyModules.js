@@ -102,7 +102,7 @@
   function init() {
     preloadIdle();
     var tries = 0;
-    var poll = setInterval(function () {
+    var poll = window.CrozzoTimers.every('lazyNavWrapPoll', function () {
       tries++;
       wrapNavigation();
       if (global.__crozzoLazyNavWrapped || tries > 200) clearInterval(poll);

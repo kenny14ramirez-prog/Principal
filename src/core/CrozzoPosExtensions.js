@@ -402,7 +402,7 @@
   }
   function startHeartbeat() {
     stopHeartbeat();
-    _hbTimer = setInterval(function () {
+    _hbTimer = window.CrozzoTimers.every('posExtHeartbeatAnnounce', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}
@@ -1149,7 +1149,7 @@
   }
   function startTierWatch() {
     stopTierWatch();
-    _tierTimer = setInterval(function () {
+    _tierTimer = window.CrozzoTimers.every('posExtTierBadgesRefresh', function () {
       refreshConnectivityBadges();
     }, TIER_INTERVAL_MS);
   }
@@ -2411,7 +2411,7 @@
   function start() {
     stop();
     _lastPong = Date.now();
-    _interval = global.setInterval(ping, 3000);
+    _interval = window.CrozzoTimers.every('posExtPingWatchdog', ping, 3000);
   }
   function stop() {
     if (_interval) {
@@ -3612,7 +3612,7 @@
       }
     }
     if (state.isolated && !isLinkReady() && state.autoQrRenew && !_autoQrInterval) {
-      _autoQrInterval = global.setInterval(function () {
+      _autoQrInterval = window.CrozzoTimers.every('posExtAutoQrRenewLoop', function () {
         if (!state.isolated || isLinkReady()) return;
         meshLog('Auto-refresh QR (60s)');
         startOfferFlow().catch(function () {});
@@ -3725,7 +3725,7 @@
           _autoQrInterval = null;
         }
         if (state.autoQrRenew && state.isolated && !isLinkReady() && !_autoQrInterval) {
-          _autoQrInterval = global.setInterval(function () {
+          _autoQrInterval = window.CrozzoTimers.every('posExtAutoQrRenewToggleLoop', function () {
             if (!state.isolated || isLinkReady()) return;
             meshLog('Auto-refresh QR (60s)');
             startOfferFlow().catch(function () {});
@@ -3867,7 +3867,7 @@
           return;
         }
         var det = new BarcodeDetector({ formats: ['qr_code'] });
-        var iv = global.setInterval(function () {
+        var iv = window.CrozzoTimers.every('posExtQrScannerDetect', function () {
           det
             .detect(video)
             .then(function (codes) {
@@ -4040,9 +4040,9 @@
     try {
       if (typeof document !== 'undefined' && document.hidden) return;
     } catch (_) {}
-    if (!_checkTimer) _checkTimer = global.setInterval(isolationLoop, 10000);
+    if (!_checkTimer) _checkTimer = window.CrozzoTimers.every('posExtIsolationCheck', isolationLoop, 10000);
     if (!_cacheTimer) {
-      _cacheTimer = global.setInterval(function () {
+      _cacheTimer = window.CrozzoTimers.every('posExtOutboxCacheRefresh', function () {
         try {
           if (typeof document !== 'undefined' && document.hidden) return;
         } catch (_) {}
@@ -4052,7 +4052,7 @@
       }, 4000);
     }
     if (!_discoveryInterval) {
-      _discoveryInterval = global.setInterval(function () {
+      _discoveryInterval = window.CrozzoTimers.every('posExtDiscoveryPing', function () {
         try {
           if (typeof document !== 'undefined' && document.hidden) return;
         } catch (_) {}

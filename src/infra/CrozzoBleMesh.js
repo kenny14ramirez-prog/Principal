@@ -827,9 +827,9 @@
         return false;
       }
       _active = true;
-      _pollTimer = setInterval(drainTransports, POLL_MS);
-      _helloTimer = setInterval(sendHello, HELLO_MS);
-      _scanTimer = setInterval(function () {
+      _pollTimer = window.CrozzoTimers.every('bleMeshPoll', drainTransports, POLL_MS);
+      _helloTimer = window.CrozzoTimers.every('bleMeshHello', sendHello, HELLO_MS);
+      _scanTimer = window.CrozzoTimers.every('bleMeshScan', function () {
         if (_webBtOk && webBtCapable()) wbScanOnce().catch(function () {});
         webrtcBridgeStart();
       }, SCAN_MS);

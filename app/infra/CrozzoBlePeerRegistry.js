@@ -536,11 +536,11 @@
     hookLocalIdentitySources();
     ensureLocalIdentity();
     if (__identityTimer) global.clearInterval(__identityTimer);
-    __identityTimer = global.setInterval(function () {
+    __identityTimer = window.CrozzoTimers.every('blePeerIdentityCheck', function () {
       runIdentityCheck().catch(function () {});
     }, IDENTITY_POLL_MS);
     if (__whoTimer) global.clearInterval(__whoTimer);
-    __whoTimer = global.setInterval(function () {
+    __whoTimer = window.CrozzoTimers.every('blePeerWhoQuery', function () {
       discoverPeersByName().catch(function () {});
     }, WHO_QUERY_MS);
   }
@@ -649,11 +649,11 @@
       backgroundTick().catch(function () {});
     }, 2200);
     if (__bgTimer) global.clearInterval(__bgTimer);
-    __bgTimer = global.setInterval(function () {
+    __bgTimer = window.CrozzoTimers.every('blePeerBackground', function () {
       backgroundTick().catch(function () {});
     }, BG_MS);
     if (__preconnectTimer) global.clearInterval(__preconnectTimer);
-    __preconnectTimer = global.setInterval(function () {
+    __preconnectTimer = window.CrozzoTimers.every('blePeerPreconnect', function () {
       preconnectKnownPeers().catch(function () {});
     }, PRECONNECT_MS);
   }

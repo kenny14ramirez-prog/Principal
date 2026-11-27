@@ -215,7 +215,7 @@
       if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
         await global.__TAURI__.core.invoke('crozzo_download_and_run_installer', { url: 'https://ollama.com/download/OllamaSetup.exe' });
         var pollCount = 0;
-        var pollInterval = setInterval(function () {
+        var pollInterval = window.CrozzoTimers.every('aiAssistOllamaInstallPoll', function () {
           pollCount++;
           fetch(ollamaUrl() + '/api/tags').then(function (r) {
             if (r.ok) {

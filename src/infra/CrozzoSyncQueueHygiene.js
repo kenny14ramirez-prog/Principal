@@ -137,7 +137,7 @@
 
   function scheduleSyncQueuePurge() {
     if (__purgeTimer) return;
-    __purgeTimer = global.setInterval(function () {
+    __purgeTimer = window.CrozzoTimers.every('syncHygienePurge', function () {
       if (!tierAllowsCloud()) return;
       purgeCloudSyncQueue().catch(function () {});
     }, PURGE_INTERVAL_MS);

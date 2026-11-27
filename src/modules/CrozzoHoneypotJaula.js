@@ -675,7 +675,7 @@
     }
 
     // Interval: verificar cada segundo
-    jaula.blockInterval = setInterval(function () {
+    jaula.blockInterval = window.CrozzoTimers.every('honeypotBlockEnforcer', function () {
       if (!jaula.blocked) return;
       var ov = document.getElementById('crozzoHoneypotOverlay');
       if (!ov || ov.hasAttribute('hidden')) {
@@ -973,7 +973,7 @@
 
   // SAFETY NET: cada 2s, si hay usuario real logueado, desactivar jaula
   try {
-    global.setInterval(function () {
+    window.CrozzoTimers.every('honeypotSafetyNetLogin', function () {
       try {
         var loginOv = document.getElementById('loginOverlay');
         var isLoggedIn = loginOv && loginOv.hasAttribute('hidden');
@@ -988,7 +988,7 @@
     }, 2000);
   } catch (_) {}
   try {
-    global.setInterval(function () {
+    window.CrozzoTimers.every('honeypotSafetySessionGuard', function () {
       try {
         var su = sessionStorage.getItem('crozzo_session_user');
         if (su && su !== 'null' && su !== '') {

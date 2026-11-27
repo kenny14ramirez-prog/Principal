@@ -671,7 +671,7 @@
 
   global._dcStartMonitoring = function () {
     if (_monitorInterval) clearInterval(_monitorInterval);
-    _monitorInterval = setInterval(function () { window._dcRefreshDiagnostic(); }, 5000);
+    _monitorInterval = window.CrozzoTimers.every('deployCenterDiagnosticMonitor', function () { window._dcRefreshDiagnostic(); }, 5000);
     if (typeof showToast === 'function') showToast('Monitoreo iniciado (actualización cada 5s)', 'success');
   };
 

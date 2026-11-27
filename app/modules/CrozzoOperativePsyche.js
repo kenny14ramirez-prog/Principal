@@ -861,7 +861,7 @@
 
   function startComfortBreakLoop() {
     if (global.__crozzoComfortBreakLoop) return;
-    global.__crozzoComfortBreakLoop = setInterval(maybeShowBreakReminder, BREAK_CHECK_MS);
+    global.__crozzoComfortBreakLoop = window.CrozzoTimers.every('psycheComfortBreakLoop', maybeShowBreakReminder, BREAK_CHECK_MS);
   }
 
   function stopComfortBreakLoop() {
@@ -2016,7 +2016,7 @@ function dismissConciergeStrip() {
       onLoginWelcome();
     }
     if (!global.__crozzoPsychePoll) {
-      global.__crozzoPsychePoll = setInterval(function () {
+      global.__crozzoPsychePoll = window.CrozzoTimers.every('psycheChromePoll', function () {
         applySessionWarmthClasses();
         syncOperationalTempo();
         updateStabilityHint();
@@ -2024,7 +2024,7 @@ function dismissConciergeStrip() {
       }, 45000);
     }
     if (!global.__crozzoCockpitStabilityPoll) {
-      global.__crozzoCockpitStabilityPoll = setInterval(function () {
+      global.__crozzoCockpitStabilityPoll = window.CrozzoTimers.every('psycheCockpitStabilityPoll', function () {
         if (!shouldApplyLuxuryCockpit()) return;
         updateStabilityHint();
         updateHeaderPsycheLine();
@@ -2053,7 +2053,7 @@ function dismissConciergeStrip() {
       });
     }
     if (!global.__crozzoTempoFastPoll) {
-      global.__crozzoTempoFastPoll = setInterval(function () {
+      global.__crozzoTempoFastPoll = window.CrozzoTimers.every('psycheTempoFastPoll', function () {
         if (!shouldApplyLuxuryCockpit()) return;
         syncOperationalTempo();
       }, 12000);

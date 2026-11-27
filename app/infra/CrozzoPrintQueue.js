@@ -106,6 +106,6 @@
   global.crozzoEnqueuePrint = enqueue;
 
   // Auto-drain periódico
-  setInterval(function () { drain().catch(function () {}); }, 10000);
+  window.CrozzoTimers.every('printQueueDrain', function () { drain().catch(function () {}); }, 10000);
   setTimeout(function () { drain().catch(function () {}); }, 2000);
 })(window);

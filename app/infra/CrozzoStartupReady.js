@@ -362,7 +362,7 @@
     if (__ran) return;
     // Si el login esta abierto, diferir hasta que el usuario entre.
     if (isLoginOpen()) {
-      var _loginCheck = setInterval(function () {
+      var _loginCheck = window.CrozzoTimers.every('startupReadyLoginCheck', function () {
         if (!isLoginOpen()) {
           clearInterval(_loginCheck);
           run();

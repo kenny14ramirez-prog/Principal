@@ -165,7 +165,7 @@
       }
     } catch (_) {}
     // Polling de respaldo por si no hay eventos
-    setInterval(renderIndicator, 2000);
+    window.CrozzoTimers.every('connectivityUxIndicator', renderIndicator, 2000);
     // Estado inicial
     __lastTier = tierNow();
     auditLog('started', 'tier=' + __lastTier);

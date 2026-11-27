@@ -418,7 +418,7 @@
 
   function iniciarAcompanamiento() {
     global.setTimeout(function () { revisarLogros(); revisarPausa(); }, 3000);
-    global.setInterval(function () { revisarLogros(); revisarPausa(); }, REVISION_MS);
+    window.CrozzoTimers.every('companionAcompanamiento', function () { revisarLogros(); revisarPausa(); }, REVISION_MS);
   }
 
   var ACOMPANAMIENTO = [

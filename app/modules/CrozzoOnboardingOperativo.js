@@ -1759,7 +1759,7 @@
     // ── H1.0g: Sandbox Semilla — cargar dataset ficticio automático en Nivel 0 ──
     maybeSeedSandboxDataset();
     if (!global.__crozzoPeakPoll) {
-      global.__crozzoPeakPoll = setInterval(applyPeakNoviceMode, 45000);
+      global.__crozzoPeakPoll = window.CrozzoTimers.every('onboardingPeakNoviceMode', applyPeakNoviceMode, 45000);
     }
     if (!global.crearComanda || !global.crearComanda._crozzoOnbPatched) {
       setTimeout(patchCrearComanda, 600);

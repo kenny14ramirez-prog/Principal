@@ -226,7 +226,7 @@
 
   function ensureCheckpointTimer() {
     if (__checkpointTimer) return;
-    __checkpointTimer = global.setInterval(function () {
+    __checkpointTimer = window.CrozzoTimers.every('opsPresenceCheckpoint', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}

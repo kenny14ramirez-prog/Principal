@@ -129,7 +129,7 @@
   function start() {
     refresh().catch(function () {});
     if (__timer) global.clearInterval(__timer);
-    __timer = global.setInterval(function () {
+    __timer = window.CrozzoTimers.every('clockSyncRefresh', function () {
       refresh().catch(function () {});
     }, REFRESH_MS);
   }

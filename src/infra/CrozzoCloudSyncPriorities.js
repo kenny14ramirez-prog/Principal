@@ -1091,7 +1091,7 @@
 
   function startBackgroundScheduler() {
     if (__bgTimer) return;
-    __bgTimer = global.setInterval(function () {
+    __bgTimer = window.CrozzoTimers.every('cloudSyncPrioritiesBackground', function () {
       if (typeof document !== 'undefined' && document.hidden) return;
       if (getPageZone(activePageNow()) === Z3) return;
       var thr = global.CrozzoCloudThrottle;

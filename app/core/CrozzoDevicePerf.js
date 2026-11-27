@@ -187,7 +187,7 @@
     global.setTimeout(function () {
       runContinuousJankSample();
     }, 18000);
-    _contTimer = global.setInterval(runContinuousJankSample, CONT_PROBE_MS);
+    _contTimer = window.CrozzoTimers.every('devicePerfContinuousJank', runContinuousJankSample, CONT_PROBE_MS);
   }
 
   function apply() {

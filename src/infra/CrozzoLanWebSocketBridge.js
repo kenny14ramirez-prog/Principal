@@ -737,7 +737,7 @@
         if (!tierAllows()) disconnect();
         else connect();
       });
-      global.setInterval(function () {
+      window.CrozzoTimers.every('lanWsTierReconnect', function () {
         if (tierAllows()) connect();
       }, 12000);
     }

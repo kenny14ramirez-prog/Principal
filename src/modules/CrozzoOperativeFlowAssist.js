@@ -570,7 +570,7 @@
 
   function startPolling() {
     if (_pollTimer) return;
-    _pollTimer = global.setInterval(refreshAssistChrome, POLL_MS);
+    _pollTimer = window.CrozzoTimers.every('flowAssistChromePoll', refreshAssistChrome, POLL_MS);
   }
 
   function stopPolling() {

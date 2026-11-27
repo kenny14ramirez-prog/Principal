@@ -265,7 +265,7 @@
     global.setTimeout(function () {
       publishFleetCommState({ localOnly: true }).catch(function () {});
     }, 8000);
-    global.setInterval(function () {
+    window.CrozzoTimers.every('fleetCommPublish', function () {
       publishFleetCommState().catch(function () {});
     }, PUBLISH_MIN_MS);
   }

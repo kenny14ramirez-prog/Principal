@@ -403,7 +403,7 @@
 
   function startHeartbeatWatch() {
     if (__timer) return;
-    __timer = global.setInterval(function () {
+    __timer = window.CrozzoTimers.every('cloudDiscoveryHeartbeat', function () {
       registerDevice({ force: true }).catch(function () {});
     }, HEARTBEAT_MS);
     registerDevice({ force: true }).catch(function () {});

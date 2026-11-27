@@ -376,7 +376,7 @@
         _sidebarAnimInterval = null;
       }
       _sidebarAnimLastRect = null;
-      _sidebarAnimInterval = global.setInterval(updateHostPositionDuringAnim, 50);
+      _sidebarAnimInterval = window.CrozzoTimers.every('webEmbedDockSidebarAnim', updateHostPositionDuringAnim, 50);
       updateHostPositionDuringAnim();
       _sidebarAnimEndTimer = global.setTimeout(function () {
         _sidebarAnimEndTimer = null;
@@ -601,7 +601,7 @@
 
     function startUiOverlayPolling() {
       if (_uiOverlayPoll) return;
-      _uiOverlayPoll = global.setInterval(function () {
+      _uiOverlayPoll = window.CrozzoTimers.every('webEmbedDockUiOverlayPoll', function () {
         if (!isPageActive()) return;
         syncDockVisibility();
       }, 120);

@@ -277,7 +277,7 @@
     // No se fuerza resuscripción por "silencio": el broadcast solo llega cuando
     // otro equipo emite, así que el silencio es normal. El socket de Supabase
     // tiene su propio heartbeat y dispara CLOSED/ERROR si muere → resub por evento.
-    __watchdog = global.setInterval(function () {
+    __watchdog = window.CrozzoTimers.every('cloudOpsPulseWatchdog', function () {
       if (safe(function () { return typeof document !== 'undefined' && document.hidden; })) return;
       if (!online() || !tierAllowsCloud()) return;
       if (!__ch || !__live) subscribe('watchdog');

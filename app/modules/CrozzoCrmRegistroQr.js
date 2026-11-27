@@ -167,7 +167,7 @@
 
   function startKioskAutoRetry(qrSize) {
     stopKioskAutoRetry();
-    _kioskRetryTimer = setInterval(function () {
+    _kioskRetryTimer = window.CrozzoTimers.every('crmRegistroKioskRetry', function () {
       if (!_kioskEl) {
         stopKioskAutoRetry();
         return;
@@ -882,7 +882,7 @@
   function startPolling() {
     stopPolling();
     if (!cloudReady()) return;
-    _pollTimer = setInterval(function () {
+    _pollTimer = window.CrozzoTimers.every('crmRegistroCloudIntakePoll', function () {
       pollCloudIntakeOnce();
     }, POLL_MS);
     pollCloudIntakeOnce();

@@ -728,7 +728,7 @@
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!mdCfg || mdCfg.role !== 'A') return;
     pushCloudAnchorToServer();
-    _cloudAnchorTimer = setInterval(pushCloudAnchorToServer, 90000);
+    _cloudAnchorTimer = window.CrozzoTimers.every('lanSyncCloudAnchor', pushCloudAnchorToServer, 90000);
   }
 
   async function drainPendingOnce() {
@@ -827,7 +827,7 @@
     }
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!isDesktopTauri() || !mdCfg || mdCfg.role !== 'A') return;
-    _runtimePollTimer = setInterval(function () {
+    _runtimePollTimer = window.CrozzoTimers.every('lanSyncRuntimePoll', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}
@@ -841,7 +841,7 @@
     if (!isDesktopTauri()) return;
     startRuntimePolling();
     startCloudAnchorPulse();
-    _pollTimer = setInterval(function () {
+    _pollTimer = window.CrozzoTimers.every('lanSyncDrainPoll', function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
       } catch (_) {}
@@ -1125,7 +1125,7 @@
 
   function bootLanServerEarly() {
     if (isLoginOpen()) {
-      var _loginCheck = setInterval(function () {
+      var _loginCheck = window.CrozzoTimers.every('lanSyncLoginCheck', function () {
         if (!isLoginOpen()) {
           clearInterval(_loginCheck);
           bootLanServerEarly();

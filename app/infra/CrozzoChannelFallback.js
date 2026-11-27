@@ -179,7 +179,7 @@
     } catch (_) {}
     // Inicial
     setTimeout(runFallback, 1500);
-    setInterval(runFallback, 15000);
+    window.CrozzoTimers.every('channelFallback', runFallback, 15000);
   }
 
   global.CrozzoChannelFallback = {
