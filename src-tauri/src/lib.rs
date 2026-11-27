@@ -77,6 +77,7 @@ mod crozzo_metrics;
 #[cfg(desktop)]
 use tauri::Manager;
 
+#[cfg(desktop)]
 #[tauri::command]
 fn save_text_file(app: tauri::AppHandle, file_name: String, content: String) -> Result<String, String> {
     let safe_name: String = file_name
@@ -300,6 +301,7 @@ pub fn run() {
             webview_permissions::cxf_reset_webview_camera_permission,
             webview_permissions::cxf_open_windows_camera_settings,
     crozzo_external::crozzo_open_external_url,
+    #[cfg(desktop)]
     save_text_file,
     crozzo_external::crozzo_open_whatsapp_web,
     crozzo_external::crozzo_whatsapp_dock_sync,

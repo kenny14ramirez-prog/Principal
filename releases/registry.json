@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-27T00:59:28.692Z",
+  "updatedAt": "2026-11-27T02:47:07.925Z",
   "entries": [
-    {
-      "id": "1.0.345-critical",
-      "version": "v1.0.345",
-      "semver": "1.0.345",
-      "type": "critical",
-      "message": "Conectar asistente IA con cierre de turno: auditoria + verificacion automatica",
-      "publishedAt": "2026-11-24T12:36:03.602Z",
-      "installMode": "auto",
-      "changelog": [
-        "Conectar asistente IA con cierre de turno: auditoria",
-        "verificacion automatica"
-      ]
-    },
     {
       "id": "1.0.346-critical",
       "version": "v1.0.346",
@@ -355,6 +342,19 @@
       "installMode": "auto",
       "changelog": [
         "Fase 3 completa: timers centralizados, escapeHtml en templates, descarga robusta Tauri, planilla en toda venta, DOMPurify local, guardas de listeners duplicados, doble carga Costos resuelta"
+      ]
+    },
+    {
+      "id": "1.0.370-critical",
+      "version": "v1.0.370",
+      "semver": "1.0.370",
+      "type": "critical",
+      "message": "Fix: Android build fallaba por save_text_file sin cfg(desktop); ahora compila en Android y Windows",
+      "publishedAt": "2026-11-27T02:47:07.925Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: Android build fallaba por save_text_file sin cfg(desktop)",
+        "ahora compila en Android y Windows"
       ]
     }
   ]
